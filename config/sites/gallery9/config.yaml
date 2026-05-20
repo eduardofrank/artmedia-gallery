@@ -1,0 +1,95 @@
+base: 'https://artmedia-gallery.ddev.site'
+errorHandling:
+  -
+    errorCode: 404
+    errorHandler: Page
+    errorContentSource: 't3://page?uid=98'
+languages:
+  -
+    title: English
+    enabled: true
+    languageId: 0
+    base: /
+    typo3Language: default
+    locale: en_US.UTF-8
+    iso-639-1: en
+    navigationTitle: English
+    hreflang: en-US
+    direction: ltr
+    flag: us
+rootPageId: 18
+routeEnhancers:
+  NewsList:
+    type: Extbase
+    limitToPages:
+      - 12
+      - 13
+      - 14
+      - 15
+    extension: News
+    plugin: Pi1
+    routes:
+      -
+        routePath: '/page/{page}'
+        _controller: 'News::list'
+        _arguments:
+          page: '@widget_0/currentPage'
+    defaultController: 'News::list'
+    defaults:
+      page: '0'
+    requirements:
+      page: \d+
+    aspects:
+      page:
+        type: StaticRangeMapper
+        start: '1'
+        end: '100'
+  NewsDetail:
+    type: Extbase
+    limitToPages:
+      - 22
+      - 23
+      - 24
+      - 25
+      - 27
+      - 28
+      - 30
+      - 33
+    extension: News
+    plugin: Pi1
+    routes:
+      -
+        routePath: '/{news_title}'
+        _controller: 'News::detail'
+        _arguments:
+          news_title: news
+    defaultController: 'News::detail'
+    requirements:
+      news_title: '^[a-zA-Z0-9].*$'
+    aspects:
+      news_title:
+        type: PersistedAliasMapper
+        tableName: tx_news_domain_model_news
+        routeFieldName: path_segment
+routes:
+  -
+    route: sitemap.xml
+    type: uri
+    source: 'https://artmedia.gallery/?type=1533906435'
+  -
+    route: robots.txt
+    type: staticText
+    content: "User-agent:*\r\nDisallow:/typo3/\r\n"
+  -
+    route: sitemap.xml
+    type: uri
+    source: 'https://www.artmedia.gallery/?type=1533906435'
+websiteTitle: 'Artmedia Gallery'
+webmanifest:
+  full_name: 'artmedia.gallery'
+  short_name: 'artmedia.gallery'
+  theme_color: '#ffffff'
+  favicon_path: 'EXT:artmediagallery12/Resources/Public/Icons/'
+  favicon_192: android-chrome-192x192.png
+  favicon_512: android-chrome-512x512.png
+

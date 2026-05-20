@@ -1,0 +1,80 @@
+######################
+#### DEPENDENCIES ####
+######################
+<INCLUDE_TYPOSCRIPT: source="FILE:EXT:bootstrap_package/Configuration/TypoScript/constants.typoscript">
+
+
+############
+### PAGE ###
+############
+page {
+    logo {
+        file = EXT:artmediagallery12/Resources/Public/Images/logo.svg
+        fileInverted = EXT:artmediagallery12/Resources/Public/Images/logo-inverted.svg
+        height = 114
+        width = 235
+        alt = Artmedia Gallery
+        linktitle = artmediagallery
+    }
+    favicon {
+        file = EXT:artmediagallery12/Resources/Public/Icons/favicon.ico
+    }
+    fluidtemplate {
+        layoutRootPath = EXT:artmediagallery12/Resources/Private/Layouts/Page/
+        partialRootPath = EXT:artmediagallery12/Resources/Private/Partials/Page/
+        templateRootPath = EXT:artmediagallery12/Resources/Private/Templates/Page/
+    }
+}
+
+
+##################
+### EXTENSIONS ###
+##################
+plugin.bootstrap_package {
+    view {
+        layoutRootPath = EXT:artmediagallery12/Resources/Private/Layouts/
+        partialRootPath = EXT:artmediagallery12/Resources/Private/Partials/
+        templateRootPath = EXT:artmediagallery12/Resources/Private/Templates/
+    }
+}
+
+
+########################
+### CONTENT ELEMENTS ###
+########################
+plugin.bootstrap_package_contentelements {
+    view {
+        layoutRootPath = EXT:artmediagallery12/Resources/Private/Layouts/ContentElements/
+        partialRootPath = EXT:artmediagallery12/Resources/Private/Partials/ContentElements/
+        templateRootPath = EXT:artmediagallery12/Resources/Private/Templates/ContentElements/
+    }
+}
+
+
+################################
+### BOOTSTRAP SCSS CONSTANTS ###
+################################
+plugin.bootstrap_package.settings.scss {
+    primary = #eb3e4a
+    secondary = #013859
+}
+################################
+#### ADDED BY EDUARDO FRANK ####
+################################
+plugin.bootstrap_package.settings.scss.grid-float-breakpoint = 9999px
+plugin.tx_felogin_pi1.storagePid = 0
+plugin.tx_news.view.twb.templateRootPath = EXT:artmediagallery12/Resources/Private/Templates/Styles/Twb/Templates/
+plugin.tx_news.view.twb.partialRootPath = EXT:artmediagallery12/Resources/Private/Templates/Styles/Twb/Partials/
+plugin.tx_news.view.twb.layoutRootPath = EXT:artmediagallery12/Resources/Private/Templates/Styles/Twb/Layouts/
+page.includePath.icons = EXT:artmediagallery12/Resources/Public/Icons/
+styles.content.defaultHeaderType = 3
+page.theme.news.list.maxWInText = 0
+plugin.t3colorbox.slideshowAuto = true
+page.preloader.enable = 0
+page.theme.meta.enable = 0
+page.theme.socialmedia.enable = 0
+page.theme.language.enable = 0
+page.theme.breadcrumb.enable = 1
+page.theme.copyright.text = © Artmediaus 2016-23
+page.tracking.google.trackingID = UA-142998122-1
+plugin.bootstrap_package.settings.scss.primary = #766f75

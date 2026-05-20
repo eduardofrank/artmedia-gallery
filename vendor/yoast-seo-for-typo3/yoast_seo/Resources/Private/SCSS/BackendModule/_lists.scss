@@ -1,0 +1,16 @@
+.yoast-list {
+	&--usp {
+		padding: 0;
+		margin-bottom: 1em;
+
+		li {
+			list-style: none !important;
+			position: relative;
+			padding-left: 0;
+
+			span {
+				color: $color-green;
+			}
+		}
+	}
+}
