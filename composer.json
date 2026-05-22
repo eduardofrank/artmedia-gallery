@@ -61,9 +61,6 @@
 		"typo3-cms-scripts": [
 			"typo3cms install:generatepackagestates",
 			"typo3cms install:fixfolderstructure"
-		],
-		"post-autoload-dump": [
-			"vendor/bin/typo3 cache:flush"
 		]
 	}
 }
