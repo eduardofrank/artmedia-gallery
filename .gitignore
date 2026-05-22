@@ -7,13 +7,7 @@
 /public/fileadmin/
 *.sql.gz
 *.sql
-.ddev/.homeadditions/
-.ddev/.sshimageBuild/
-.ddev/mutagen/
-.ddev/.webimageBuild/
-.ddev/db_snapshots/
-.ddev/.importdb*
-.ddev/xhprof/
+.ddev/
 node_modules/
 config/system/settings.php
 .DS_Store
