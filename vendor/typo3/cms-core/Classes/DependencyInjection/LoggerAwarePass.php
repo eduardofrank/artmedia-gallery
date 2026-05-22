@@ -40,10 +40,7 @@ final class LoggerAwarePass implements CompilerPassInterface
         $this->tagName = $tagName;
     }
 
-    /**
-     * @param ContainerBuilder $container
-     */
-    public function process(ContainerBuilder $container)
+    public function process(ContainerBuilder $container): void
     {
         foreach ($container->findTaggedServiceIds($this->tagName) as $id => $tags) {
             $definition = $container->findDefinition($id);
@@ -68,7 +65,7 @@ final class LoggerAwarePass implements CompilerPassInterface
         }
     }
 
-    protected function getClassChannelName(\ReflectionClass $class): ?string
+    private function getClassChannelName(\ReflectionClass $class): ?string
     {
         // Attribute channel definition is only supported on PHP 8 and later.
         if (class_exists('\ReflectionAttribute', false)) {

@@ -29,31 +29,15 @@ class CorrelationId implements \JsonSerializable
 {
     protected const DEFAULT_VERSION = 1;
     protected const PATTERN_V1 = '#^(?P<flags>[[:xdigit:]]{4})\$(?:(?P<scope>[[:alnum:]]+):)?(?P<subject>[[:alnum:]]+)(?P<aspects>(?:\/[[:alnum:]._-]+)*)$#';
-
-    /**
-     * @var int
-     */
-    protected $version = self::DEFAULT_VERSION;
-
-    /**
-     * @var string
-     */
-    protected $scope;
-
-    /**
-     * @var int
-     */
-    protected $capabilities = 0;
-
-    /**
-     * @var string
-     */
-    protected $subject;
+    protected int $version = self::DEFAULT_VERSION;
+    protected ?string $scope = null;
+    protected int $capabilities = 0;
+    protected ?string $subject = null;
 
     /**
      * @var string[]
      */
-    protected $aspects = [];
+    protected array $aspects = [];
 
     public static function forScope(string $scope): self
     {

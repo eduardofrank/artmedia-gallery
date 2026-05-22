@@ -42,10 +42,12 @@ use TYPO3\CMS\Core\Database\Query\Restriction\DeletedRestriction;
 use TYPO3\CMS\Core\Database\Query\Restriction\WorkspaceRestriction;
 use TYPO3\CMS\Core\DataHandling\DataHandler;
 use TYPO3\CMS\Core\Domain\Repository\PageRepository;
-use TYPO3\CMS\Core\Imaging\Icon;
 use TYPO3\CMS\Core\Imaging\IconFactory;
+use TYPO3\CMS\Core\Imaging\IconSize;
 use TYPO3\CMS\Core\Localization\LanguageService;
 use TYPO3\CMS\Core\Page\PageRenderer;
+use TYPO3\CMS\Core\Schema\Capability\TcaSchemaCapability;
+use TYPO3\CMS\Core\Schema\TcaSchemaFactory;
 use TYPO3\CMS\Core\Type\Bitmask\Permission;
 use TYPO3\CMS\Core\Type\ContextualFeedbackSeverity;
 use TYPO3\CMS\Core\TypoScript\TypoScriptService;
@@ -81,6 +83,7 @@ class RecordListController
         protected readonly EventDispatcherInterface $eventDispatcher,
         protected readonly UriBuilder $uriBuilder,
         protected readonly ModuleTemplateFactory $moduleTemplateFactory,
+        protected readonly TcaSchemaFactory $tcaSchemaFactory,
     ) {}
 
     public function mainAction(ServerRequestInterface $request): ResponseInterface
@@ -93,6 +96,7 @@ class RecordListController
         $queryParams = $request->getQueryParams();
 
         $this->pageRenderer->addInlineLanguageLabelFile('EXT:core/Resources/Private/Language/locallang_mod_web_list.xlf');
+        $this->pageRenderer->loadJavaScriptModule('@typo3/backend/element/dispatch-modal-button.js');
 
         BackendUtility::lockRecords();
         $perms_clause = $backendUser->getPagePermsClause(Permission::PAGE_SHOW);
@@ -100,7 +104,6 @@ class RecordListController
         $pointer = max(0, (int)($parsedBody['pointer'] ?? $queryParams['pointer'] ?? 0));
         $this->table = (string)($parsedBody['table'] ?? $queryParams['table'] ?? '');
         $this->searchTerm = trim((string)($parsedBody['searchTerm'] ?? $queryParams['searchTerm'] ?? ''));
-        $search_levels = (int)($parsedBody['search_levels'] ?? $queryParams['search_levels'] ?? 0);
         $this->returnUrl = GeneralUtility::sanitizeLocalUrl((string)($parsedBody['returnUrl'] ?? $queryParams['returnUrl'] ?? ''));
         $cmd = (string)($parsedBody['cmd'] ?? $queryParams['cmd'] ?? '');
         $siteLanguages = $request->getAttribute('site')->getAvailableLanguages($this->getBackendUserAuthentication(), false, $this->id);
@@ -114,26 +117,26 @@ class RecordListController
 
         // Check if Clipboard is allowed to be shown:
         if (($this->modTSconfig['enableClipBoard'] ?? '') === 'activated') {
-            $this->allowClipboard = false;
             $this->moduleData->set('clipBoard', true);
+            $this->allowClipboard = false;
         } elseif (($this->modTSconfig['enableClipBoard'] ?? '') === 'selectable') {
             $this->allowClipboard = true;
         } elseif (($this->modTSconfig['enableClipBoard'] ?? '') === 'deactivated') {
-            $this->allowClipboard = false;
             $this->moduleData->set('clipBoard', false);
+            $this->allowClipboard = false;
         }
 
         // Check if SearchBox is allowed to be shown:
-        if (!($this->modTSconfig['disableSearchBox'] ?? false)) {
-            $this->allowSearch = true;
-        } elseif ($this->modTSconfig['disableSearchBox'] ?? false) {
-            $this->allowSearch = false;
-        }
+        $this->allowSearch = !($this->modTSconfig['disableSearchBox'] ?? false);
+
         // Overwrite to show search on search request
         if (!empty($this->searchTerm)) {
             $this->allowSearch = true;
             $this->moduleData->set('searchBox', true);
         }
+
+        // Get search levels from request or fall back to default, set in TSconifg
+        $search_levels = (int)($parsedBody['search_levels'] ?? $queryParams['search_levels'] ?? $this->modTSconfig['searchLevel.']['default'] ?? 0);
 
         $dbList = GeneralUtility::makeInstance(DatabaseRecordList::class);
         $dbList->setRequest($request);
@@ -189,7 +192,7 @@ class RecordListController
             $pageTranslationsHtml = $this->renderPageTranslations($dbList, $siteLanguages);
         }
         $searchBoxHtml = '';
-        if ($this->allowSearch && $this->moduleData->get('searchBox') && ($tableListHtml || !empty($this->searchTerm))) {
+        if ($this->allowSearch && $this->moduleData->get('searchBox')) {
             $searchBoxHtml = $this->renderSearchBox($request, $dbList, $this->searchTerm, $search_levels);
         }
         $clipboardHtml = '';
@@ -204,7 +207,7 @@ class RecordListController
         if ($pageinfo) {
             $view->getDocHeaderComponent()->setMetaInformation($pageinfo);
         }
-        $this->getDocHeaderButtons($view, $clipboard, $request, $this->table, $dbList->listURL(), []);
+        $this->getDocHeaderButtons($view, $clipboard, $request, $dbList);
         $view->assignMultiple([
             'pageId' => $this->id,
             'pageTitle' => $title,
@@ -233,7 +236,7 @@ class RecordListController
         $clipboardCommandArray = array_replace_recursive($request->getQueryParams()['CB'] ?? [], $request->getParsedBody()['CB'] ?? []);
         if ($cmd === 'copyMarked' || $cmd === 'removeMarked') {
             // Get CBC from request, and map the element values (true => copy, false => remove)
-            $CBC = array_map(static fn() => ($cmd === 'copyMarked'), (array)($request->getParsedBody()['CBC'] ?? []));
+            $CBC = array_map(static fn(): bool => ($cmd === 'copyMarked'), (array)($request->getParsedBody()['CBC'] ?? []));
             $cmd_table = (string)($request->getParsedBody()['cmd_table'] ?? $request->getQueryParams()['cmd_table'] ?? '');
             // Cleanup CBC
             $clipboardCommandArray['el'] = $clipboard->cleanUpCBC($CBC, $cmd_table);
@@ -287,24 +290,30 @@ class RecordListController
     /**
      * Create the panel of buttons for submitting the form or otherwise perform operations.
      */
-    protected function getDocHeaderButtons(ModuleTemplate $view, Clipboard $clipboard, ServerRequestInterface $request, string $table, string $listUrl, array $moduleSettings): void
+    protected function getDocHeaderButtons(ModuleTemplate $view, Clipboard $clipboard, ServerRequestInterface $request, DatabaseRecordList $dbList): void
     {
         $queryParams = $request->getQueryParams();
         $buttonBar = $view->getDocHeaderComponent()->getButtonBar();
         $lang = $this->getLanguageService();
-        // New record on pages that are not locked by editlock
         if (!($this->modTSconfig['noCreateRecordsLink'] ?? false) && $this->editLockPermissions()) {
-            $newRecordButton = $buttonBar->makeLinkButton()
-                ->setHref((string)$this->uriBuilder->buildUriFromRoute('db_new', ['id' => $this->id, 'returnUrl' => $listUrl]))
-                ->setTitle($lang->sL('LLL:EXT:core/Resources/Private/Language/locallang_mod_web_list.xlf:newRecordGeneral'))
-                ->setShowLabelText(true)
-                ->setIcon($this->iconFactory->getIcon('actions-plus', Icon::SIZE_SMALL));
-            $buttonBar->addButton($newRecordButton, ButtonBar::BUTTON_POSITION_LEFT, 10);
+            if ($this->table === '') {
+                // "General" new record button if: not in single table view, not disabled via TSconfig and page is not 'edit locked'
+                $newRecordButton = $buttonBar->makeLinkButton()
+                    ->setHref((string)$this->uriBuilder->buildUriFromRoute('db_new', ['id' => $this->id, 'returnUrl' => $dbList->listURL()]))
+                    ->setTitle($lang->sL('LLL:EXT:core/Resources/Private/Language/locallang_mod_web_list.xlf:newRecordGeneral'))
+                    ->setShowLabelText(true)
+                    ->setIcon($this->iconFactory->getIcon('actions-plus', IconSize::SMALL));
+                $buttonBar->addButton($newRecordButton, ButtonBar::BUTTON_POSITION_LEFT, 10);
+            } elseif (($createNewRecordButton = $dbList->createActionButtonNewRecord($this->table)) !== null) {
+                // In single table view, render the specific create new button
+                $buttonBar->addButton($createNewRecordButton);
+            }
         }
 
         if ($this->id !== 0) {
-            if ($this->canCreatePreviewLink()) {
-                $previewDataAttributes = PreviewUriBuilder::create((int)$this->id)
+            $uriBuilder = PreviewUriBuilder::create($this->pageInfo);
+            if ($uriBuilder->isPreviewable() && $this->canCreatePreviewLink()) {
+                $previewDataAttributes = PreviewUriBuilder::create($this->pageInfo)
                     ->withRootLine(BackendUtility::BEgetRootLine($this->id))
                     ->buildDispatcherDataAttributes();
                 $viewButton = $buttonBar->makeLinkButton()
@@ -312,7 +321,7 @@ class RecordListController
                     ->setDataAttributes($previewDataAttributes ?? [])
                     ->setDisabled(!$previewDataAttributes)
                     ->setTitle($this->getLanguageService()->sL('LLL:EXT:core/Resources/Private/Language/locallang_core.xlf:labels.showPage'))
-                    ->setIcon($this->iconFactory->getIcon('actions-view-page', Icon::SIZE_SMALL))
+                    ->setIcon($this->iconFactory->getIcon('actions-view-page', IconSize::SMALL))
                     ->setShowLabelText(true);
                 $buttonBar->addButton($viewButton, ButtonBar::BUTTON_POSITION_LEFT, 15);
             }
@@ -325,13 +334,13 @@ class RecordListController
                             $this->id => 'edit',
                         ],
                     ],
-                    'returnUrl' => $listUrl,
+                    'returnUrl' => $dbList->listURL(),
                 ]);
                 $editButton = $buttonBar->makeLinkButton()
                     ->setHref((string)$editLink)
                     ->setTitle($lang->sL('LLL:EXT:core/Resources/Private/Language/locallang_mod_web_list.xlf:editPage'))
                     ->setShowLabelText(true)
-                    ->setIcon($this->iconFactory->getIcon('actions-page-open', Icon::SIZE_SMALL));
+                    ->setIcon($this->iconFactory->getIcon('actions-page-open', IconSize::SMALL));
                 $buttonBar->addButton($editButton, ButtonBar::BUTTON_POSITION_LEFT, 20);
             }
         }
@@ -350,7 +359,7 @@ class RecordListController
                         'bs-content' => $confirmMessage,
                         'title' => $lang->sL('LLL:EXT:core/Resources/Private/Language/locallang_mod_web_list.xlf:clip_paste'),
                     ])
-                    ->setIcon($this->iconFactory->getIcon('actions-document-paste-into', Icon::SIZE_SMALL))
+                    ->setIcon($this->iconFactory->getIcon('actions-document-paste-into', IconSize::SMALL))
                     ->setShowLabelText(true);
                 $buttonBar->addButton($pasteButton, ButtonBar::BUTTON_POSITION_LEFT, 40);
             }
@@ -362,29 +371,29 @@ class RecordListController
                 ->setDataAttributes(['id' => $this->id])
                 ->setClasses('t3js-clear-page-cache')
                 ->setTitle($lang->sL('LLL:EXT:core/Resources/Private/Language/locallang_core.xlf:labels.clear_cache'))
-                ->setIcon($this->iconFactory->getIcon('actions-system-cache-clear', Icon::SIZE_SMALL));
+                ->setIcon($this->iconFactory->getIcon('actions-system-cache-clear', IconSize::SMALL));
             $buttonBar->addButton($clearCacheButton, ButtonBar::BUTTON_POSITION_RIGHT);
         }
-        if ($table
+        if ($this->table
             && !($this->modTSconfig['noExportRecordsLinks'] ?? false)
             && $this->getBackendUserAuthentication()->isExportEnabled()
         ) {
             // Export
             if (ExtensionManagementUtility::isLoaded('impexp')) {
-                $url = (string)$this->uriBuilder->buildUriFromRoute('tx_impexp_export', ['tx_impexp' => ['list' => [$table . ':' . $this->id]]]);
+                $url = (string)$this->uriBuilder->buildUriFromRoute('tx_impexp_export', ['tx_impexp' => ['list' => [$this->table . ':' . $this->id]]]);
                 $exportButton = $buttonBar->makeLinkButton()
                     ->setHref($url)
                     ->setTitle($lang->sL('LLL:EXT:core/Resources/Private/Language/locallang_core.xlf:rm.export'))
-                    ->setIcon($this->iconFactory->getIcon('actions-document-export-t3d', Icon::SIZE_SMALL))
+                    ->setIcon($this->iconFactory->getIcon('actions-document-export-t3d', IconSize::SMALL))
                     ->setShowLabelText(true);
                 $buttonBar->addButton($exportButton, ButtonBar::BUTTON_POSITION_LEFT, 50);
             }
         }
         // Reload
         $reloadButton = $buttonBar->makeLinkButton()
-            ->setHref($listUrl)
+            ->setHref($dbList->listURL())
             ->setTitle($lang->sL('LLL:EXT:core/Resources/Private/Language/locallang_core.xlf:labels.reload'))
-            ->setIcon($this->iconFactory->getIcon('actions-refresh', Icon::SIZE_SMALL));
+            ->setIcon($this->iconFactory->getIcon('actions-refresh', IconSize::SMALL));
         $buttonBar->addButton($reloadButton, ButtonBar::BUTTON_POSITION_RIGHT);
 
         // ViewMode
@@ -432,9 +441,6 @@ class RecordListController
                 $arguments[$argument] = $queryParams[$argument];
             }
         }
-        foreach ($moduleSettings as $moduleSettingKey => $moduleSettingValue) {
-            $arguments['GET'][$moduleSettingKey] = $moduleSettingValue;
-        }
         $shortCutButton->setArguments($arguments);
         $shortCutButton->setDisplayName($this->getShortcutTitle($arguments));
         $buttonBar->addButton($shortCutButton, ButtonBar::BUTTON_POSITION_RIGHT);
@@ -445,7 +451,7 @@ class RecordListController
                 ->setHref($this->returnUrl)
                 ->setTitle($lang->sL('LLL:EXT:core/Resources/Private/Language/locallang_core.xlf:labels.goBack'))
                 ->setShowLabelText(true)
-                ->setIcon($this->iconFactory->getIcon('actions-view-go-back', Icon::SIZE_SMALL));
+                ->setIcon($this->iconFactory->getIcon('actions-view-go-back', IconSize::SMALL));
             $buttonBar->addButton($backButton, ButtonBar::BUTTON_POSITION_LEFT);
         }
     }
@@ -534,7 +540,8 @@ class RecordListController
 
     /**
      * Returns the configuration of mod.web_list.noViewWithDokTypes or the
-     * default value 254 (Sys Folders) and 255 (Recycler), if not set.
+     * default value 254 (Sys Folders), if not set.
+     * @todo: this should vanish in favor of TCEMAIN.preview.disableButtonForDokType
      */
     protected function canCreatePreviewLink(): bool
     {
@@ -543,7 +550,6 @@ class RecordListController
         } else {
             $noViewDokTypes = [
                 PageRepository::DOKTYPE_SYSFOLDER,
-                PageRepository::DOKTYPE_RECYCLER,
             ];
         }
         return !in_array($this->pageInfo['doktype'] ?? 0, $noViewDokTypes);
@@ -588,8 +594,9 @@ class RecordListController
         if (isset($this->modTSconfig['table.']['pages.']['hideTable'])) {
             return !$this->modTSconfig['table.']['pages.']['hideTable'];
         }
+        $schema = $this->tcaSchemaFactory->get('pages');
         $hideTables = $this->modTSconfig['hideTables'] ?? '';
-        return !($GLOBALS['TCA']['pages']['ctrl']['hideTable'] ?? false)
+        return !$schema->hasCapability(TcaSchemaCapability::HideInUi)
             && $hideTables !== '*'
             && !in_array('pages', GeneralUtility::trimExplode(',', $hideTables), true);
     }
@@ -615,11 +622,11 @@ class RecordListController
             'searchTerm' => $this->searchTerm,
         ], $params);
 
-        $params = array_filter($params, static function ($value) {
+        $params = array_filter($params, static function (mixed $value): bool {
             return $value !== null && trim((string)$value) !== '';
         });
 
-        return (string)$this->uriBuilder->buildUriFromRoute($request->getAttribute('route')->getOption('_identifier'), $params);
+        return (string)$this->uriBuilder->buildUriFromRequest($request, $params);
     }
 
     /**
@@ -627,14 +634,16 @@ class RecordListController
      */
     protected function isPageEditable(): bool
     {
-        if ($GLOBALS['TCA']['pages']['ctrl']['readOnly'] ?? false) {
+        $schema = $this->tcaSchemaFactory->get('pages');
+
+        if ($schema->hasCapability(TcaSchemaCapability::AccessReadOnly)) {
             return false;
         }
         $backendUser = $this->getBackendUserAuthentication();
         if ($backendUser->isAdmin()) {
             return true;
         }
-        if ($GLOBALS['TCA']['pages']['ctrl']['adminOnly'] ?? false) {
+        if ($schema->hasCapability(TcaSchemaCapability::AccessAdminOnly)) {
             return false;
         }
 

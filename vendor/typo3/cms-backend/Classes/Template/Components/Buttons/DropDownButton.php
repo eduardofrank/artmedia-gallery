@@ -18,6 +18,7 @@ namespace TYPO3\CMS\Backend\Template\Components\Buttons;
 use TYPO3\CMS\Backend\Template\Components\Buttons\DropDown\DropDownItemInterface;
 use TYPO3\CMS\Backend\Template\Components\Buttons\DropDown\DropDownRadio;
 use TYPO3\CMS\Core\Imaging\Icon;
+use TYPO3\CMS\Core\Imaging\IconSize;
 use TYPO3\CMS\Core\Utility\GeneralUtility;
 
 /**
@@ -30,18 +31,22 @@ use TYPO3\CMS\Core\Utility\GeneralUtility;
  * type contains elements of type DropDownRadio it will use
  * the icon of the first active item of this type.
  *
+ * Example:
+ *
+ * ```
  * $buttonBar = $this->moduleTemplate->getDocHeaderComponent()->getButtonBar();
  * $dropDownButton = $buttonBar->makeDropDownButton()
  *      ->setLabel('Dropdown')
  *      ->setTitle('Save')
  *      ->setIcon($this->iconFactory->getIcon('actions-heart'))
- *      ->getShowLabelText(true)
+ *      ->setShowLabelText(true)
  *      ->addItem(
  *          GeneralUtility::makeInstance(DropDownItem::class)
  *              ->setLabel('Item')
  *              ->setHref('#')
  *      );
  * $buttonBar->addButton($dropDownButton, ButtonBar::BUTTON_POSITION_RIGHT, 2);
+ * ```
  */
 class DropDownButton implements ButtonInterface
 {
@@ -50,6 +55,7 @@ class DropDownButton implements ButtonInterface
     protected ?string $title = null;
     protected array $items = [];
     protected bool $showLabelText = false;
+    protected bool $disabled = false;
 
     public function getIcon(): ?Icon
     {
@@ -58,7 +64,7 @@ class DropDownButton implements ButtonInterface
 
     public function setIcon(?Icon $icon): self
     {
-        $icon?->setSize(Icon::SIZE_SMALL);
+        $icon?->setSize(IconSize::SMALL);
         $this->icon = $icon;
         return $this;
     }
@@ -96,13 +102,24 @@ class DropDownButton implements ButtonInterface
         return $this;
     }
 
+    public function isDisabled(): bool
+    {
+        return $this->disabled;
+    }
+
+    public function setDisabled(bool $disabled): self
+    {
+        $this->disabled = $disabled;
+        return $this;
+    }
+
     public function addItem(DropDownItemInterface $item): self
     {
         if (!$item->isValid()) {
             throw new \InvalidArgumentException(
-                'Only valid items may be assigned to a DropdownButton. "' .
-                $item->getType() .
-                '" did not pass validation',
+                'Only valid items may be assigned to a DropdownButton. "'
+                . $item->getType()
+                . '" did not pass validation',
                 1667645426
             );
         }
@@ -148,7 +165,7 @@ class DropDownButton implements ButtonInterface
         /**
          * @var DropDownRadio[] $activeItems
          */
-        $activeItems = array_filter($items, function (DropDownItemInterface $item) {
+        $activeItems = array_filter($items, function (DropDownItemInterface $item): bool {
             return $item instanceof DropDownRadio && $item->isActive();
         });
         if (!empty($activeItems)) {
@@ -166,6 +183,9 @@ class DropDownButton implements ButtonInterface
         ];
         if ($this->getTitle()) {
             $attributes['title'] = $this->getTitle();
+        }
+        if ($this->isDisabled()) {
+            $attributes['disabled'] = 'disabled';
         }
 
         $labelText = '';

@@ -17,7 +17,9 @@ declare(strict_types=1);
 
 namespace TYPO3\CMS\Backend\Form\FormDataProvider;
 
+use TYPO3\CMS\Backend\Configuration\SiteTcaConfiguration;
 use TYPO3\CMS\Backend\Form\FormDataProviderInterface;
+use TYPO3\CMS\Core\Configuration\Processor\Placeholder\EnvPlaceholderProcessor;
 use TYPO3\CMS\Core\Configuration\SiteConfiguration;
 use TYPO3\CMS\Core\Exception\SiteNotFoundException;
 use TYPO3\CMS\Core\Site\SiteFinder;
@@ -28,17 +30,13 @@ use TYPO3\CMS\Core\Utility\GeneralUtility;
  *
  * Fetch "row" data from yml file and set as 'databaseRow'
  */
-class SiteDatabaseEditRow implements FormDataProviderInterface
+readonly class SiteDatabaseEditRow implements FormDataProviderInterface
 {
-    /**
-     * @var SiteConfiguration
-     */
-    protected $siteConfiguration;
-
-    public function __construct(SiteConfiguration $siteConfiguration)
-    {
-        $this->siteConfiguration = $siteConfiguration;
-    }
+    public function __construct(
+        private SiteFinder $siteFinder,
+        private SiteTcaConfiguration $siteTcaConfiguration,
+        private EnvPlaceholderProcessor $envPlaceholderProcessor,
+    ) {}
 
     /**
      * First level of ['customData']['siteData'] to ['databaseRow']
@@ -52,16 +50,20 @@ class SiteDatabaseEditRow implements FormDataProviderInterface
         }
 
         $tableName = $result['tableName'];
-        $siteFinder = GeneralUtility::makeInstance(SiteFinder::class, $this->siteConfiguration);
         if ($tableName === 'site') {
             $rootPageId = (int)$result['vanillaUid'];
-            $rowData = $this->getRawConfigurationForSiteWithRootPageId($siteFinder, $rootPageId);
+            $rowData = $this->getRawConfigurationForSiteWithRootPageId($rootPageId);
             $result['databaseRow']['uid'] = $rowData['rootPageId'];
             $result['databaseRow']['identifier'] = $result['customData']['siteIdentifier'];
         } elseif (in_array($tableName, ['site_errorhandling', 'site_language', 'site_route', 'site_base_variant'], true)) {
-            $rootPageId = (int)($result['inlineTopMostParentUid'] ?? $result['inlineParentUid']);
+            $unprocessedRootPageId = $result['inlineTopMostParentUid'] ?? $result['inlineParentUid'];
+
+            $processedRootPageId = $this->envPlaceholderProcessor->canProcess($unprocessedRootPageId)
+                ? (int)$this->envPlaceholderProcessor->process($unprocessedRootPageId)
+                : (int)$unprocessedRootPageId;
+
             try {
-                $rowData = $this->getRawConfigurationForSiteWithRootPageId($siteFinder, $rootPageId);
+                $rowData = $this->getRawConfigurationForSiteWithRootPageId($processedRootPageId);
                 $parentFieldName = $result['inlineParentFieldName'];
                 if (!isset($rowData[$parentFieldName])) {
                     throw new \RuntimeException('Field "' . $parentFieldName . '" not found', 1520886092);
@@ -86,10 +88,19 @@ class SiteDatabaseEditRow implements FormDataProviderInterface
         return $result;
     }
 
-    protected function getRawConfigurationForSiteWithRootPageId(SiteFinder $siteFinder, int $rootPageId): array
+    protected function getRawConfigurationForSiteWithRootPageId(int $rootPageId): array
     {
-        $site = $siteFinder->getSiteByRootPageId($rootPageId);
+        $site = $this->siteFinder->getSiteByRootPageId($rootPageId);
         // load config as it is stored on disk (without replacements)
-        return $this->siteConfiguration->load($site->getIdentifier());
+        $siteTca = $this->siteTcaConfiguration->getTca();
+
+        $configuration = GeneralUtility::makeInstance(SiteConfiguration::class)->load($site->getIdentifier());
+
+        foreach ($configuration as $fieldName => $fieldValue) {
+            if (is_array($fieldValue) && ($siteTca['site']['columns'][$fieldName]['config']['type'] ?? '') === 'select' && ($siteTca['site']['columns'][$fieldName]['config']['renderType'] ?? '') === 'selectMultipleSideBySide') {
+                $configuration[$fieldName] = implode(',', $fieldValue);
+            }
+        }
+        return $configuration;
     }
 }

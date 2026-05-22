@@ -80,6 +80,7 @@ class Lexer extends AbstractLexer
     public const T_ENUM = 230;
     public const T_SET = 231;
     public const T_JSON = 232;
+    public const T_UUID = 233;
 
     // All keyword tokens should be >= 300
     public const T_CREATE = 300;
@@ -153,16 +154,6 @@ class Lexer extends AbstractLexer
     public const T_TABLESPACE = 368;
     public const T_UNION = 369;
     public const T_PRECISION = 370;
-
-    /**
-     * Creates a new statement scanner object.
-     *
-     * @param string $input A statement string.
-     */
-    public function __construct($input)
-    {
-        $this->setInput($input);
-    }
 
     /**
      * Lexical catchable patterns.

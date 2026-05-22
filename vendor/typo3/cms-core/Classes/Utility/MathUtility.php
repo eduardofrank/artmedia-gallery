@@ -51,14 +51,21 @@ class MathUtility
 
     /**
      * Returns $theInt if it is greater than zero, otherwise returns zero.
+     * @deprecated will be removed in TYPO3 v14.0, use max() instead.
      */
     public static function convertToPositiveInteger(mixed $theInt): int
     {
+        trigger_error(
+            __METHOD__ . ' is deprecated and will be removed in TYPO3 v14. Use max() instead.',
+            E_USER_DEPRECATED
+        );
         return self::forceIntegerInRange($theInt, 0, PHP_INT_MAX);
     }
 
     /**
      * Tests if the input can be interpreted as integer.
+     *
+     * Note: "0" will return true while any other number with a leading 0 (including multiple zeroes) will be false.
      *
      * Note: Integer casting from objects or arrays is considered undefined and thus will return false.
      *
@@ -68,10 +75,27 @@ class MathUtility
      */
     public static function canBeInterpretedAsInteger(mixed $var): bool
     {
-        if ($var === '' || is_object($var) || is_array($var)) {
-            return false;
-        }
-        return (string)(int)$var === (string)$var;
+        return match (gettype($var)) {
+            'integer' => true,
+            // Due to historical reasons `TRUE` is correctly interpreted as integer
+            // but `FALSE` not even if a (int) cast would return `0` and keeping it
+            // we can simply return the boolean value to have the same behaviour and
+            // still avoiding type casting chain.
+            'boolean' => $var,
+            // We use a type casting chain here to ensure that value is the same after
+            // casting and eliminated invalid stuff from it. The `@` silence operator
+            // can look weird here but is required to avoid enforced casting issues
+            // with PHP 8.5.0 and newer.
+            'string' => (string)@(int)$var === $var,
+            // We use a type casting chain here to ensure that value is the same after
+            // casting and eliminated invalid stuff from it. The `@` silence operator
+            // can look weird here but is required to avoid enforced casting issues
+            // with PHP 8.5.0 and newer.
+            // gettype() returns `double` for `float values`
+            'double' => !is_nan($var) && (string)@(int)$var === (string)$var,
+            // non-scalar like array, object, resource, NULL or unknown_type
+            default => false,
+        };
     }
 
     /**

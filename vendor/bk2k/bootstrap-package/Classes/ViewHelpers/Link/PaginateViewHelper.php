@@ -13,12 +13,11 @@ use Psr\Http\Message\ServerRequestInterface;
 use TYPO3\CMS\Core\Http\ApplicationType;
 use TYPO3\CMS\Core\Utility\GeneralUtility;
 use TYPO3\CMS\Core\Utility\HttpUtility;
-use TYPO3\CMS\Extbase\Mvc\RequestInterface as ExtbaseRequestInterface;
-use TYPO3\CMS\Extbase\Mvc\Web\Routing\UriBuilder as ExtbaseUriBuilder;
 use TYPO3\CMS\Fluid\Core\Rendering\RenderingContext;
 use TYPO3\CMS\Frontend\ContentObject\ContentObjectRenderer;
 use TYPO3\CMS\Frontend\Typolink\LinkFactory;
 use TYPO3\CMS\Frontend\Typolink\UnableToLinkException;
+use TYPO3Fluid\Fluid\Core\Rendering\RenderingContextInterface;
 use TYPO3Fluid\Fluid\Core\ViewHelper\AbstractTagBasedViewHelper;
 
 class PaginateViewHelper extends AbstractTagBasedViewHelper
@@ -28,15 +27,9 @@ class PaginateViewHelper extends AbstractTagBasedViewHelper
      */
     protected $tagName = 'a';
 
-    /**
-     * Initialize arguments
-     *
-     * @return void
-     */
-    public function initializeArguments()
+    public function initializeArguments(): void
     {
         parent::initializeArguments();
-        $this->registerUniversalTagAttributes();
 
         $this->registerArgument('paginationId', 'string', 'id', true);
         $this->registerArgument('paginationPage', 'int', 'page', true);
@@ -53,20 +46,9 @@ class PaginateViewHelper extends AbstractTagBasedViewHelper
             $arguments['paginate'][$paginationId]['page'] = $paginationPage;
         }
 
-        /** @var RenderingContext $renderingContext */
         $renderingContext = $this->renderingContext;
-        $request = $renderingContext->getRequest();
-
-        if ($request instanceof ExtbaseRequestInterface) {
-            $uriBuilder = GeneralUtility::makeInstance(ExtbaseUriBuilder::class);
-            $uriBuilder->reset()
-                ->setRequest($request)
-                ->setSection($section)
-                ->setArguments($arguments);
-            return $this->renderLink($uriBuilder->build());
-        }
-
-        if ($request instanceof ServerRequestInterface) {
+        $request = $this->getRequestFromRenderingContext($renderingContext);
+        if ($request !== null) {
             $applicationType = ApplicationType::fromRequest($request);
             if ($applicationType->isFrontend()) {
                 try {
@@ -85,7 +67,7 @@ class PaginateViewHelper extends AbstractTagBasedViewHelper
                     $linkResult = $linkFactory->create('', $typolinkConfiguration, $contentObjectRenderer);
                     return $this->renderLink($linkResult->getUrl());
                 } catch (UnableToLinkException $e) {
-                    return strval($this->renderChildren());
+                    return (string)($this->renderChildren());
                 }
             }
         }
@@ -96,9 +78,9 @@ class PaginateViewHelper extends AbstractTagBasedViewHelper
         );
     }
 
-    private function renderLink(string $uri): string
+    protected function renderLink(string $uri): string
     {
-        $content = strval($this->renderChildren());
+        $content = (string)($this->renderChildren());
         if (trim($uri) === '') {
             return $content;
         }
@@ -107,5 +89,17 @@ class PaginateViewHelper extends AbstractTagBasedViewHelper
         $this->tag->setContent($content);
         $this->tag->forceClosingTag(true);
         return $this->tag->render();
+    }
+
+    protected function getRequestFromRenderingContext(RenderingContextInterface $renderingContext): ?ServerRequestInterface
+    {
+        if ($renderingContext->hasAttribute(ServerRequestInterface::class)) {
+            return $renderingContext->getAttribute(ServerRequestInterface::class);
+        } elseif ($renderingContext instanceof RenderingContext) {
+            /** @phpstan-ignore-next-line */
+            return $renderingContext->getRequest();
+        }
+
+        return null;
     }
 }

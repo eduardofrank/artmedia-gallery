@@ -423,7 +423,6 @@ class PageProvider extends RecordProvider
     {
         return !$this->isRoot()
             && !$this->isDeleted()
-            && !$this->isExcludedDoktype()
             && $this->previewLinkCanBeBuild();
     }
 
@@ -526,9 +525,7 @@ class PageProvider extends RecordProvider
      */
     protected function getViewLink(): string
     {
-        return (string)PreviewUriBuilder::create($this->getPreviewPid())
-            ->withLanguage((int)($this->record[$this->getLanguageField()] ?? 0))
-            ->buildUri();
+        return (string)PreviewUriBuilder::create($this->record)->buildUri();
     }
 
     /**
@@ -572,7 +569,6 @@ class PageProvider extends RecordProvider
     protected function isExcludedDoktype(): bool
     {
         $excludeDoktypes = [
-            PageRepository::DOKTYPE_RECYCLER,
             PageRepository::DOKTYPE_SYSFOLDER,
             PageRepository::DOKTYPE_SPACER,
         ];

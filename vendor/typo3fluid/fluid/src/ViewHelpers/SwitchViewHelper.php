@@ -44,6 +44,7 @@ use TYPO3Fluid\Fluid\Core\ViewHelper\AbstractViewHelper;
  *     "Mr.", "Mrs." or "Mr. / Mrs." (depending on the value of {person.gender})
  *
  * @api
+ * @see https://docs.typo3.org/permalink/fluid:typo3fluid-fluid-switch
  */
 class SwitchViewHelper extends AbstractViewHelper
 {
@@ -64,7 +65,6 @@ class SwitchViewHelper extends AbstractViewHelper
 
     public function initializeArguments()
     {
-        parent::initializeArguments();
         $this->registerArgument('expression', 'mixed', 'Expression to switch', true);
     }
 
@@ -181,8 +181,8 @@ class SwitchViewHelper extends AbstractViewHelper
      */
     public function compile($argumentsName, $closureName, &$initializationPhpCode, ViewHelperNode $node, TemplateCompiler $compiler)
     {
-        $phpCode = 'call_user_func_array(function($arguments) use ($renderingContext) {' . PHP_EOL .
-            'switch ($arguments[\'expression\']) {' . PHP_EOL;
+        $phpCode = 'call_user_func_array(function($arguments) use ($renderingContext) {' . PHP_EOL
+            . 'switch ($arguments[\'expression\']) {' . PHP_EOL;
         $hasDefaultCase = false;
         foreach ($node->getChildNodes() as $childNode) {
             if ($this->isDefaultCaseNode($childNode)) {

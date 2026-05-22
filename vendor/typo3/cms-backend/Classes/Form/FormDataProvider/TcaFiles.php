@@ -112,8 +112,8 @@ class TcaFiles extends AbstractDatabaseRecordProvider implements FormDataProvide
             return $result;
         }
 
-        $result['processedTca']['columns'][$fieldName]['config']['inline']['parentSysLanguageUid'] =
-            is_array($result['databaseRow'][$parentLanguageFieldName])
+        $result['processedTca']['columns'][$fieldName]['config']['inline']['parentSysLanguageUid']
+            = is_array($result['databaseRow'][$parentLanguageFieldName])
                 ? (int)($result['databaseRow'][$parentLanguageFieldName][0] ?? 0)
                 : (int)$result['databaseRow'][$parentLanguageFieldName];
 
@@ -323,8 +323,8 @@ class TcaFiles extends AbstractDatabaseRecordProvider implements FormDataProvide
                 'uid,t3ver_state'
             );
             if (!empty($workspaceVersion)) {
-                $versionState = VersionState::cast($workspaceVersion['t3ver_state']);
-                if ($versionState->equals(VersionState::DELETE_PLACEHOLDER)) {
+                $versionState = VersionState::tryFrom($workspaceVersion['t3ver_state'] ?? 0);
+                if ($versionState === VersionState::DELETE_PLACEHOLDER) {
                     continue;
                 }
                 $uid = $workspaceVersion['uid'];
@@ -354,7 +354,7 @@ class TcaFiles extends AbstractDatabaseRecordProvider implements FormDataProvide
             $parentTableName,
             $parentConfig
         );
-        return array_map('intval', $relationHandler->getValueArray());
+        return array_map(intval(...), $relationHandler->getValueArray());
     }
 
     protected function getBackendUser(): BackendUserAuthentication

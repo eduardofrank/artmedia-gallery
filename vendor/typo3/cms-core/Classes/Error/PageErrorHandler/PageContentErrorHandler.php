@@ -110,7 +110,7 @@ class PageContentErrorHandler implements PageErrorHandlerInterface
                 }
             }
             return $response;
-        } catch (InvalidRouteArgumentsException | SiteNotFoundException $e) {
+        } catch (InvalidRouteArgumentsException|SiteNotFoundException $e) {
             return new HtmlResponse('Invalid error handler configuration: ' . $this->errorHandlerConfiguration['errorContentSource']);
         }
     }
@@ -122,12 +122,11 @@ class PageContentErrorHandler implements PageErrorHandlerInterface
     {
         $parkedTsfe = $GLOBALS['TSFE'] ?? null;
         $GLOBALS['TSFE'] = null;
-
-        $result = $fetcher();
-
-        $GLOBALS['TSFE'] = $parkedTsfe;
-
-        return $result;
+        try {
+            return $fetcher();
+        } finally {
+            $GLOBALS['TSFE'] = $parkedTsfe;
+        }
     }
 
     /**

@@ -23,7 +23,7 @@
         }
     ],
     "require": {
-        "php": ">=7.4.0",
+        "php": ">=8.1.0",
         "ext-PDO": "*",
         "ext-dom": "*",
         "ext-filter": "*",
@@ -31,38 +31,38 @@
         "ext-json": "*",
         "ext-libxml": "*",
         "ext-simplexml": "*",
-        "scssphp/scssphp": "^1.8.1",
-        "typo3/cms-backend": "^11.5 || ^12.1 || 12.*.*@dev",
-        "typo3/cms-core": "^11.5 || ^12.1 || 12.*.*@dev",
-        "typo3/cms-extbase": "^11.5 || ^12.1 || 12.*.*@dev",
-        "typo3/cms-extensionmanager": "^11.5 || ^12.1 || 12.*.*@dev",
-        "typo3/cms-fluid": "^11.5 || ^12.1 || 12.*.*@dev",
-        "typo3/cms-frontend": "^11.5 || ^12.1 || 12.*.*@dev",
-        "typo3/cms-install": "^11.5 || ^12.1 || 12.*.*@dev",
-        "typo3/cms-rte-ckeditor": "^11.5 || ^12.1 || 12.*.*@dev",
-        "typo3/cms-seo": "^11.5 || ^12.1 || 12.*.*@dev"
+        "scssphp/scssphp": "^1.13",
+        "typo3/cms-backend": "^12.4 || ^13.4 || 13.*.*@dev",
+        "typo3/cms-core": "^12.4 || ^13.4 || 13.*.*@dev",
+        "typo3/cms-extbase": "^12.4 || ^13.4 || 13.*.*@dev",
+        "typo3/cms-extensionmanager": "^12.4 || ^13.4 || 13.*.*@dev",
+        "typo3/cms-fluid": "^12.4 || ^13.4 || 13.*.*@dev",
+        "typo3/cms-frontend": "^12.4 || ^13.4 || 13.*.*@dev",
+        "typo3/cms-install": "^12.4 || ^13.4 || 13.*.*@dev",
+        "typo3/cms-rte-ckeditor": "^12.4 || ^13.4 || 13.*.*@dev",
+        "typo3/cms-seo": "^12.4 || ^13.4 || 13.*.*@dev"
     },
     "require-dev": {
-        "b13/container": "^2.0",
+        "b13/container": "^2.3 || dev-task/dev-main",
         "bk2k/demo-package": "@dev",
-        "bk2k/extension-helper": "^2.0",
-        "friendsofphp/php-cs-fixer": "^3.14",
+        "bk2k/extension-helper": "^2.1",
+        "friendsofphp/php-cs-fixer": "^3.64",
         "friendsoftypo3/phpstan-typo3": "^0.9",
-        "overtrue/phplint": "^3.2 || ^4.3 || ^5.3",
-        "phpstan/phpstan": "^1.7",
-        "phpstan/phpstan-deprecation-rules": "^1.0",
-        "phpstan/phpstan-phpunit": "^1.1",
-        "phpstan/phpstan-strict-rules": "^1.2",
-        "typo3/cms-belog": "^11.5 || ^12.1 || 12.*.*@dev",
-        "typo3/cms-felogin": "^11.5 || ^12.1 || 12.*.*@dev",
-        "typo3/cms-filelist": "^11.5 || ^12.1 || 12.*.*@dev",
-        "typo3/cms-form": "^11.5 || ^12.1 || 12.*.*@dev",
-        "typo3/cms-indexed-search": "^11.5 || ^12.1 || 12.*.*@dev",
-        "typo3/cms-info": "^11.5 || ^12.1 || 12.*.*@dev",
-        "typo3/cms-lowlevel": "^11.5 || ^12.1 || 12.*.*@dev",
-        "typo3/cms-tstemplate": "^11.5 || ^12.1 || 12.*.*@dev",
-        "typo3/cms-workspaces": "^11.5 || ^12.1 || 12.*.*@dev",
-        "typo3/testing-framework": "^7.0.0 || ^8.0.0"
+        "overtrue/phplint": "^9.0",
+        "phpstan/phpstan": "^1.10",
+        "phpstan/phpstan-deprecation-rules": "^1.1",
+        "phpstan/phpstan-phpunit": "^1.3",
+        "phpstan/phpstan-strict-rules": "^1.5",
+        "typo3/cms-belog": "^12.4 || ^13.4 || 13.*.*@dev",
+        "typo3/cms-felogin": "^12.4 || ^13.4 || 13.*.*@dev",
+        "typo3/cms-filelist": "^12.4 || ^13.4 || 13.*.*@dev",
+        "typo3/cms-form": "^12.4 || ^13.4 || 13.*.*@dev",
+        "typo3/cms-indexed-search": "^12.4 || ^13.4 || 13.*.*@dev",
+        "typo3/cms-info": "^12.4 || ^13.4 || 13.*.*@dev",
+        "typo3/cms-lowlevel": "^12.4 || ^13.4 || 13.*.*@dev",
+        "typo3/cms-tstemplate": "^12.4 || ^13.4 || 13.*.*@dev",
+        "typo3/cms-workspaces": "^12.4 || ^13.4 || 13.*.*@dev",
+        "typo3/testing-framework": "^8.2.3"
     },
     "config": {
         "bin-dir": ".build/bin",
@@ -76,7 +76,7 @@
     },
     "extra": {
         "branch-alias": {
-            "dev-BP_13_0": "13.0.x-dev"
+            "dev-BP_15_0": "15.0.x-dev"
         },
         "typo3/cms": {
             "extension-key": "bootstrap_package",
@@ -99,6 +99,7 @@
             "url": "Tests/Packages/*"
         }
     },
+    "minimum-stability": "dev",
     "prefer-stable": true,
     "scripts": {
         "post-autoload-dump": [

@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 /*
  * This file is part of the TYPO3 CMS project.
  *
@@ -15,15 +17,21 @@
 
 namespace TYPO3\CMS\Filelist\ElementBrowser;
 
+use Psr\EventDispatcher\EventDispatcherInterface;
+use Psr\Http\Message\ServerRequestInterface;
+use TYPO3\CMS\Backend\ElementBrowser\Event\IsFileSelectableEvent;
 use TYPO3\CMS\Backend\View\FolderUtilityRenderer;
 use TYPO3\CMS\Backend\View\RecordSearchBoxComponent;
-use TYPO3\CMS\Core\Imaging\Icon;
+use TYPO3\CMS\Core\Imaging\IconSize;
 use TYPO3\CMS\Core\Resource\Filter\FileExtensionFilter;
 use TYPO3\CMS\Core\Resource\Folder;
+use TYPO3\CMS\Core\Resource\ResourceInterface;
 use TYPO3\CMS\Core\Resource\Search\FileSearchDemand;
 use TYPO3\CMS\Core\Utility\GeneralUtility;
 use TYPO3\CMS\Core\Utility\MathUtility;
+use TYPO3\CMS\Filelist\Matcher\AndMatcher;
 use TYPO3\CMS\Filelist\Matcher\Matcher;
+use TYPO3\CMS\Filelist\Matcher\MatcherInterface;
 use TYPO3\CMS\Filelist\Matcher\ResourceFileExtensionMatcher;
 use TYPO3\CMS\Filelist\Matcher\ResourceFolderTypeMatcher;
 use TYPO3\CMS\Filelist\Type\Mode;
@@ -45,31 +53,21 @@ class FileBrowser extends AbstractResourceBrowser
     /**
      * Loads additional JavaScript
      */
-    protected function initialize(): void
+    protected function initialize(ServerRequestInterface $request): void
     {
-        parent::initialize();
+        parent::initialize($request);
         $this->pageRenderer->loadJavaScriptModule('@typo3/filelist/browse-files.js');
     }
 
-    protected function initVariables(): void
+    protected function initVariables(ServerRequestInterface $request): void
     {
-        parent::initVariables();
-        $request = $this->getRequest();
+        parent::initVariables($request);
 
-        $this->searchWord = (string)trim($request->getParsedBody()['searchTerm'] ?? $request->getQueryParams()['searchTerm'] ?? '');
+        $this->searchWord = trim((string)($request->getParsedBody()['searchTerm'] ?? $request->getQueryParams()['searchTerm'] ?? ''));
 
         $fileExtensions = GeneralUtility::trimExplode('~', explode('|', $this->bparams)[3], true);
         $allowed = preg_replace('/^allowed=/', '', $fileExtensions[0] ?? '', 1);
-        // There might still be old links around, using ";" as delimiter
-        if (str_contains($allowed, ';disallowed=')) {
-            trigger_error(
-                'Using ";" as delimiter for the allowed / disallowed file extension list is deprecated and will stop working in v13. Use "~" as delimiter instead.',
-                E_USER_DEPRECATED
-            );
-            [$allowed, $disallowed] = GeneralUtility::trimExplode(';disallowed=', $allowed, false, 2);
-        } else {
-            $disallowed = preg_replace('/^disallowed=/', '', $fileExtensions[1] ?? '', 1);
-        }
+        $disallowed = preg_replace('/^disallowed=/', '', $fileExtensions[1] ?? '', 1);
 
         $this->fileExtensionFilter = GeneralUtility::makeInstance(FileExtensionFilter::class);
         if ($allowed !== '' && !str_contains($allowed, 'sys_file') && !str_contains($allowed, '*')) {
@@ -82,10 +80,25 @@ class FileBrowser extends AbstractResourceBrowser
         $this->resourceDisplayMatcher = GeneralUtility::makeInstance(Matcher::class);
         $this->resourceDisplayMatcher->addMatcher(GeneralUtility::makeInstance(ResourceFolderTypeMatcher::class));
         $this->resourceDisplayMatcher->addMatcher(
-            GeneralUtility::makeInstance(ResourceFileExtensionMatcher::class)
-                ->setExtensions($this->fileExtensionFilter->getAllowedFileExtensions() ?? ['*'])
-                ->setIgnoredExtensions($this->fileExtensionFilter->getDisallowedFileExtensions() ?? [])
+            GeneralUtility::makeInstance(
+                AndMatcher::class,
+                GeneralUtility::makeInstance(ResourceFileExtensionMatcher::class)
+                    ->setExtensions($this->fileExtensionFilter->getAllowedFileExtensions() ?? ['*'])
+                    ->setIgnoredExtensions($this->fileExtensionFilter->getDisallowedFileExtensions() ?? []),
+                new class (GeneralUtility::makeInstance(EventDispatcherInterface::class)) implements MatcherInterface {
+                    public function __construct(private readonly EventDispatcherInterface $eventDispatcher) {}
+                    public function supports(mixed $item): bool
+                    {
+                        return $item instanceof ResourceInterface;
+                    }
+                    public function match(mixed $item): bool
+                    {
+                        return $this->eventDispatcher->dispatch(new IsFileSelectableEvent($item))->isFileSelectable();
+                    }
+                }
+            )
         );
+
         $this->resourceSelectableMatcher = GeneralUtility::makeInstance(Matcher::class);
         $this->resourceSelectableMatcher->addMatcher(
             GeneralUtility::makeInstance(ResourceFileExtensionMatcher::class)
@@ -94,10 +107,7 @@ class FileBrowser extends AbstractResourceBrowser
         );
     }
 
-    /**
-     * @return string HTML content
-     */
-    public function render()
+    public function render(): string
     {
         $this->initSelectedFolder();
         $contentHtml = '';
@@ -109,8 +119,17 @@ class FileBrowser extends AbstractResourceBrowser
             $markup[] = '<div class="mb-4">';
             $markup[] = GeneralUtility::makeInstance(RecordSearchBoxComponent::class)
                 ->setSearchWord($this->searchWord ?? '')
-                ->render($this->getRequest(), $this->createUri([]));
+                ->render($this->getRequest(), $this->createUri());
             $markup[] = '</div>';
+
+            // Create the filelist
+            $this->filelist->start(
+                $this->selectedFolder,
+                MathUtility::forceIntegerInRange($this->currentPage, 1, 100000),
+                $this->sortField,
+                $this->sortDirection,
+                Mode::BROWSE
+            );
 
             // Create the filelist header bar
             $markup[] = '<div class="row justify-content-between mb-2">';
@@ -118,24 +137,17 @@ class FileBrowser extends AbstractResourceBrowser
             $markup[] = '        <div class="hidden t3js-multi-record-selection-actions">';
             $markup[] = '            <strong>' . htmlspecialchars($this->getLanguageService()->sL('LLL:EXT:core/Resources/Private/Language/locallang_core.xlf:labels.selection')) . '</strong>';
             $markup[] = '            <button type="button" class="btn btn-default btn-sm" data-multi-record-selection-action="import" title="' . htmlspecialchars($this->getLanguageService()->sL('LLL:EXT:backend/Resources/Private/Language/locallang_browse_links.xlf:importSelection')) . '">';
-            $markup[] = '                ' . $this->iconFactory->getIcon('actions-document-import-t3d', Icon::SIZE_SMALL);
+            $markup[] = '                ' . $this->iconFactory->getIcon('actions-document-import-t3d', IconSize::SMALL);
             $markup[] = '                ' . htmlspecialchars($this->getLanguageService()->sL('LLL:EXT:backend/Resources/Private/Language/locallang_browse_links.xlf:importSelection'));
             $markup[] = '            </button>';
             $markup[] = '        </div>';
             $markup[] = '    </div>';
             $markup[] = '    <div class="col-auto">';
+            $markup[] = '        ' . $this->getSortingModeButtons($this->filelist->mode);
             $markup[] = '        ' . $this->getViewModeButton();
             $markup[] = '    </div>';
             $markup[] = '</div>';
 
-            // Create the filelist
-            $this->filelist->start(
-                $this->selectedFolder,
-                MathUtility::forceIntegerInRange($this->currentPage, 1, 100000),
-                $this->getRequest()->getQueryParams()['sort'] ?? '',
-                ($this->getRequest()->getQueryParams()['reverse'] ?? '') === '1',
-                Mode::BROWSE
-            );
             $this->filelist->setResourceDisplayMatcher($this->resourceDisplayMatcher);
             $this->filelist->setResourceSelectableMatcher($this->resourceSelectableMatcher);
             $searchDemand = $this->searchWord !== ''
@@ -145,8 +157,8 @@ class FileBrowser extends AbstractResourceBrowser
 
             // Build the file upload and folder creation form
             $folderUtilityRenderer = GeneralUtility::makeInstance(FolderUtilityRenderer::class, $this);
-            $markup[] = $folderUtilityRenderer->uploadForm($this->selectedFolder, $this->fileExtensionFilter);
-            $markup[] = $folderUtilityRenderer->createFolder($this->selectedFolder);
+            $markup[] = $folderUtilityRenderer->uploadForm($this->getRequest(), $this->selectedFolder, $this->fileExtensionFilter);
+            $markup[] = $folderUtilityRenderer->createFolder($this->getRequest(), $this->selectedFolder);
 
             $contentHtml = implode('', $markup);
         }

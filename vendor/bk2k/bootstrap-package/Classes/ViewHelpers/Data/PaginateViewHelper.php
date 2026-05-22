@@ -10,7 +10,6 @@
 namespace BK2K\BootstrapPackage\ViewHelpers\Data;
 
 use Psr\Http\Message\ServerRequestInterface;
-use TYPO3\CMS\Core\Information\Typo3Version;
 use TYPO3\CMS\Core\Pagination\ArrayPaginator;
 use TYPO3\CMS\Core\Pagination\SimplePagination;
 use TYPO3\CMS\Core\Utility\ArrayUtility;
@@ -22,6 +21,7 @@ use TYPO3\CMS\Extbase\Persistence\QueryResultInterface;
 use TYPO3\CMS\Fluid\Core\Rendering\RenderingContext;
 use TYPO3\CMS\Fluid\Core\Rendering\RenderingContextFactory;
 use TYPO3\CMS\Fluid\View\StandaloneView;
+use TYPO3Fluid\Fluid\Core\Rendering\RenderingContextInterface;
 use TYPO3Fluid\Fluid\Core\ViewHelper\AbstractViewHelper;
 
 /**
@@ -34,11 +34,7 @@ class PaginateViewHelper extends AbstractViewHelper
      */
     protected $escapeOutput = false;
 
-    /**
-     * @throws \TYPO3Fluid\Fluid\Core\ViewHelper\Exception
-     * @return void
-     */
-    public function initializeArguments()
+    public function initializeArguments(): void
     {
         parent::initializeArguments();
         $this->registerArgument('id', 'string', 'Identifier of the pagination', true);
@@ -48,14 +44,9 @@ class PaginateViewHelper extends AbstractViewHelper
 
     public function render(): string
     {
-        /** @var RenderingContext $renderingContext */
         $renderingContext = $this->renderingContext;
-
-        /** @var ServerRequestInterface|null $request */
-        $request = $renderingContext->getRequest();
-
-        /** @phpstan-ignore-next-line */
-        if ($request instanceof ServerRequestInterface) {
+        $request = $this->getRequestFromRenderingContext($renderingContext);
+        if ($request !== null) {
             $objects = $this->arguments['objects'];
             if (!($objects instanceof QueryResultInterface || is_array($objects))) {
                 throw new \UnexpectedValueException('Supplied file object type ' . get_class($objects) . ' must be QueryResultInterface or be an array.', 1623322979);
@@ -65,7 +56,7 @@ class PaginateViewHelper extends AbstractViewHelper
                 'itemsPerPage' => 10,
                 'insertAbove' => false,
                 'insertBelow' => true,
-                'section' => ''
+                'section' => '',
             ];
             ArrayUtility::mergeRecursiveWithOverrule($configuration, $this->arguments['configuration'], false);
 
@@ -80,12 +71,12 @@ class PaginateViewHelper extends AbstractViewHelper
             }
             $pagination = new SimplePagination($paginator);
 
-            $paginationView = $this->getTemplateObject($renderingContext);
+            $paginationView = $this->getTemplateObject($renderingContext, $request);
             $paginationView->assignMultiple([
                 'id' => $id,
                 'paginator' => $paginator,
                 'pagination' => $pagination,
-                'configuration' => $configuration
+                'configuration' => $configuration,
             ]);
             $paginationRendered = $paginationView->render();
 
@@ -108,19 +99,19 @@ class PaginateViewHelper extends AbstractViewHelper
         );
     }
 
-    protected function getTemplateObject(RenderingContext $renderingContext): StandaloneView
+    protected function getTemplateObject(RenderingContextInterface $renderingContext, ServerRequestInterface $request): StandaloneView
     {
         $setup = $this->getConfigurationManager()->getConfiguration(ConfigurationManagerInterface::CONFIGURATION_TYPE_FULL_TYPOSCRIPT);
 
-        if ((new Typo3Version())->getMajorVersion() < 12) {
-            /** @var StandaloneView $view */
-            $view = GeneralUtility::makeInstance(StandaloneView::class);
-        } else {
-            $context = GeneralUtility::makeInstance(RenderingContextFactory::class)->create();
-            $context->setRequest($renderingContext->getRequest());
-            /** @var StandaloneView $view */
-            $view = GeneralUtility::makeInstance(StandaloneView::class, $context);
+        /** @phpstan-ignore-next-line */
+        $context = GeneralUtility::makeInstance(RenderingContextFactory::class)->create([], $request);
+        if ((new \ReflectionMethod(RenderingContextFactory::class, 'create'))->getNumberOfParameters() === 1) {
+            /** @phpstan-ignore-next-line */
+            $context->setRequest($request);
         }
+
+        /** @var StandaloneView $view */
+        $view = GeneralUtility::makeInstance(StandaloneView::class, $context);
 
         $layoutRootPaths = [];
         $layoutRootPaths[] = GeneralUtility::getFileAbsFileName('EXT:bootstrap_package/Resources/Private/Layouts/ViewHelpers/');
@@ -158,5 +149,17 @@ class PaginateViewHelper extends AbstractViewHelper
         $configurationManager = GeneralUtility::getContainer()->get(ConfigurationManager::class);
 
         return $configurationManager;
+    }
+
+    protected function getRequestFromRenderingContext(RenderingContextInterface $renderingContext): ?ServerRequestInterface
+    {
+        if ($renderingContext->hasAttribute(ServerRequestInterface::class)) {
+            return $renderingContext->getAttribute(ServerRequestInterface::class);
+        } elseif ($renderingContext instanceof RenderingContext) {
+            /** @phpstan-ignore-next-line */
+            return $renderingContext->getRequest();
+        }
+
+        return null;
     }
 }

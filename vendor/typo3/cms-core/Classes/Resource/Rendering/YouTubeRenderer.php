@@ -90,6 +90,9 @@ class YouTubeRenderer implements FileRendererInterface
     {
         $options = $this->collectOptions($options, $file);
         $src = $this->createYouTubeUrl($options, $file);
+        if (empty($src)) {
+            return '';
+        }
         $attributes = $this->collectIframeAttributes($width, $height, $options);
 
         return sprintf(
@@ -124,12 +127,13 @@ class YouTubeRenderer implements FileRendererInterface
         return $options;
     }
 
-    /**
-     * @return string
-     */
-    protected function createYouTubeUrl(array $options, FileInterface $file)
+    protected function createYouTubeUrl(array $options, FileInterface $file): string
     {
         $videoId = $this->getVideoIdFromFile($file);
+
+        if (empty($videoId)) {
+            return '';
+        }
 
         $urlParams = ['autohide=1'];
         $urlParams[] = 'controls=' . $options['controls'];
@@ -189,7 +193,7 @@ class YouTubeRenderer implements FileRendererInterface
             $attributes = array_merge($attributes, $options['additionalAttributes']);
         }
         if (isset($options['data']) && is_array($options['data'])) {
-            array_walk($options['data'], static function (&$value, $key) use (&$attributes) {
+            array_walk($options['data'], static function (string|int $value, string $key) use (&$attributes): void {
                 $attributes['data-' . $key] = $value;
             });
         }

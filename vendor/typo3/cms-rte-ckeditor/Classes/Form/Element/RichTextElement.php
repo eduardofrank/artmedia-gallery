@@ -19,7 +19,6 @@ namespace TYPO3\CMS\RteCKEditor\Form\Element;
 
 use Psr\EventDispatcher\EventDispatcherInterface;
 use TYPO3\CMS\Backend\Form\Element\AbstractFormElement;
-use TYPO3\CMS\Backend\Form\NodeFactory;
 use TYPO3\CMS\Backend\Routing\UriBuilder;
 use TYPO3\CMS\Core\Core\Environment;
 use TYPO3\CMS\Core\Localization\Locales;
@@ -79,21 +78,11 @@ class RichTextElement extends AbstractFormElement
      */
     protected $rteConfiguration = [];
 
-    /**
-     * @var EventDispatcherInterface
-     */
-    protected $eventDispatcher;
-
-    /**
-     * Container objects give $nodeFactory down to other containers.
-     *
-     * @param EventDispatcherInterface|null $eventDispatcher
-     */
-    public function __construct(NodeFactory $nodeFactory, array $data, ?EventDispatcherInterface $eventDispatcher = null)
-    {
-        parent::__construct($nodeFactory, $data);
-        $this->eventDispatcher = $eventDispatcher ?? GeneralUtility::makeInstance(EventDispatcherInterface::class);
-    }
+    public function __construct(
+        private readonly EventDispatcherInterface $eventDispatcher,
+        private readonly UriBuilder $uriBuilder,
+        private readonly Locales $locales,
+    ) {}
 
     /**
      * Renders the ckeditor element
@@ -102,16 +91,16 @@ class RichTextElement extends AbstractFormElement
      */
     public function render(): array
     {
+        $languageService = $this->getLanguageService();
+
         $resultArray = $this->initializeResultArray();
-        // @deprecated since v12, will be removed with v13 when all elements handle label/legend on their own
-        $resultArray['labelHasBeenHandled'] = true;
         $parameterArray = $this->data['parameterArray'];
         $config = $parameterArray['fieldConf']['config'];
 
         $fieldId = $this->sanitizeFieldId($parameterArray['itemFormElName']);
         $itemFormElementName = $this->data['parameterArray']['itemFormElName'];
 
-        $value = $this->data['parameterArray']['itemFormElValue'] ?? '';
+        $value = $this->data['parameterArray']['itemFormElValue'] ?? null;
 
         $fieldInformationResult = $this->renderFieldInformation();
         $fieldInformationHtml = $fieldInformationResult['html'];
@@ -143,34 +132,122 @@ class RichTextElement extends AbstractFormElement
         ], true);
 
         $html = [];
-        $html[] = '<div class="formengine-field-item t3js-formengine-field-item">';
         $html[] =   $fieldInformationHtml;
         $html[] =   '<div class="form-control-wrap">';
         $html[] =       '<div class="form-wizards-wrap">';
-        $html[] =           '<div class="form-wizards-element">';
+        $html[] =           '<div class="form-wizards-item-element">';
         $html[] =               '<typo3-rte-ckeditor-ckeditor5 ' . $ckeditorAttributes . '>';
         $html[] =                 '<textarea ' . $textareaAttributes . '>';
-        $html[] =                   htmlspecialchars($value);
+        $html[] =                   htmlspecialchars((string)$value);
         $html[] =                 '</textarea>';
         $html[] =               '</typo3-rte-ckeditor-ckeditor5>';
         $html[] =           '</div>';
         if (!empty($fieldControlHtml)) {
-            $html[] =           '<div class="form-wizards-items-aside form-wizards-items-aside--field-control">';
+            $html[] =           '<div class="form-wizards-item-aside form-wizards-item-aside--field-control">';
             $html[] =               '<div class="btn-group">';
             $html[] =                   $fieldControlHtml;
             $html[] =               '</div>';
             $html[] =           '</div>';
         }
         if (!empty($fieldWizardHtml)) {
-            $html[] = '<div class="form-wizards-items-bottom">';
+            $html[] = '<div class="form-wizards-item-bottom">';
             $html[] = $fieldWizardHtml;
             $html[] = '</div>';
         }
         $html[] =       '</div>';
         $html[] =   '</div>';
-        $html[] = '</div>';
 
-        $resultArray['html'] = $this->wrapWithFieldsetAndLegend(implode(LF, $html));
+        $nullControlNameEscaped = htmlspecialchars('control[active][' . $this->data['tableName'] . '][' . $this->data['databaseRow']['uid'] . '][' . $this->data['fieldName'] . ']');
+
+        $fullElement = $html;
+        // @todo - The logic for hasNullCheckboxButNoPlaceholder() / hasNullCheckboxWithPlaceholder() wants to be streamlined here;
+        // Ideally, a placeholder should only be an instructive placeholder and not conflict with usage of a "default fallback".
+        // Instead of "[x] Set value (Default: …)" it might better be to use "[x] Set value (Fallback: …)", because what is shown as "default" here is not really the final value
+        // of the saved element, but what is inerhited as fallback values from a possible rendering chain. Looking at you, sys_file_reference IRRE.
+        if ($this->hasNullCheckboxButNoPlaceholder()) {
+            $checked = $value !== null ? ' checked="checked"' : '';
+            $fullElement = [];
+            $fullElement[] = '<div class="t3-form-field-disable"></div>';
+            $fullElement[] = '<div class="form-check t3-form-field-eval-null-checkbox">';
+            $fullElement[] =     '<input type="hidden" name="' . $nullControlNameEscaped . '" value="0" />';
+            $fullElement[] =     '<input type="checkbox" class="form-check-input" name="' . $nullControlNameEscaped . '" id="' . $nullControlNameEscaped . '" value="1"' . $checked . ' />';
+            $fullElement[] =     '<label class="form-check-label" for="' . $nullControlNameEscaped . '">';
+            $fullElement[] =         $languageService->sL('LLL:EXT:core/Resources/Private/Language/locallang_core.xlf:labels.nullCheckbox');
+            $fullElement[] =     '</label>';
+            $fullElement[] = '</div>';
+            $fullElement[] = implode(LF, $html);
+        } elseif ($this->hasNullCheckboxWithPlaceholder()) {
+            $checked = $value !== null ? ' checked="checked"' : '';
+            // Note that we draw the raw placeholder from $config instead of $ckeditorConfiguration so it
+            // contains the full HTML markup. $ckeditorConfiguration['placeholder'] has strip_tags() applied.
+            // The full HTML is only emitted with htmlspecialchars(), and later parsed by CKEditor.
+            // The HTML-stripped placeholder is used for the label of the nullable checkbox.
+
+            $placeholder = trim((string)($ckeditorConfiguration['placeholder'] ?? ''));
+            $defaultValue = '';
+            $rawPlaceholder = trim((string)($config['placeholder'] ?? ''));
+            if ($rawPlaceholder !== '') {
+                $defaultValue = $rawPlaceholder;
+            }
+            if ($placeholder !== '') {
+                $shortenedPlaceholder = GeneralUtility::fixed_lgd_cs($placeholder, 20);
+                if ($placeholder !== $shortenedPlaceholder) {
+                    $overrideLabel = sprintf(
+                        $languageService->sL('LLL:EXT:core/Resources/Private/Language/locallang_core.xlf:labels.placeholder.override'),
+                        '<span title="' . htmlspecialchars($placeholder) . '">' . htmlspecialchars($shortenedPlaceholder) . '</span>'
+                    );
+                } else {
+                    $overrideLabel = sprintf(
+                        $languageService->sL('LLL:EXT:core/Resources/Private/Language/locallang_core.xlf:labels.placeholder.override'),
+                        htmlspecialchars($placeholder)
+                    );
+                }
+            } else {
+                $overrideLabel = $languageService->sL(
+                    'LLL:EXT:core/Resources/Private/Language/locallang_core.xlf:labels.placeholder.override_not_available'
+                );
+            }
+
+            $placeholderCkeditorAttributes = GeneralUtility::implodeAttributes([
+                'id' => $fieldId . '-placeholder-ckeditor5',
+                'options' => GeneralUtility::jsonEncodeForHtmlAttribute([
+                    ...$ckeditorConfiguration,
+                    'readOnly' => true,
+                ], false),
+            ], true);
+
+            $placeholderTextareaAttributes = GeneralUtility::implodeAttributes([
+                'slot' => 'textarea',
+                'id' => $fieldId . '-placeholder',
+                'rows' => '18',
+                'class' => 'form-control',
+            ], true);
+
+            $fullElement = [];
+            $fullElement[] = '<div class="form-check t3js-form-field-eval-null-placeholder-checkbox">';
+            $fullElement[] =     '<input type="hidden" name="' . $nullControlNameEscaped . '" value="0" />';
+            $fullElement[] =     '<input type="checkbox" class="form-check-input" name="' . $nullControlNameEscaped . '" id="' . $nullControlNameEscaped . '" value="1"' . $checked . ' />';
+            $fullElement[] =     '<label class="form-check-label" for="' . $nullControlNameEscaped . '">';
+            $fullElement[] =         $overrideLabel;
+            $fullElement[] =     '</label>';
+            $fullElement[] = '</div>';
+            $fullElement[] = '<div class="t3js-formengine-placeholder-placeholder">';
+            $fullElement[] =    '<div class="form-control-wrap">';
+            $fullElement[] =        '<typo3-rte-ckeditor-ckeditor5 ' . $placeholderCkeditorAttributes . '>';
+            $fullElement[] =            '<textarea ' . $placeholderTextareaAttributes . '>';
+            $fullElement[] =                htmlspecialchars($defaultValue);
+            $fullElement[] =            '</textarea>';
+            $fullElement[] =        '</typo3-rte-ckeditor-ckeditor5>';
+            $fullElement[] =    '</div>';
+            $fullElement[] = '</div>';
+            $fullElement[] = '<div class="t3js-formengine-placeholder-formfield">';
+            $fullElement[] =    implode(LF, $html);
+            $fullElement[] = '</div>';
+        }
+
+        $fullElement = '<div class="formengine-field-item t3js-formengine-field-item">' . implode(LF, $fullElement) . '</div>';
+
+        $resultArray['html'] = $this->wrapWithFieldsetAndLegend($fullElement);
         $resultArray['javaScriptModules'][] = JavaScriptModuleInstruction::create('@typo3/rte-ckeditor/ckeditor5.js');
 
         $uiLanguage = $ckeditorConfiguration['language']['ui'];
@@ -206,10 +283,8 @@ class RichTextElement extends AbstractFormElement
         }
         $languageCodeParts = explode('_', $contentLanguage);
         $contentLanguage = strtolower($languageCodeParts[0]) . (!empty($languageCodeParts[1]) ? '_' . strtoupper($languageCodeParts[1]) : '');
-        // Find the configured language in the list of localization locales
-        $locales = GeneralUtility::makeInstance(Locales::class);
-        // If not found, default to 'en'
-        if ($contentLanguage === 'default' || !$locales->isValidLanguageKey($contentLanguage)) {
+        // Find the configured language in the list of localization locales, if not found, default to 'en'.
+        if ($contentLanguage === 'default' || !$this->locales->isValidLanguageKey($contentLanguage)) {
             $contentLanguage = 'en';
         }
         return $contentLanguage;
@@ -230,7 +305,9 @@ class RichTextElement extends AbstractFormElement
             }
         }
         if (isset($this->data['parameterArray']['fieldConf']['config']['placeholder'])) {
-            $configuration['placeholder'] = (string)$this->data['parameterArray']['fieldConf']['config']['placeholder'];
+            // Note that HTML tags are stripped here, because CKEditor does not parse placeholder text.
+            // Without it, the HTML code would be displayed as-is.
+            $configuration['placeholder'] = strip_tags((string)$this->data['parameterArray']['fieldConf']['config']['placeholder']);
         }
         return $configuration;
     }
@@ -257,17 +334,16 @@ class RichTextElement extends AbstractFormElement
         ];
 
         $pluginConfiguration = [];
-        $uriBuilder = GeneralUtility::makeInstance(UriBuilder::class);
         foreach ($externalPlugins as $pluginName => $configuration) {
             $pluginConfiguration[$pluginName] = [
                 'configName' => $configuration['configName'] ?? $pluginName,
             ];
             unset($configuration['configName']);
-            // CKEditor4 style config, unused in CKEditor5 and not forwarded to the resutling plugin config
+            // CKEditor 4 style config, unused in CKEditor 5 and not forwarded to the resutling plugin config
             unset($configuration['resource']);
 
             if ($configuration['route'] ?? null) {
-                $configuration['routeUrl'] = (string)$uriBuilder->buildUriFromRoute($configuration['route'], $urlParameters);
+                $configuration['routeUrl'] = (string)$this->uriBuilder->buildUriFromRoute($configuration['route'], $urlParameters);
             }
 
             $pluginConfiguration[$pluginName]['config'] = $configuration;
@@ -314,7 +390,13 @@ class RichTextElement extends AbstractFormElement
      */
     protected function resolveUrlPath(string $value): string
     {
-        return PathUtility::getPublicResourceWebPath($value);
+        if (str_contains($value, '?')) {
+            return PathUtility::getPublicResourceWebPath($value);
+        }
+        $value = GeneralUtility::getFileAbsFileName($value);
+        $value = GeneralUtility::createVersionNumberedFilename($value);
+        return PathUtility::getAbsoluteWebPath($value);
+
     }
 
     /**
@@ -329,6 +411,7 @@ class RichTextElement extends AbstractFormElement
         // Of course this can be overridden by the editor configuration below
         $configuration = [
             'customConfig' => '',
+            'label' => $this->data['parameterArray']['fieldConf']['label'] ?? '',
         ];
 
         if ($this->data['parameterArray']['fieldConf']['config']['readOnly'] ?? false) {
@@ -344,8 +427,8 @@ class RichTextElement extends AbstractFormElement
             ->getConfiguration();
 
         // Set the UI language of the editor if not hard-coded by the existing configuration
-        if (empty($configuration['language']) ||
-            (is_array($configuration['language']) && empty($configuration['language']['ui']))
+        if (empty($configuration['language'])
+            || (is_array($configuration['language']) && empty($configuration['language']['ui']))
         ) {
             $userLang = (string)($this->getBackendUser()->user['lang'] ?: 'en');
             $configuration['language']['ui'] = $userLang === 'default' ? 'en' : $userLang;
@@ -364,19 +447,6 @@ class RichTextElement extends AbstractFormElement
         // unless explicitly set, the debug mode is enabled in development context
         if (!isset($configuration['debug'])) {
             $configuration['debug'] = ($GLOBALS['TYPO3_CONF_VARS']['BE']['debug'] ?? false) && Environment::getContext()->isDevelopment();
-        }
-
-        // The removePlugins option needs to be assigned as an array in CKEditor5.
-        // While we recommended passing the option already as an array, CKEditor4
-        // needed a comma-separated string. The conversion was only handled if the
-        // Integrator passed an array, which means if someone already provided a
-        // comma-separated string the option was simply passed as is to the Editor.
-        // To avoid javascript errors we are going to migrate it to array for now.
-        // The possibility to pass the option as a string is deprecated and will be
-        // removed with version 13.
-        if (isset($configuration['removePlugins']) && !is_array($configuration['removePlugins'])) {
-            trigger_error('Passing the CKEditor removePlugins option as string is deprecated, use an array instead. Support for passing the option as string will be removed in TYPO3 v13.0.', E_USER_DEPRECATED);
-            $configuration['removePlugins'] = explode(',', $configuration['removePlugins']);
         }
 
         $configuration = $this->eventDispatcher

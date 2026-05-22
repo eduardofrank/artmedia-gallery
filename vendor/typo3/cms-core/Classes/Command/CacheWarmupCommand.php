@@ -25,31 +25,21 @@ use Symfony\Component\Console\Output\OutputInterface;
 use TYPO3\CMS\Core\Cache\CacheManager;
 use TYPO3\CMS\Core\Cache\Event\CacheWarmupEvent;
 use TYPO3\CMS\Core\Cache\Frontend\FrontendInterface;
-use TYPO3\CMS\Core\Configuration\Event\AfterTcaCompilationEvent;
+use TYPO3\CMS\Core\Configuration\Extension\ExtLocalconfFactory;
+use TYPO3\CMS\Core\Configuration\Extension\ExtTablesFactory;
+use TYPO3\CMS\Core\Configuration\Tca\TcaFactory;
 use TYPO3\CMS\Core\Core\BootService;
-use TYPO3\CMS\Core\Core\Event\WarmupBaseTcaCache;
 use TYPO3\CMS\Core\DependencyInjection\ContainerBuilder;
-use TYPO3\CMS\Core\EventDispatcher\ListenerProvider;
 use TYPO3\CMS\Core\Package\PackageManager;
-use TYPO3\CMS\Core\Utility\ExtensionManagementUtility;
 
 class CacheWarmupCommand extends Command
 {
-    protected ContainerBuilder $containerBuilder;
-    protected PackageManager $packageManager;
-    protected BootService $bootService;
-    protected FrontendInterface $dependencyInjectionCache;
-
     public function __construct(
-        ContainerBuilder $containerBuilder,
-        PackageManager $packageManager,
-        BootService $bootService,
-        FrontendInterface $dependencyInjectionCache
+        protected readonly ContainerBuilder $containerBuilder,
+        protected readonly PackageManager $packageManager,
+        protected readonly BootService $bootService,
+        protected readonly FrontendInterface $dependencyInjectionCache
     ) {
-        $this->containerBuilder = $containerBuilder;
-        $this->packageManager = $packageManager;
-        $this->bootService = $bootService;
-        $this->dependencyInjectionCache = $dependencyInjectionCache;
         parent::__construct('cache:warmup');
     }
 
@@ -59,7 +49,18 @@ class CacheWarmupCommand extends Command
     protected function configure(): void
     {
         $this->setDescription('Warmup TYPO3 caches.');
-        $this->setHelp('This command is useful for deployments to warmup caches during release preparation.');
+        $this->setHelp(
+            <<<'EOF'
+This command is useful for deployments to warmup caches during release preparation.
+
+<fg=yellow>
+Cache warming does not work if the PHP version used to execute the command differs from
+the PHP version used in the web context.
+
+See: https://docs.typo3.org/permalink/changelog:important-107649-1760090777
+</>
+EOF
+        );
         $this->setDefinition([
             new InputOption('group', 'g', InputOption::VALUE_OPTIONAL, 'The cache group to warmup (system, pages, di or all)', 'all'),
         ]);
@@ -83,20 +84,21 @@ class CacheWarmupCommand extends Command
 
         $allowExtFileCaches = true;
         if ($group === 'system' || $group === 'all') {
-            $coreCache = $container->get('cache.core');
-            ExtensionManagementUtility::createExtLocalconfCacheEntry($coreCache);
-            ExtensionManagementUtility::createExtTablesCacheEntry($coreCache);
-
-            // Load TCA uncached…
             $allowExtFileCaches = false;
-            // …but store the fresh base TCA to cache
-            $listenerProvider = $container->get(ListenerProvider::class);
-            $listenerProvider->addListener(AfterTcaCompilationEvent::class, WarmupBaseTcaCache::class, 'storeBaseTcaCache');
+            $container->get(ExtLocalconfFactory::class)->createCacheEntry();
+            $container->get(ExtTablesFactory::class)->createCacheEntry();
         }
-
-        // Perform a full boot to load localconf as requirement extensions and for TCA loading.
-        // TCA will be cached during dispatch of AfterTcaCompilationEvent.
-        $this->bootService->loadExtLocalconfDatabaseAndExtTables(false, $allowExtFileCaches);
+        // Perform a full boot to load localconf (requirement for extensions and for TCA loading).
+        $this->bootService->loadExtLocalconfDatabaseAndExtTables(false, $allowExtFileCaches, false);
+        if ($group === 'system' || $group === 'all') {
+            $tcaFactory = $container->get(TcaFactory::class);
+            $tcaFactory->createBaseTcaCacheFile($GLOBALS['TCA']);
+        }
+        if ($allowExtFileCaches) {
+            $container->get(ExtTablesFactory::class)->load();
+        } else {
+            $container->get(ExtTablesFactory::class)->loadUncached();
+        }
 
         $eventDispatcher = $container->get(EventDispatcherInterface::class);
 

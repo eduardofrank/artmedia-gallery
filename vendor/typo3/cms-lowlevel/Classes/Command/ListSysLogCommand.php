@@ -36,7 +36,7 @@ class ListSysLogCommand extends Command
     /**
      * Configure the command by defining the name, options and arguments
      */
-    public function configure()
+    protected function configure(): void
     {
         $this->setHelp('Prints a list of recent sys_log entries.' . LF . 'If you want to get more detailed information, use the --verbose option.');
     }
@@ -103,10 +103,8 @@ class ListSysLogCommand extends Command
                     'error',
                     'tstamp',
                     'type',
-                    'details_nr',
                     'IP',
                     'event_pid',
-                    'NEWid',
                     'workspace',
                 ]);
             }
@@ -129,9 +127,10 @@ class ListSysLogCommand extends Command
         $str = '';
         foreach ($arr as $key => $value) {
             if (in_array($key, $valueList, true)) {
-                $str .= (string)$key . trim(': ' . GeneralUtility::fixed_lgd_cs(str_replace(LF, '|', (string)$value), 20)) . LF;
+                $str .= $key . trim(': ' . GeneralUtility::fixed_lgd_cs(str_replace(LF, '|', (string)$value), 20)) . LF;
             }
         }
+        $str .= 'NEWid: ' . LF;
         return $str;
     }
 }

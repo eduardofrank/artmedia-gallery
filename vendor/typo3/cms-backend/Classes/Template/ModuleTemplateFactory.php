@@ -18,6 +18,7 @@ declare(strict_types=1);
 namespace TYPO3\CMS\Backend\Template;
 
 use Psr\Http\Message\ServerRequestInterface;
+use Symfony\Component\DependencyInjection\Attribute\Autoconfigure;
 use TYPO3\CMS\Backend\Module\ModuleProvider;
 use TYPO3\CMS\Backend\Routing\UriBuilder;
 use TYPO3\CMS\Backend\View\BackendViewFactory;
@@ -29,16 +30,17 @@ use TYPO3\CMS\Core\Page\PageRenderer;
 /**
  * A factory class creating backend related ModuleTemplate view objects.
  */
+#[Autoconfigure(public: true, shared: false)]
 final class ModuleTemplateFactory
 {
     public function __construct(
-        protected readonly PageRenderer $pageRenderer,
-        protected readonly IconFactory $iconFactory,
-        protected readonly UriBuilder $uriBuilder,
-        protected readonly ModuleProvider $moduleProvider,
-        protected readonly FlashMessageService $flashMessageService,
-        protected readonly ExtensionConfiguration $extensionConfiguration,
-        protected readonly BackendViewFactory $viewFactory,
+        private readonly PageRenderer $pageRenderer,
+        private readonly IconFactory $iconFactory,
+        private readonly UriBuilder $uriBuilder,
+        private readonly ModuleProvider $moduleProvider,
+        private readonly FlashMessageService $flashMessageService,
+        private readonly ExtensionConfiguration $extensionConfiguration,
+        private readonly BackendViewFactory $viewFactory,
     ) {}
 
     public function create(ServerRequestInterface $request): ModuleTemplate

@@ -18,6 +18,8 @@ declare(strict_types=1);
 namespace TYPO3\CMS\Core\Page;
 
 use TYPO3\CMS\Core\Security\ContentSecurityPolicy\ConsumableNonce;
+use TYPO3\CMS\Core\Security\ContentSecurityPolicy\Directive;
+use TYPO3\CMS\Core\Utility\ArrayUtility;
 use TYPO3\CMS\Core\Utility\GeneralUtility;
 use TYPO3\CMS\Core\Utility\PathUtility;
 
@@ -27,7 +29,11 @@ class JavaScriptRenderer
     protected JavaScriptItems $items;
     protected ImportMap $importMap;
     protected int $javaScriptModuleInstructionFlags = 0;
+    protected int $instructionsWithItems = 0;
 
+    /**
+     * @internal Only to be used by PageRenderer
+     */
     public static function create(?string $uri = null): self
     {
         $uri ??= PathUtility::getAbsoluteWebPath(
@@ -36,10 +42,13 @@ class JavaScriptRenderer
         return GeneralUtility::makeInstance(static::class, $uri);
     }
 
+    /**
+     * @internal
+     */
     public function __construct(string $handlerUri)
     {
         $this->handlerUri = $handlerUri;
-        $this->items = GeneralUtility::makeInstance(JavaScriptItems::class);
+        $this->items = new JavaScriptItems();
         $this->importMap = GeneralUtility::makeInstance(ImportMapFactory::class)->create();
     }
 
@@ -53,34 +62,16 @@ class JavaScriptRenderer
         if ($instruction->shallLoadImportMap()) {
             $this->importMap->includeImportsFor($instruction->getName());
         }
-        if ($instruction->shallLoadRequireJs()) {
-            $url = $this->importMap->resolveImport($instruction->getName() . '.js');
-
-            if ($url) {
-                // @todo: Map instruction to an ImportMap instruction. (to avoid loading requirejs if not actually required)
-                $this->javaScriptModuleInstructionFlags |= JavaScriptModuleInstruction::FLAG_LOAD_IMPORTMAP;
-            } else {
-                // If no modules were included, the RequireJS module is not yet
-                // backed by an ES6 replacement, therefore we load all importmap configurations,
-                // in order for all dependencies to be loadable.
-                // But we do only do this for logged in backend users (to avoid extension-list disclosure)
-                if (!empty($GLOBALS['BE_USER']->user['uid'])) {
-                    $this->includeAllImports();
-                }
-            }
-        }
         $this->javaScriptModuleInstructionFlags |= $instruction->getFlags();
+        if ($instruction->getItems() !== []) {
+            $this->instructionsWithItems++;
+        }
         $this->items->addJavaScriptModuleInstruction($instruction);
     }
 
     public function hasImportMap(): bool
     {
         return ($this->javaScriptModuleInstructionFlags & JavaScriptModuleInstruction::FLAG_LOAD_IMPORTMAP) === JavaScriptModuleInstruction::FLAG_LOAD_IMPORTMAP;
-    }
-
-    public function hasRequirejs(): bool
-    {
-        return ($this->javaScriptModuleInstructionFlags & JavaScriptModuleInstruction::FLAG_LOAD_REQUIRE_JS) === JavaScriptModuleInstruction::FLAG_LOAD_REQUIRE_JS;
     }
 
     /**
@@ -108,27 +99,76 @@ class JavaScriptRenderer
         return $this->items->toArray();
     }
 
-    public function render(null|string|ConsumableNonce $nonce = null): string
+    /**
+     * @throws \InvalidArgumentException when a JavaScript module could not be resolved (no src URL in import map)
+     */
+    public function render(string|ConsumableNonce|null $nonce = null, ?string $sitePath = null): string
     {
         if ($this->isEmpty()) {
             return '';
         }
-        $attributes = [
-            'src' => $this->handlerUri,
-            'async' => 'async',
-        ];
-        if ($nonce !== null) {
-            $attributes['nonce'] = (string)$nonce;
+
+        if ($sitePath !== null) {
+            $scriptTags = [];
+
+            $modules = [];
+            $dynamicInstructions = [];
+            foreach ($this->items->getJavascriptModuleInstructions() as $instruction) {
+                $moduleName = $instruction->getName();
+                $url = $this->importMap->resolveImport($moduleName);
+                if ($url === null) {
+                    throw new \InvalidArgumentException(
+                        sprintf(
+                            'JavaScript module "%s" could not be resolved. (Missing entry in Configuration/JavaScriptModules.php?).',
+                            $moduleName
+                        ),
+                        1728220800
+                    );
+                }
+                if (
+                    $instruction->getItems() !== []
+                    || ($instruction->getFlags() & JavaScriptModuleInstruction::FLAG_USE_TOP_WINDOW) !== 0
+                ) {
+                    $dynamicInstructions[] = [
+                        'type' => 'javaScriptModuleInstruction',
+                        'payload' => $instruction,
+                    ];
+                } else {
+                    $modules[$moduleName] = $url;
+                }
+            }
+
+            $globalAssignments = $this->mergeGlobalAssignments($this->items->getGlobalAssignments());
+            if ($globalAssignments !== []) {
+                $scriptTags[] = $this->createScriptElement(
+                    ['nonce' => $nonce instanceof ConsumableNonce ? $nonce->consumeInline(Directive::ScriptSrcElem) : (string)$nonce],
+                    sprintf('Object.assign(globalThis, %s)', $this->jsonEncode($globalAssignments))
+                );
+            }
+            $scriptTags = [
+                ...$scriptTags,
+                ...array_map(
+                    fn(string $url): string => $this->createScriptElement([
+                        'type' => 'module',
+                        'async' => 'async',
+                        'src' => $sitePath . $url,
+                    ]),
+                    $modules
+                ),
+            ];
+
+            if ($dynamicInstructions !== []) {
+                $scriptTags[] = $this->createItemHandlerElement($dynamicInstructions, true, $nonce);
+            }
+
+            return implode(PHP_EOL, $scriptTags);
         }
-        return $this->createScriptElement(
-            $attributes,
-            $this->jsonEncode($this->toArray())
-        );
+        return $this->createItemHandlerElement($this->toArray(), true, $nonce);
     }
 
-    public function renderImportMap(string $sitePath, null|string|ConsumableNonce $nonce = null): string
+    public function renderImportMap(string $sitePath, string|ConsumableNonce|null $nonce = null): string
     {
-        if (!$this->isEmpty()) {
+        if (!$this->isEmpty() && ($this->instructionsWithItems > 0 || $this->items->getGlobalAssignments() !== [])) {
             $this->importMap->includeImportsFor('@typo3/core/java-script-item-handler.js');
         }
         return $this->importMap->render($sitePath, $nonce);
@@ -139,19 +179,68 @@ class JavaScriptRenderer
         return $this->items->isEmpty();
     }
 
+    protected function createItemHandlerElement(array $payload, bool $async, string|ConsumableNonce|null $nonce = null): string
+    {
+        // actual JSON payload is stored as comment in `script.textContent`
+        // and consumed by java-script-item-handler.js
+        return $this->createScriptElement(
+            [
+                'src' => $this->handlerUri,
+                'nonce' => (string)$nonce,
+                'async' => $async ? 'async' : '',
+            ],
+            '/* ' . $this->jsonEncode($payload) . ' */'
+        );
+    }
+
     protected function createScriptElement(array $attributes, string $textContent = ''): string
     {
         if (empty($attributes)) {
             return '';
         }
         $attributesPart = GeneralUtility::implodeAttributes($attributes, true);
-        // actual JSON payload is stored as comment in `script.textContent`
-        return sprintf('<script %s>/* %s */</script>', $attributesPart, $textContent);
+        return sprintf('<script%s%s>%s</script>', $attributesPart ? ' ' : '', $attributesPart, $textContent);
     }
 
     protected function jsonEncode($value): string
     {
         return (string)json_encode($value, JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_TAG);
+    }
+
+    protected function mergeGlobalAssignments(array $assignments): array
+    {
+        $globalAssignments = [];
+        foreach ($assignments as $assignment) {
+            // Merge `window` one level up, as we target `globalThis` which is window.
+            // Needed because we assign to globalThis and must not overwrite window entirely,
+            // but only merge to it and because we want to forbid nested assignments like
+            // `window.parent.foo` below.
+            if (isset($assignment['window'])) {
+                $assignment = [
+                    ...$assignment,
+                    ...$assignment['window'],
+                ];
+                unset($assignment['window']);
+            }
+            $globalAssignments = array_merge_recursive($globalAssignments, $assignment);
+        }
+
+        // deny indirect global assignments (not for security reasons, but for reducing
+        // the chance of hard-to-debug side-effects)
+        unset($globalAssignments['window']);
+        unset($globalAssignments['parent']);
+        unset($globalAssignments['globalThis']);
+        unset($globalAssignments['document']);
+
+        // filter potential prototype pollution side-effects
+        return ArrayUtility::filterRecursive(
+            $globalAssignments,
+            static fn(string $key): bool => match ($key) {
+                '__proto__', 'prototype', 'constructor' => false,
+                default => true,
+            },
+            ARRAY_FILTER_USE_KEY
+        );
     }
 
     /**

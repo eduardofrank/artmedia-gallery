@@ -9,9 +9,7 @@ declare(strict_types=1);
 
 namespace TYPO3Fluid\Fluid\ViewHelpers\Format;
 
-use TYPO3Fluid\Fluid\Core\Rendering\RenderingContextInterface;
 use TYPO3Fluid\Fluid\Core\ViewHelper\AbstractViewHelper;
-use TYPO3Fluid\Fluid\Core\ViewHelper\Traits\CompileWithRenderStatic;
 
 /**
  * Wrapper for PHPs :php:`nl2br` function.
@@ -37,11 +35,12 @@ use TYPO3Fluid\Fluid\Core\ViewHelper\Traits\CompileWithRenderStatic;
  *    {text_with_linebreaks -> f:format.nl2br()}
  *
  * Text with line breaks replaced by ``<br />``
+ *
+ * @api
+ * @see https://docs.typo3.org/permalink/fluid:typo3fluid-fluid-format-nl2br
  */
 final class Nl2brViewHelper extends AbstractViewHelper
 {
-    use CompileWithRenderStatic;
-
     /**
      * @var bool
      */
@@ -52,9 +51,9 @@ final class Nl2brViewHelper extends AbstractViewHelper
         $this->registerArgument('value', 'string', 'string to format');
     }
 
-    public static function renderStatic(array $arguments, \Closure $renderChildrenClosure, RenderingContextInterface $renderingContext): string
+    public function render(): string
     {
-        return nl2br((string)$renderChildrenClosure());
+        return nl2br((string)$this->renderChildren());
     }
 
     /**

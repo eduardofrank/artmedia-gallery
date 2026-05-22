@@ -91,7 +91,6 @@ final class InstallStatusReport implements StatusProviderInterface
             $varPath . '/transient/' => 2,
             $varPath . '/charset/' => 2,
             $varPath . '/lock/' => 2,
-            $sitePath . '/typo3conf/' => 2,
             Environment::getLabelsPath() => 0,
             $sitePath . '/' . $GLOBALS['TYPO3_CONF_VARS']['BE']['fileadminDir'] => -1,
             $sitePath . '/' . $GLOBALS['TYPO3_CONF_VARS']['BE']['fileadminDir'] . '_temp_/' => 0,
@@ -100,6 +99,8 @@ final class InstallStatusReport implements StatusProviderInterface
         // Check for writable extension folder files in non-composer mode only
         if (!Environment::isComposerMode()) {
             $checkWritable[Environment::getExtensionsPath()] = 0;
+            $checkWritable[$sitePath . '/typo3conf/'] = 2;
+
         }
 
         foreach ($checkWritable as $path => $requirementLevel) {
@@ -160,7 +161,7 @@ final class InstallStatusReport implements StatusProviderInterface
      * Fetches all wizards that are not marked "done" in the registry and filters out
      * the ones that should not be rendered (= no upgrade required).
      */
-    protected function getIncompleteWizards(): array
+    private function getIncompleteWizards(): array
     {
         $incompleteWizards = $this->upgradeWizardsService->getUpgradeWizardsList();
         $incompleteWizards = array_filter(

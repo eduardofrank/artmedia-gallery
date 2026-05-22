@@ -26,10 +26,11 @@ if (!is_array($GLOBALS['TCA']['tt_content']['types']['card_group'] ?? false)) {
     'tt_content',
     'CType',
     [
-        'LLL:EXT:bootstrap_package/Resources/Private/Language/Backend.xlf:content_element.card_group',
-        'card_group',
-        'content-bootstrappackage-card-group',
-        'bootstrap_package'
+        'label' => 'LLL:EXT:bootstrap_package/Resources/Private/Language/Backend.xlf:content_element.card_group',
+        'description' => 'LLL:EXT:bootstrap_package/Resources/Private/Language/Backend.xlf:content_element.card_group.description',
+        'value' => 'card_group',
+        'icon' => 'content-bootstrappackage-card-group',
+        'group' => 'bootstrap_package',
     ],
     'audio',
     'after'
@@ -46,6 +47,7 @@ $GLOBALS['TCA']['tt_content']['types']['card_group'] = array_replace_recursive(
         --div--;LLL:EXT:core/Resources/Private/Language/Form/locallang_tabs.xlf:general,
             --palette--;LLL:EXT:frontend/Resources/Private/Language/locallang_ttc.xlf:palette.general;general,
             --palette--;LLL:EXT:frontend/Resources/Private/Language/locallang_ttc.xlf:palette.headers;headers,
+            subitems_header_layout,
             tx_bootstrappackage_card_group_item,
         --div--;LLL:EXT:bootstrap_package/Resources/Private/Language/Backend.xlf:content_element.card_group.options,
             pi_flexform;LLL:EXT:bootstrap_package/Resources/Private/Language/Backend.xlf:advanced,
@@ -62,7 +64,7 @@ $GLOBALS['TCA']['tt_content']['types']['card_group'] = array_replace_recursive(
         --div--;LLL:EXT:core/Resources/Private/Language/Form/locallang_tabs.xlf:notes,
             rowDescription,
         --div--;LLL:EXT:core/Resources/Private/Language/Form/locallang_tabs.xlf:extended,
-        '
+        ',
     ]
 );
 
@@ -84,13 +86,13 @@ $GLOBALS['TCA']['tt_content']['columns'] = array_replace_recursive(
                     'expandSingle' => true,
                     'enabledControls' => [
                         'localize' => true,
-                    ]
+                    ],
                 ],
                 'behaviour' => [
                     'mode' => 'select',
-                ]
-            ]
-        ]
+                ],
+            ],
+        ],
     ]
 );
 

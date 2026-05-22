@@ -11,8 +11,8 @@ class ComposerStaticInit54584d2e5ccdafa7080a2f060d910898
         '0e6d7bf4a5811bfa5cf40c5ccd6fae6a' => __DIR__ . '/..' . '/symfony/polyfill-mbstring/bootstrap.php',
         'e69f7f6ee287b969198c3c9d6777bd38' => __DIR__ . '/..' . '/symfony/polyfill-intl-normalizer/bootstrap.php',
         '320cde22f66dd4f5d3fd621d3e88b98f' => __DIR__ . '/..' . '/symfony/polyfill-ctype/bootstrap.php',
-        '662a729f963d39afe703c9d9b7ab4a8c' => __DIR__ . '/..' . '/symfony/polyfill-php83/bootstrap.php',
         'f598d06aa772fa33d905e87be6398fb1' => __DIR__ . '/..' . '/symfony/polyfill-intl-idn/bootstrap.php',
+        '662a729f963d39afe703c9d9b7ab4a8c' => __DIR__ . '/..' . '/symfony/polyfill-php83/bootstrap.php',
         '7b11c4dc42b3b3023073cb14e519683c' => __DIR__ . '/..' . '/ralouphie/getallheaders/src/getallheaders.php',
         '2203a247e6fda86070a5e4e07aed533a' => __DIR__ . '/..' . '/symfony/clock/Resources/now.php',
         '8825ede83f2f289127722d4e842cf7e8' => __DIR__ . '/..' . '/symfony/polyfill-intl-grapheme/bootstrap.php',
@@ -20,9 +20,8 @@ class ComposerStaticInit54584d2e5ccdafa7080a2f060d910898
         '09f6b20656683369174dd6fa83b7e5fb' => __DIR__ . '/..' . '/symfony/polyfill-uuid/bootstrap.php',
         '37a3dc5111fe8f707ab4c132ef1dbc62' => __DIR__ . '/..' . '/guzzlehttp/guzzle/src/functions_include.php',
         '8a197a13b1f213f3a2178168511a1b5d' => __DIR__ . '/..' . '/typo3/cms-core/Resources/PHP/GlobalDebugFunctions.php',
-        '667aeda72477189d0494fecd327c3641' => __DIR__ . '/..' . '/symfony/var-dumper/Resources/functions/dump.php',
         '01f368d689df9bc0e426630c0c30ad4b' => __DIR__ . '/..' . '/typo3/autoload-include.php',
-        'dd1a1deb4cc13744de30b80153a64818' => __DIR__ . '/..' . '/typo3/alias-loader-include.php',
+        'e1f702b711985ae18b57810d2f9aecf0' => __DIR__ . '/..' . '/typo3/alias-loader-include.php',
     );
 
     public static $prefixLengthsPsr4 = array (
@@ -94,8 +93,8 @@ class ComposerStaticInit54584d2e5ccdafa7080a2f060d910898
             'Symfony\\Contracts\\Cache\\' => 24,
             'Symfony\\Component\\Yaml\\' => 23,
             'Symfony\\Component\\VarExporter\\' => 30,
-            'Symfony\\Component\\VarDumper\\' => 28,
             'Symfony\\Component\\Uid\\' => 22,
+            'Symfony\\Component\\TypeInfo\\' => 27,
             'Symfony\\Component\\String\\' => 25,
             'Symfony\\Component\\Routing\\' => 26,
             'Symfony\\Component\\RateLimiter\\' => 30,
@@ -160,7 +159,7 @@ class ComposerStaticInit54584d2e5ccdafa7080a2f060d910898
         array (
             'ErrorReporting\\' => 15,
             'Egulias\\EmailValidator\\' => 23,
-            'EduardoFrank\\Artmediagallery12\\' => 31,
+            'EduardoFrank\\Artmediagallery13\\' => 31,
         ),
         'D' =>
         array (
@@ -168,7 +167,6 @@ class ComposerStaticInit54584d2e5ccdafa7080a2f060d910898
             'Doctrine\\Deprecations\\' => 22,
             'Doctrine\\DBAL\\' => 14,
             'Doctrine\\Common\\Lexer\\' => 22,
-            'Doctrine\\Common\\Cache\\' => 22,
             'Doctrine\\Common\\Annotations\\' => 28,
             'Doctrine\\Common\\' => 16,
             'DASPRiD\\Enum\\' => 13,
@@ -376,13 +374,13 @@ class ComposerStaticInit54584d2e5ccdafa7080a2f060d910898
         array (
             0 => __DIR__ . '/..' . '/symfony/var-exporter',
         ),
-        'Symfony\\Component\\VarDumper\\' =>
-        array (
-            0 => __DIR__ . '/..' . '/symfony/var-dumper',
-        ),
         'Symfony\\Component\\Uid\\' =>
         array (
             0 => __DIR__ . '/..' . '/symfony/uid',
+        ),
+        'Symfony\\Component\\TypeInfo\\' =>
+        array (
+            0 => __DIR__ . '/..' . '/symfony/type-info',
         ),
         'Symfony\\Component\\String\\' =>
         array (
@@ -559,9 +557,9 @@ class ComposerStaticInit54584d2e5ccdafa7080a2f060d910898
         array (
             0 => __DIR__ . '/..' . '/egulias/email-validator/src',
         ),
-        'EduardoFrank\\Artmediagallery12\\' =>
+        'EduardoFrank\\Artmediagallery13\\' =>
         array (
-            0 => __DIR__ . '/..' . '/eduardo-frank/artmediagallery12/Classes',
+            0 => __DIR__ . '/..' . '/eduardo-frank/artmediagallery13/Classes',
         ),
         'Doctrine\\Instantiator\\' =>
         array (
@@ -569,7 +567,7 @@ class ComposerStaticInit54584d2e5ccdafa7080a2f060d910898
         ),
         'Doctrine\\Deprecations\\' =>
         array (
-            0 => __DIR__ . '/..' . '/doctrine/deprecations/lib/Doctrine/Deprecations',
+            0 => __DIR__ . '/..' . '/doctrine/deprecations/src',
         ),
         'Doctrine\\DBAL\\' =>
         array (
@@ -578,10 +576,6 @@ class ComposerStaticInit54584d2e5ccdafa7080a2f060d910898
         'Doctrine\\Common\\Lexer\\' =>
         array (
             0 => __DIR__ . '/..' . '/doctrine/lexer/src',
-        ),
-        'Doctrine\\Common\\Cache\\' =>
-        array (
-            0 => __DIR__ . '/..' . '/doctrine/cache/lib/Doctrine/Common/Cache',
         ),
         'Doctrine\\Common\\Annotations\\' =>
         array (
@@ -610,7 +604,6 @@ class ComposerStaticInit54584d2e5ccdafa7080a2f060d910898
     );
 
     public static $classMap = array (
-        'Composer\\Autoload\\ClassMapGenerator' => __DIR__ . '/..' . '/typo3/cms-core/Resources/PHP/ClassMapGenerator.php',
         'Composer\\InstalledVersions' => __DIR__ . '/..' . '/composer/InstalledVersions.php',
         'DateError' => __DIR__ . '/..' . '/symfony/polyfill-php83/Resources/stubs/DateError.php',
         'DateException' => __DIR__ . '/..' . '/symfony/polyfill-php83/Resources/stubs/DateException.php',

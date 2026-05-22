@@ -20,10 +20,13 @@ namespace TYPO3\CMS\Install;
 use Psr\Container\ContainerInterface;
 use Psr\EventDispatcher\EventDispatcherInterface;
 use TYPO3\CMS\Core\Configuration\ConfigurationManager;
-use TYPO3\CMS\Core\Configuration\SiteConfiguration;
+use TYPO3\CMS\Core\Configuration\Loader\YamlFileLoader;
+use TYPO3\CMS\Core\Configuration\SiteWriter;
 use TYPO3\CMS\Core\Console\CommandRegistry;
 use TYPO3\CMS\Core\Context\Context;
+use TYPO3\CMS\Core\Crypto\HashService;
 use TYPO3\CMS\Core\Crypto\PasswordHashing\PasswordHashFactory;
+use TYPO3\CMS\Core\Database\Schema\SchemaMigrator;
 use TYPO3\CMS\Core\DependencyInjection\ContainerBuilder;
 use TYPO3\CMS\Core\FormProtection\FormProtectionFactory;
 use TYPO3\CMS\Core\Http\MiddlewareDispatcher;
@@ -41,11 +44,14 @@ use TYPO3\CMS\Core\Package\AbstractServiceProvider;
 use TYPO3\CMS\Core\Package\FailsafePackageManager;
 use TYPO3\CMS\Core\Package\PackageManager;
 use TYPO3\CMS\Core\Registry;
+use TYPO3\CMS\Core\Routing\BackendEntryPointResolver;
 use TYPO3\CMS\Core\TypoScript\AST\CommentAwareAstBuilder;
 use TYPO3\CMS\Core\TypoScript\AST\Traverser\AstTraverser;
 use TYPO3\CMS\Core\TypoScript\Tokenizer\LosslessTokenizer;
 use TYPO3\CMS\Install\Database\PermissionsCheck;
 use TYPO3\CMS\Install\Service\LateBootService;
+use TYPO3\CMS\Install\Service\LoadTcaService;
+use TYPO3\CMS\Install\Service\SessionService;
 use TYPO3\CMS\Install\Service\SetupDatabaseService;
 use TYPO3\CMS\Install\Service\SetupService;
 use TYPO3\CMS\Install\Service\WebServerConfigurationFileService;
@@ -72,6 +78,7 @@ class ServiceProvider extends AbstractServiceProvider
             Http\Application::class => self::getApplication(...),
             Http\NotFoundRequestHandler::class => self::getNotFoundRequestHandler(...),
             Service\ClearCacheService::class => self::getClearCacheService(...),
+            Service\ClearTableService::class => self::getClearTableService(...),
             Service\CoreUpdateService::class => self::getCoreUpdateService(...),
             Service\CoreVersionService::class => self::getCoreVersionService(...),
             Service\LanguagePackService::class => self::getLanguagePackService(...),
@@ -81,6 +88,7 @@ class ServiceProvider extends AbstractServiceProvider
             Service\SilentTemplateFileUpgradeService::class => self::getSilentTemplateFileUpgradeService(...),
             Service\WebServerConfigurationFileService::class => self::getWebServerConfigurationFileService(...),
             Service\DatabaseUpgradeWizardsService::class => self::getDatabaseUpgradeWizardsService(...),
+            Service\SessionService::class => self::getSessionService(...),
             Service\SetupService::class => self::getSetupService(...),
             Service\SetupDatabaseService::class => self::getSetupDatabaseService(...),
             Middleware\Installer::class => self::getInstallerMiddleware(...),
@@ -92,13 +100,16 @@ class ServiceProvider extends AbstractServiceProvider
             Controller\LoginController::class => self::getLoginController(...),
             Controller\MaintenanceController::class => self::getMaintenanceController(...),
             Controller\SettingsController::class => self::getSettingsController(...),
+            Controller\ServerResponseCheckController::class => self::getServerResponseCheckController(...),
             Controller\UpgradeController::class => self::getUpgradeController(...),
             Command\LanguagePackCommand::class => self::getLanguagePackCommand(...),
             Command\UpgradeWizardRunCommand::class => self::getUpgradeWizardRunCommand(...),
             Command\UpgradeWizardListCommand::class => self::getUpgradeWizardListCommand(...),
+            Command\UpgradeWizardMarkUndoneCommand::class => self::getUpgradeWizardMarkUndoneCommand(...),
             Command\SetupCommand::class => self::getSetupCommand(...),
+            Command\SetupDefaultBackendUserGroupsCommand::class => self::getSetupDefaultBackendUserGroupsCommand(...),
             Database\PermissionsCheck::class => self::getPermissionsCheck(...),
-            Mailer::class => self::getMailer(...),
+            Updates\DatabaseUpdatedPrerequisite::class => self::getDatabaseUpdatedPrerequisite(...),
         ];
     }
 
@@ -130,7 +141,10 @@ class ServiceProvider extends AbstractServiceProvider
         $dispatcher->add($container->get(Middleware\Maintenance::class));
         $dispatcher->lazy(NormalizedParamsMiddleware::class);
 
-        return new Http\Application($dispatcher, $container->get(Context::class));
+        return self::new($container, Http\Application::class, [
+            $dispatcher,
+            $container->get(Context::class),
+        ]);
     }
 
     public static function getNotFoundRequestHandler(ContainerInterface $container): Http\NotFoundRequestHandler
@@ -143,6 +157,13 @@ class ServiceProvider extends AbstractServiceProvider
         return new Service\ClearCacheService(
             $container->get(Service\LateBootService::class),
             $container->get('cache.di')
+        );
+    }
+
+    public static function getClearTableService(ContainerInterface $container): Service\ClearTableService
+    {
+        return new Service\ClearTableService(
+            $container->get(FailsafePackageManager::class),
         );
     }
 
@@ -203,14 +224,24 @@ class ServiceProvider extends AbstractServiceProvider
 
     public static function getDatabaseUpgradeWizardsService(ContainerInterface $container): Service\DatabaseUpgradeWizardsService
     {
-        return new Service\DatabaseUpgradeWizardsService();
+        return self::new($container, Service\DatabaseUpgradeWizardsService::class, [
+            $container->get(SchemaMigrator::class),
+        ]);
+    }
+
+    public static function getSessionService(ContainerInterface $container): Service\SessionService
+    {
+        return new Service\SessionService(
+            $container->get(HashService::class),
+        );
     }
 
     public static function getSetupService(ContainerInterface $container): Service\SetupService
     {
         return new Service\SetupService(
             $container->get(ConfigurationManager::class),
-            $container->get(SiteConfiguration::class),
+            $container->get(SiteWriter::class),
+            $container->get(YamlFileLoader::class),
             $container->get(FailsafePackageManager::class),
         );
     }
@@ -222,6 +253,7 @@ class ServiceProvider extends AbstractServiceProvider
             $container->get(ConfigurationManager::class),
             $container->get(PermissionsCheck::class),
             $container->get(Registry::class),
+            $container->get(SchemaMigrator::class),
         );
     }
 
@@ -229,7 +261,8 @@ class ServiceProvider extends AbstractServiceProvider
     {
         return new Middleware\Installer(
             $container,
-            $container->get(FormProtectionFactory::class)
+            $container->get(FormProtectionFactory::class),
+            $container->get(SessionService::class),
         );
     }
 
@@ -240,7 +273,8 @@ class ServiceProvider extends AbstractServiceProvider
             $container->get(ConfigurationManager::class),
             $container->get(PasswordHashFactory::class),
             $container,
-            $container->get(FormProtectionFactory::class)
+            $container->get(FormProtectionFactory::class),
+            $container->get(SessionService::class),
         );
     }
 
@@ -256,7 +290,6 @@ class ServiceProvider extends AbstractServiceProvider
     public static function getIconController(ContainerInterface $container): Controller\IconController
     {
         return new Controller\IconController(
-            $container->get(IconRegistry::class),
             $container->get(IconFactory::class)
         );
     }
@@ -271,6 +304,8 @@ class ServiceProvider extends AbstractServiceProvider
             $container->get(FormProtectionFactory::class),
             $container->get(SetupService::class),
             $container->get(SetupDatabaseService::class),
+            $container->get(HashService::class),
+            $container->get(IconRegistry::class),
         );
     }
 
@@ -279,7 +314,10 @@ class ServiceProvider extends AbstractServiceProvider
         return new Controller\LayoutController(
             $container->get(FailsafePackageManager::class),
             $container->get(Service\SilentConfigurationUpgradeService::class),
-            $container->get(Service\SilentTemplateFileUpgradeService::class)
+            $container->get(Service\SilentTemplateFileUpgradeService::class),
+            $container->get(BackendEntryPointResolver::class),
+            $container->get(HashService::class),
+            $container->get(IconRegistry::class),
         );
     }
 
@@ -296,11 +334,13 @@ class ServiceProvider extends AbstractServiceProvider
         return new Controller\MaintenanceController(
             $container->get(Service\LateBootService::class),
             $container->get(Service\ClearCacheService::class),
+            $container->get(Service\ClearTableService::class),
             $container->get(ConfigurationManager::class),
             $container->get(PasswordHashFactory::class),
             $container->get(Locales::class),
             $container->get(LanguageServiceFactory::class),
-            $container->get(FormProtectionFactory::class)
+            $container->get(FormProtectionFactory::class),
+            $container->get(SchemaMigrator::class),
         );
     }
 
@@ -317,13 +357,21 @@ class ServiceProvider extends AbstractServiceProvider
         );
     }
 
+    public static function getServerResponseCheckController(ContainerInterface $container): Controller\ServerResponseCheckController
+    {
+        return new Controller\ServerResponseCheckController(
+            $container->get(HashService::class),
+        );
+    }
+
     public static function getUpgradeController(ContainerInterface $container): Controller\UpgradeController
     {
         return new Controller\UpgradeController(
             $container->get(PackageManager::class),
             $container->get(Service\LateBootService::class),
             $container->get(Service\DatabaseUpgradeWizardsService::class),
-            $container->get(FormProtectionFactory::class)
+            $container->get(FormProtectionFactory::class),
+            $container->get(LoadTcaService::class)
         );
     }
 
@@ -340,7 +388,8 @@ class ServiceProvider extends AbstractServiceProvider
         return new Command\UpgradeWizardRunCommand(
             'upgrade:run',
             $container->get(Service\LateBootService::class),
-            $container->get(Service\DatabaseUpgradeWizardsService::class)
+            $container->get(Service\DatabaseUpgradeWizardsService::class),
+            $container->get(Service\SilentConfigurationUpgradeService::class)
         );
     }
 
@@ -348,6 +397,14 @@ class ServiceProvider extends AbstractServiceProvider
     {
         return new Command\UpgradeWizardListCommand(
             'upgrade:list',
+            $container->get(Service\LateBootService::class),
+        );
+    }
+
+    public static function getUpgradeWizardMarkUndoneCommand(ContainerInterface $container): Command\UpgradeWizardMarkUndoneCommand
+    {
+        return new Command\UpgradeWizardMarkUndoneCommand(
+            'upgrade:mark:undone',
             $container->get(Service\LateBootService::class),
         );
     }
@@ -363,16 +420,23 @@ class ServiceProvider extends AbstractServiceProvider
         );
     }
 
+    public function getSetupDefaultBackendUserGroupsCommand(ContainerInterface $container): Command\SetupDefaultBackendUserGroupsCommand
+    {
+        return new Command\SetupDefaultBackendUserGroupsCommand(
+            'setup:begroups:default',
+            $container->get(Service\SetupService::class),
+        );
+    }
+
     public static function getPermissionsCheck(ContainerInterface $container): Database\PermissionsCheck
     {
         return new Database\PermissionsCheck();
     }
 
-    public static function getMailer(ContainerInterface $container): Mailer
+    public static function getDatabaseUpdatedPrerequisite(ContainerInterface $container): Updates\DatabaseUpdatedPrerequisite
     {
-        return self::new($container, Mailer::class, [
-            null,
-            $container->get(EventDispatcherInterface::class),
+        return self::new($container, Updates\DatabaseUpdatedPrerequisite::class, [
+            $container->get(Service\DatabaseUpgradeWizardsService::class),
         ]);
     }
 
@@ -396,9 +460,19 @@ class ServiceProvider extends AbstractServiceProvider
             'List available upgrade wizards.'
         );
         $commandRegistry->addLazyCommand(
+            'upgrade:mark:undone',
+            Command\UpgradeWizardMarkUndoneCommand::class,
+            'Mark upgrade wizard as undone.'
+        );
+        $commandRegistry->addLazyCommand(
             'setup',
             Command\SetupCommand::class,
             'Setup TYPO3 via CLI.'
+        );
+        $commandRegistry->addLazyCommand(
+            'setup:begroups:default',
+            Command\SetupDefaultBackendUserGroupsCommand::class,
+            'Setup default backend user groups "Editor" and "Advanced Editor".'
         );
         return $commandRegistry;
     }

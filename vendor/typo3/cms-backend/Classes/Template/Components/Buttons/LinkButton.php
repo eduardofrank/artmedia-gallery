@@ -23,17 +23,19 @@ use TYPO3\CMS\Core\Utility\GeneralUtility;
  * This button type renders a regular anchor tag with TYPO3s way to render a
  * button control.
  *
- * EXAMPLE USAGE TO ADD A BUTTON TO THE FIRST BUTTON GROUP IN THE LEFT BAR:
+ * Example:
  *
+ * ```
  * $buttonBar = $this->moduleTemplate->getDocHeaderComponent()->getButtonBar();
  * $saveButton = $buttonBar->makeLinkButton()
  *      ->setHref('#')
  *      ->setDataAttributes([
  *          'foo' => 'bar'
  *      ])
- *      ->setIcon($this->iconFactory->getIcon('actions-document-save', Icon::SIZE_SMALL))
+ *      ->setIcon($this->iconFactory->getIcon('actions-document-save', IconSize::SMALL))
  *      ->setTitle('Save');
  * $buttonBar->addButton($saveButton, ButtonBar::BUTTON_POSITION_LEFT, 1);
+ * ```
  */
 class LinkButton extends AbstractButton
 {
@@ -43,6 +45,13 @@ class LinkButton extends AbstractButton
      * @var string
      */
     protected $href = '';
+
+    /**
+     * `role` attribute of the link
+     *
+     * @var string
+     */
+    protected $role = 'button';
 
     /**
      * Get href
@@ -64,6 +73,29 @@ class LinkButton extends AbstractButton
     public function setHref($href)
     {
         $this->href = $href;
+        return $this;
+    }
+
+    /**
+     * Get role
+     *
+     * @return string
+     */
+    public function getRole()
+    {
+        return $this->role;
+    }
+
+    /**
+     * Set role
+     *
+     * @param string $role `role` attribute
+     *
+     * @return LinkButton
+     */
+    public function setRole($role)
+    {
+        $this->role = $role;
         return $this;
     }
 
@@ -93,7 +125,9 @@ class LinkButton extends AbstractButton
     public function render()
     {
         $attributes = [
+            'role' => $this->getRole(),
             'href' => $this->getHref(),
+            // @see SplitButton - hard-coded replacement for this hard-coded class-list
             'class' => 'btn btn-sm btn-default ' . $this->getClasses(),
             'title' => $this->getTitle(),
         ];
@@ -105,7 +139,7 @@ class LinkButton extends AbstractButton
             $attributes['data-' . $attributeName] = $attributeValue;
         }
         if ($this->isDisabled()) {
-            $attributes['disabled'] = 'disabled';
+            $attributes['aria-disabled'] = 'true';
             $attributes['class'] .= ' disabled';
         }
         $attributesString = GeneralUtility::implodeAttributes($attributes, true);

@@ -17,6 +17,7 @@ declare(strict_types=1);
 
 namespace TYPO3\CMS\Impexp\Command;
 
+use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputArgument;
 use Symfony\Component\Console\Input\InputInterface;
@@ -30,13 +31,11 @@ use TYPO3\CMS\Impexp\Import;
 /**
  * Command for importing T3D/XML data files
  */
+#[AsCommand('impexp:import', 'Imports a T3D / XML file with content into a page tree')]
 class ImportCommand extends Command
 {
-    protected Import $import;
-
-    public function __construct(Import $import)
+    public function __construct(protected readonly Import $import)
     {
-        $this->import = $import;
         parent::__construct();
     }
 
@@ -80,11 +79,11 @@ class ImportCommand extends Command
                 null,
                 InputOption::VALUE_OPTIONAL | InputOption::VALUE_IS_ARRAY,
                 sprintf(
-                    'Set the import mode of this specific record. ' . PHP_EOL .
-                        'Pattern is "{table}:{record}={mode}". ' . PHP_EOL .
-                        'Available modes for new records are "%1$s" and "%3$s" ' .
-                        'and for existing records "%2$s", "%4$s", "%5$s" and "%3$s".' . PHP_EOL .
-                        'Examples are "pages:987=%1$s", "tt_content:1=%2$s", etc.',
+                    'Set the import mode of this specific record. ' . PHP_EOL
+                        . 'Pattern is "{table}:{record}={mode}". ' . PHP_EOL
+                        . 'Available modes for new records are "%1$s" and "%3$s" '
+                        . 'and for existing records "%2$s", "%4$s", "%5$s" and "%3$s".' . PHP_EOL
+                        . 'Examples are "pages:987=%1$s", "tt_content:1=%2$s", etc.',
                     Import::IMPORT_MODE_FORCE_UID,
                     Import::IMPORT_MODE_AS_NEW,
                     Import::IMPORT_MODE_EXCLUDE,
@@ -118,7 +117,7 @@ class ImportCommand extends Command
             $this->import->setForceAllUids($input->getOption('force-uid'));
             $this->import->setEnableLogging($input->getOption('enable-log'));
             $this->import->setImportMode($this->parseAssociativeArray($input, 'import-mode', '='));
-            $this->import->loadFile((string)$input->getArgument('file'), true);
+            $this->import->loadFile((string)$input->getArgument('file'));
             $this->import->checkImportPrerequisites();
             $this->import->importData();
             $io->success('Importing ' . $input->getArgument('file') . ' to page ' . $input->getArgument('pid') . ' succeeded.');

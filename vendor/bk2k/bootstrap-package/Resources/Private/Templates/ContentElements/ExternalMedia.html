@@ -2,7 +2,7 @@
 <f:layout name="Default" />
 <f:section name="Main">
 
-    <bk2k:externalMedia url="{data.external_media_source}" class="embed-responsive-item">
+    <bk2k:externalMedia title="{data.external_media_title}" url="{data.external_media_source}" class="embed-responsive-item">
         <f:if condition="{externalMedia}">
             <f:then>
                 <div class="embed-responsive embed-responsive-{data.external_media_ratio}">
@@ -11,7 +11,7 @@
             </f:then>
             <f:else>
                 <div class="alert alert-warning">
-                    <f:translate key="externalmediaunsupported" extensionName="bootstrap_package" arguments="{0: '<strong>{data.external_media_source}</strong>'}" />
+                    <f:translate key="externalmediaunsupported" extensionName="bootstrap_package" arguments="{0: '\'{data.external_media_source}\''}" />
                 </div>
             </f:else>
         </f:if>

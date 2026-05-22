@@ -36,7 +36,7 @@ class CategoryMenuUtility
      * Collects all pages for the selected categories, sorted according to configuration.
      *
      * @param string $selectedCategories Comma-separated list of system categories primary keys
-     * @param array $configuration TypoScript configuration for the "special." keyword
+     * @param array|null $configuration TypoScript configuration for the "special." keyword
      * @param \TYPO3\CMS\Frontend\ContentObject\Menu\AbstractMenuContentObject $parentObject Back-reference to the calling object
      * @return array List of selected pages
      */
@@ -110,31 +110,12 @@ class CategoryMenuUtility
                         $order = 'asc';
                     }
                 }
-                uasort(
-                    $pages,
-                    [
-                        self::class,
-                        'sortPagesUtility',
-                    ]
-                );
-                // If the sort order is descending, reverse the sorted array
-                if ($order === 'desc') {
-                    $pages = array_reverse($pages, true);
-                }
+                $sortMultiplier = $order === 'asc' ? 1 : -1;
+                uasort($pages, static function (array $pageA, array $pageB) use ($sortMultiplier): int {
+                    return strnatcasecmp($pageA[self::$sortingField], $pageB[self::$sortingField]) * $sortMultiplier;
+                });
             }
         }
         return $pages;
-    }
-
-    /**
-     * Static utility for sorting pages according to the selected criterion
-     *
-     * @param array $pageA Record for first page to be compared
-     * @param array $pageB Record for second page to be compared
-     * @return int -1 if first argument is smaller than second argument, 1 if first is greater than second and 0 if both are equal
-     */
-    public static function sortPagesUtility($pageA, $pageB)
-    {
-        return strnatcasecmp($pageA[self::$sortingField], $pageB[self::$sortingField]);
     }
 }

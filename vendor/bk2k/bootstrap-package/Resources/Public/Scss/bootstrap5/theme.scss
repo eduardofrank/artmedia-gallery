@@ -16,10 +16,17 @@
 @import "compat/embed";
 
 //
+// Functions
+//
+@import "../components/functions/a11y";
+
+//
 // Components
 //
+@import "../components/form";
 @import "../components/button";
 @import "../components/navbar";
+@import "../components/nav";
 @import "../components/backendlayout";
 @import "../components/section";
 @import "../components/frame";
@@ -50,6 +57,7 @@
 @import "../components/well";
 @import "../components/pagination";
 @import "../components/scrolltop";
+@import "../components/page";
 @import "../components/misc";
 @import "../components/contentcontainer";
 

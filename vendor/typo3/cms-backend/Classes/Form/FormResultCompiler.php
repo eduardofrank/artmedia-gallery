@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 /*
  * This file is part of the TYPO3 CMS project.
  *
@@ -58,13 +60,6 @@ class FormResultCompiler
     protected $stylesheetFiles = [];
 
     /**
-     * Additional JavaScript printed after the form
-     *
-     * @var array
-     */
-    protected $additionalJavaScriptPost = [];
-
-    /**
      * Additional language label files to include.
      *
      * @var array
@@ -77,15 +72,6 @@ class FormResultCompiler
      * @var list<JavaScriptModuleInstruction>
      */
     protected $javaScriptModules = [];
-
-    /**
-     * Array with requireJS modules, use module name as key, the value could be callback code.
-     * Use NULL as value if no callback is used.
-     *
-     * @var list<JavaScriptModuleInstruction>
-     * @deprecated will be removed in TYPO3 v13.0. Use $javaScriptModules instead.
-     */
-    protected $requireJsModules = [];
 
     /**
      * @var PageRenderer
@@ -101,10 +87,6 @@ class FormResultCompiler
     public function mergeResult(array $resultArray)
     {
         $this->doSaveFieldName = $resultArray['doSaveFieldName'] ?? '';
-        // @deprecated since TYPO3 v12.4. will be removed in TYPO3 v13.0.
-        foreach ($resultArray['additionalJavaScriptPost'] as $element) {
-            $this->additionalJavaScriptPost[] = $element;
-        }
         foreach ($resultArray['javaScriptModules'] ?? [] as $module) {
             if (!$module instanceof JavaScriptModuleInstruction) {
                 throw new \LogicException(
@@ -117,20 +99,6 @@ class FormResultCompiler
                 );
             }
             $this->javaScriptModules[] = $module;
-        }
-        foreach ($resultArray['requireJsModules'] ?? [] as $module) {
-            if (!$module instanceof JavaScriptModuleInstruction) {
-                throw new \LogicException(
-                    sprintf(
-                        'Module must be a %s, type "%s" given',
-                        JavaScriptModuleInstruction::class,
-                        gettype($module)
-                    ),
-                    1638264590
-                );
-            }
-            trigger_error('FormEngine $resultArray[\'requireJsModules\'] is deprecated, use $resultArray[\'javaScriptModules\'] instead. Support for this array key will be removed in TYPO3 v13.0.', E_USER_DEPRECATED);
-            $this->requireJsModules[] = $module;
         }
         foreach ($resultArray['additionalHiddenFields'] as $element) {
             $this->hiddenFieldAccum[] = $element;
@@ -201,15 +169,11 @@ class FormResultCompiler
         $this->javaScriptModules[] = JavaScriptModuleInstruction::create('@typo3/backend/form-engine.js')
                 ->invoke(
                     'initialize',
-                    (string)$uriBuilder->buildUriFromRoute('wizard_element_browser')
+                    (string)$uriBuilder->buildUriFromRoute('wizard_element_browser'),
+                    $this->doSaveFieldName
                 );
-        $this->javaScriptModules[] = JavaScriptModuleInstruction::create('@typo3/backend/form-engine-review.js');
 
         foreach ($this->javaScriptModules as $module) {
-            $pageRenderer->getJavaScriptRenderer()->addJavaScriptModuleInstruction($module);
-        }
-        /** @deprecated will be removed in TYPO3 v13.0 */
-        foreach ($this->requireJsModules as $module) {
             $pageRenderer->getJavaScriptRenderer()->addJavaScriptModuleInstruction($module);
         }
 
@@ -217,7 +181,7 @@ class FormResultCompiler
         $formatter = new DateFormatter();
         $dateFormat = [];
         $dateFormat[0] = $formatter->convertPhpFormatToLuxon($GLOBALS['TYPO3_CONF_VARS']['SYS']['ddmmyy'] ?? 'Y-m-d');
-        $dateFormat[1] = $formatter->convertPhpFormatToLuxon($GLOBALS['TYPO3_CONF_VARS']['SYS']['hhmm'] ?? 'H:i') . ' ' . $dateFormat[0];
+        $dateFormat[1] = $dateFormat[0] . ' ' . $formatter->convertPhpFormatToLuxon($GLOBALS['TYPO3_CONF_VARS']['SYS']['hhmm'] ?? 'H:i');
         $pageRenderer->addInlineSetting('DateTimePicker', 'DateFormat', $dateFormat);
 
         $pageRenderer->addInlineLanguageLabelFile('EXT:core/Resources/Private/Language/locallang_core.xlf', 'file_upload');
@@ -228,8 +192,6 @@ class FormResultCompiler
             }
         }
 
-        $pageRenderer->loadJavaScriptModule('@typo3/backend/form-engine/request-update.js');
-
         // todo: change these things in JS
         $pageRenderer->addInlineLanguageLabelArray([
             'FormEngine.noRecordTitle' => $this->getLanguageService()->sL('LLL:EXT:core/Resources/Private/Language/locallang_core.xlf:labels.no_title'),
@@ -238,6 +200,8 @@ class FormResultCompiler
             'FormEngine.maxItemsAllowed' => $this->getLanguageService()->sL('LLL:EXT:core/Resources/Private/Language/locallang_core.xlf:labels.maxItemsAllowed'),
             'FormEngine.refreshRequiredTitle' => $this->getLanguageService()->sL('LLL:EXT:core/Resources/Private/Language/locallang_core.xlf:mess.refreshRequired.title'),
             'FormEngine.refreshRequiredContent' => $this->getLanguageService()->sL('LLL:EXT:core/Resources/Private/Language/locallang_core.xlf:mess.refreshRequired.content'),
+            'FormEngine.refreshRequiredCancel' => $this->getLanguageService()->sL('LLL:EXT:core/Resources/Private/Language/locallang_core.xlf:mess.refreshRequired.cancel'),
+            'FormEngine.refreshRequiredConfirm' => $this->getLanguageService()->sL('LLL:EXT:core/Resources/Private/Language/locallang_core.xlf:mess.refreshRequired.confirm'),
             'FormEngine.remainingCharacters' => $this->getLanguageService()->sL('LLL:EXT:core/Resources/Private/Language/locallang_core.xlf:labels.remainingCharacters'),
             'FormEngine.minCharactersLeft' => $this->getLanguageService()->sL('LLL:EXT:core/Resources/Private/Language/locallang_core.xlf:labels.minCharactersLeft'),
             'labels.contextMenu.open' => $this->getLanguageService()->sL('LLL:EXT:core/Resources/Private/Language/locallang_core.xlf:labels.contextMenu.open'),
@@ -245,22 +209,16 @@ class FormResultCompiler
             'label.confirm.delete_record.title' => $this->getLanguageService()->sL('LLL:EXT:backend/Resources/Private/Language/locallang_alt_doc.xlf:label.confirm.delete_record.title'),
             'buttons.confirm.delete_record.no' => $this->getLanguageService()->sL('LLL:EXT:backend/Resources/Private/Language/locallang_alt_doc.xlf:buttons.confirm.delete_record.no'),
             'buttons.confirm.delete_record.yes' => $this->getLanguageService()->sL('LLL:EXT:backend/Resources/Private/Language/locallang_alt_doc.xlf:buttons.confirm.delete_record.yes'),
+            'button.ok' => $this->getLanguageService()->sL('LLL:EXT:core/Resources/Private/Language/locallang_common.xlf:ok'),
+            'button.cancel' => $this->getLanguageService()->sL('LLL:EXT:core/Resources/Private/Language/locallang_common.xlf:cancel'),
         ]);
 
         // Add JS required for inline fields
         if (!empty($this->inlineData)) {
             $pageRenderer->addInlineSettingArray('FormEngineInline', $this->inlineData);
         }
-        $inlineJavaScript = '';
-        // @deprecated since TYPO3 v12.4. will be removed in TYPO3 v13.0.
-        if ($this->additionalJavaScriptPost !== []) {
-            trigger_error(
-                'Using form engine result property "additionalJavaScriptPost" is deprecated, use JavaScript modules instead.',
-                E_USER_DEPRECATED
-            );
-            $inlineJavaScript .= LF . "\t" . GeneralUtility::wrapJS(implode(LF, $this->additionalJavaScriptPost));
-        }
-        return $html . $inlineJavaScript;
+
+        return $html;
     }
 
     protected function getBackendUserAuthentication(): BackendUserAuthentication

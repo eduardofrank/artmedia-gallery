@@ -5,6 +5,72 @@ This changelog is according to [Keep a Changelog](http://keepachangelog.com).
 All notable changes to this project will be documented in this file.
 We will follow [Semantic Versioning](http://semver.org/).
 
+## 11.1.0 July 1, 2025
+
+### Added
+- Extra database indexes for `tx_yoastseo_related_focuskeyword` and `tx_yoastseo_prominent_word` to speed up the queries
+  for retrieval
+
+### Fixed
+- Set fixed width and height for svg icons within the score bar on top of the page view
+- Set the color of the Yoast module svg to `currentcolor` to fix both dark and light mode in TYPO3 13
+
+## 11.0.2 April 2, 2025
+
+### Fixed
+- `translations` and `supportedLanguages` are added to the `YoastConfig` variable within the Crawler module to fix the crawling process
+- Removed the `load` event listener for setting the seo title placeholder, this is now executed immediately
+- Added fallback to `en_GB` if no backend locale is found to prevent missing translations
+- Re-added `typo3/tailor` to dev dependencies to fix automatic publishing to TER
+
+## 11.0.1 March 13, 2025
+
+### Fixed
+- Added `ignorePageTypeRestriction` to the `tx_yoastseo_prominent_word` TCA to prevent page copy problems
+
+## 11.0.0 February 14, 2025
+
+### Breaking
+- Replaced the `urlToCheck` with a new `ModifyPreviewUrl` event
+
+### Added
+- Added "Flesh reading score" to the Insights
+- Added "Reading time" to the Insights
+- Added "Word count" to the Insights
+- New testing setup for unit, functional and acceptance tests
+- Translations script to download translations from GlotPress (wordpress)
+
+### Changed
+- Updated all the underlying Yoast libraries to the latest version
+  - Added custom combine-reducers package to replace the existing one with CSP issues
+- Moved all build related files to the `Build` directory
+- Lots of splitting up code and moving it to separate classes
+- Updates scss files to work with the new dark mode in TYPO3 13
+- Labels for Readability and SEO score are now taken from the Yoast translations instead of xlf
+- Moved `tx_yoastseo_hide_snippet_preview` to the SEO tab
+- PHPStan level set to 8
+
+### Fixed
+- CSP issues within the `Cornerstone` form element and the Dashboard backend module
+- Dark mode styling for the Dashboard and Overview backend module
+- Ajax Calls for `saveScores` and `prominentWords` have the correct JSON header now
+- (TYPO3 12+) Language id is now taken from `moduleData` within the request object for displaying the snippet preview
+  - All languages mode now shows the default language instead of nothing
+- Optimized images that are used in the Dashboard module and load them directly instead of through `f:image`
+  - Removed old unused images
+- Translations are now correctly loaded based on the backend locale
+- `og_image` and `twitter_image` now have the correct `foreign_match_fields` -> `tablenames` when using the Record functionality
+
+## 10.1.0 January 27, 2025
+### Added
+- `TypoScriptStructuredDataProvider` to add structured data to the page, configured with TypoScript (premium functionality)
+
+### Fixed
+- Renamed `JavascriptModules.php` to `JavaScriptModules.php`
+
+### Removed
+- Premium support mention within the documentation
+
 ## 10.0.0 October 15, 2024
 ### Breaking
 - Dropped support for TYPO3 10

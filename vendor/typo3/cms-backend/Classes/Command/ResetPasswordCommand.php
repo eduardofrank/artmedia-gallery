@@ -37,27 +37,15 @@ use TYPO3\CMS\Core\Utility\GeneralUtility;
  */
 class ResetPasswordCommand extends Command
 {
-    /**
-     * @var Context
-     */
-    private $context;
-
-    /**
-     * @var PasswordReset
-     */
-    private $passwordReset;
-
-    public function __construct(Context $context, PasswordReset $passwordReset)
+    public function __construct(private readonly Context $context, private readonly PasswordReset $passwordReset)
     {
-        $this->context = $context;
-        $this->passwordReset = $passwordReset;
         parent::__construct();
     }
 
     /**
      * Configure the command by defining the name, options and arguments
      */
-    protected function configure()
+    protected function configure(): void
     {
         $this
             ->addArgument(

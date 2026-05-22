@@ -18,6 +18,7 @@ declare(strict_types=1);
 namespace TYPO3\CMS\Seo\XmlSitemap;
 
 use Psr\Http\Message\ServerRequestInterface;
+use Symfony\Component\DependencyInjection\Attribute\Autoconfigure;
 use TYPO3\CMS\Core\Http\PropagateResponseException;
 use TYPO3\CMS\Core\Security\ContentSecurityPolicy\Directive;
 use TYPO3\CMS\Core\Security\ContentSecurityPolicy\HashValue;
@@ -25,25 +26,27 @@ use TYPO3\CMS\Core\Security\ContentSecurityPolicy\Mutation;
 use TYPO3\CMS\Core\Security\ContentSecurityPolicy\MutationCollection;
 use TYPO3\CMS\Core\Security\ContentSecurityPolicy\MutationMode;
 use TYPO3\CMS\Core\Security\ContentSecurityPolicy\PolicyRegistry;
-use TYPO3\CMS\Core\Security\ContentSecurityPolicy\SourceKeyword;
 use TYPO3\CMS\Core\TypoScript\TypoScriptService;
 use TYPO3\CMS\Core\Utility\GeneralUtility;
 use TYPO3\CMS\Core\Utility\PathUtility;
-use TYPO3\CMS\Fluid\Core\Rendering\RenderingContextFactory;
+use TYPO3\CMS\Core\View\ViewFactoryData;
+use TYPO3\CMS\Core\View\ViewFactoryInterface;
+use TYPO3\CMS\Core\View\ViewInterface;
 use TYPO3\CMS\Frontend\Controller\ErrorController;
 use TYPO3\CMS\Seo\XmlSitemap\Exception\InvalidConfigurationException;
-use TYPO3Fluid\Fluid\View\TemplateView;
 
 /**
  * Class to render the XML Sitemap to be used as a UserFunction.
  *
  * @internal this class is not part of TYPO3's Core API.
  */
-final class XmlSitemapRenderer
+#[Autoconfigure(public: true)]
+final readonly class XmlSitemapRenderer
 {
     public function __construct(
-        private readonly TypoScriptService $typoScriptService,
-        private readonly RenderingContextFactory $renderingContextFactory,
+        private TypoScriptService $typoScriptService,
+        private ErrorController $errorController,
+        private ViewFactoryInterface $viewFactory,
         private PolicyRegistry $policyRegistry,
     ) {}
 
@@ -57,15 +60,16 @@ final class XmlSitemapRenderer
         $settingsTree = $request->getAttribute('frontend.typoscript')->getSetupTree()->getChildByName('plugin')->getChildByName('tx_seo');
         $configurationArrayWithoutDots = $this->typoScriptService->convertTypoScriptArrayToPlainArray($settingsTree->toArray());
         $viewConfiguration = $configurationArrayWithoutDots['view'] ?? [];
-        $renderingContext = $this->renderingContextFactory->create();
-        $templatePaths = $renderingContext->getTemplatePaths();
-        $templatePaths->setTemplateRootPaths($viewConfiguration['templateRootPaths'] ?? []);
-        $templatePaths->setLayoutRootPaths($viewConfiguration['layoutRootPaths'] ?? []);
-        $templatePaths->setPartialRootPaths($viewConfiguration['partialRootPaths'] ?? []);
-        $templatePaths->setFormat('xml');
+        $viewFactoryData = new ViewFactoryData(
+            templateRootPaths: $viewConfiguration['templateRootPaths'] ?? [],
+            partialRootPaths: $viewConfiguration['partialRootPaths'] ?? [],
+            layoutRootPaths: $viewConfiguration['layoutRootPaths'] ?? [],
+            request: $request,
+            format: 'xml',
+        );
+        $view = $this->viewFactory->create($viewFactoryData);
         $sitemapType = $typoScriptConfiguration['sitemapType'] ?? 'xmlSitemap';
-        $view = GeneralUtility::makeInstance(TemplateView::class, $renderingContext);
-        $view->assign('type', $request->getAttribute('frontend.controller')->getPageArguments()->getPageType());
+        $view->assign('type', $request->getAttribute('routing')->getPageType());
         $view->assign('sitemapType', $sitemapType);
         $configConfiguration = $configurationArrayWithoutDots['config'] ?? [];
         if (!empty($sitemapName = ($request->getQueryParams()['sitemap'] ?? null))) {
@@ -80,7 +84,7 @@ final class XmlSitemapRenderer
         return $this->renderIndex($request, $view, $configConfiguration, $sitemapType);
     }
 
-    private function renderIndex(ServerRequestInterface $request, TemplateView $view, array $configConfiguration, string $sitemapType): string
+    private function renderIndex(ServerRequestInterface $request, ViewInterface $view, array $configConfiguration, string $sitemapType): string
     {
         $sitemaps = [];
         foreach ($configConfiguration[$sitemapType]['sitemaps'] as $sitemapName => $sitemapConfig) {
@@ -106,7 +110,7 @@ final class XmlSitemapRenderer
         return $view->render('Index');
     }
 
-    private function renderSitemap(ServerRequestInterface $request, TemplateView $view, array $configConfiguration, string $sitemapType, string $sitemapName): string
+    private function renderSitemap(ServerRequestInterface $request, ViewInterface $view, array $configConfiguration, string $sitemapType, string $sitemapName): string
     {
         $sitemapConfig = $configConfiguration[$sitemapType]['sitemaps'][$sitemapName] ?? null;
         if ($sitemapConfig) {
@@ -119,13 +123,13 @@ final class XmlSitemapRenderer
                 $provider = GeneralUtility::makeInstance($sitemapProvider, $request, $sitemapName, $sitemapConfig['config'] ?? []);
                 $items = $provider->getItems();
                 $view->assign('items', $items);
-                $template = $sitemapConfig['template'] ?? 'Sitemap';
+                $template = $sitemapConfig['config']['template'] ?? $sitemapConfig['template'] ?? 'Sitemap';
                 return $view->render($template);
             }
             throw new InvalidConfigurationException('No valid provider set for ' . $sitemapName, 1535578522);
         }
         throw new PropagateResponseException(
-            GeneralUtility::makeInstance(ErrorController::class)->pageNotFoundAction(
+            $this->errorController->pageNotFoundAction(
                 $request,
                 'No valid configuration found for sitemap ' . $sitemapName
             ),
@@ -135,7 +139,7 @@ final class XmlSitemapRenderer
 
     private function getXslFilePath(array $configConfiguration, string $sitemapType, ?string $sitemapName = null): string
     {
-        $path = $configConfiguration[$sitemapType]['sitemaps'][$sitemapName]['config']['xslFile']
+        $path = $configConfiguration[$sitemapType]['sitemaps'][$sitemapName ?? '']['config']['xslFile']
             ?? $configConfiguration[$sitemapType]['sitemaps']['xslFile']
             ?? $configConfiguration['xslFile']
             ?? 'EXT:seo/Resources/Public/CSS/Sitemap.xsl';
@@ -178,7 +182,6 @@ final class XmlSitemapRenderer
                 new Mutation(
                     MutationMode::Extend,
                     Directive::StyleSrcElem,
-                    SourceKeyword::unsafeHashes,
                     ...$hashes
                 )
             )

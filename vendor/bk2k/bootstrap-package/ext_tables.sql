@@ -13,6 +13,8 @@ CREATE TABLE pages (
 -- Table structure for table 'tt_content'
 --
 CREATE TABLE tt_content (
+    header_class varchar(60) DEFAULT '' NOT NULL,
+    subheader_class varchar(60) DEFAULT '' NOT NULL,
     teaser text,
     aspect_ratio varchar(255) DEFAULT '1.3333333333333' NOT NULL,
     items_per_page int(11) unsigned DEFAULT '10',
@@ -29,6 +31,7 @@ CREATE TABLE tt_content (
     icon_type varchar(60) DEFAULT 'default' NOT NULL,
     icon_color varchar(255) DEFAULT '' NOT NULL,
     icon_background varchar(255) DEFAULT '' NOT NULL,
+    external_media_title varchar(255) DEFAULT '' NOT NULL,
     external_media_source varchar(1024) DEFAULT '' NOT NULL,
     external_media_ratio varchar(10) DEFAULT '' NOT NULL,
     tx_bootstrappackage_card_group_item int(11) unsigned DEFAULT '0',
@@ -42,6 +45,7 @@ CREATE TABLE tt_content (
     background_color_class varchar(255) DEFAULT '' NOT NULL,
     background_image int(11) unsigned DEFAULT '0',
     background_image_options mediumtext,
+    subitems_header_layout int(11) unsigned DEFAULT '4' NOT NULL,
 );
 
 

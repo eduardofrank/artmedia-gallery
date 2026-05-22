@@ -45,6 +45,7 @@ use TYPO3\CMS\Core\Messaging\FlashMessageQueue;
 use TYPO3\CMS\Core\Messaging\FlashMessageService;
 use TYPO3\CMS\Core\Page\JavaScriptModuleInstruction;
 use TYPO3\CMS\Core\Page\PageRenderer;
+use TYPO3\CMS\Core\Routing\BackendEntryPointResolver;
 use TYPO3\CMS\Core\Type\ContextualFeedbackSeverity;
 use TYPO3\CMS\Core\Type\File\ImageInfo;
 use TYPO3\CMS\Core\Utility\GeneralUtility;
@@ -76,6 +77,7 @@ class BackendController
         protected readonly BackendViewFactory $viewFactory,
         protected readonly EventDispatcherInterface $eventDispatcher,
         protected readonly FlashMessageService $flashMessageService,
+        protected readonly BackendEntryPointResolver $backendEntryPointResolver,
     ) {
         $this->modules = $this->moduleProvider->getModulesForModuleMenu($this->getBackendUser());
     }
@@ -109,10 +111,22 @@ class BackendController
         $javaScriptRenderer->addJavaScriptModuleInstruction(
             JavaScriptModuleInstruction::create('@typo3/backend/broadcast-service.js')->invoke('listen')
         );
+        $javaScriptRenderer->addJavaScriptModuleInstruction(
+            JavaScriptModuleInstruction::create('@typo3/backend/hotkeys/negotiator.js')
+        );
+        $javaScriptRenderer->addJavaScriptModuleInstruction(
+            JavaScriptModuleInstruction::create('@typo3/backend/hotkeys.js')
+        );
+        $javaScriptRenderer->addJavaScriptModuleInstruction(
+            JavaScriptModuleInstruction::create('@typo3/backend/user-settings-manager.js')
+        );
         // load the storage API and fill the UC into the PersistentStorage, so no additional AJAX call is needed
         $javaScriptRenderer->addJavaScriptModuleInstruction(
             JavaScriptModuleInstruction::create('@typo3/backend/storage/persistent.js')
                 ->invoke('load', $backendUser->uc)
+        );
+        $javaScriptRenderer->addJavaScriptModuleInstruction(
+            JavaScriptModuleInstruction::create('@typo3/backend/key-bindings.js')
         );
         $javaScriptRenderer->addGlobalAssignment([
             'TYPO3' => [
@@ -130,23 +144,26 @@ class BackendController
         $pageRenderer->addInlineLanguageLabelFile('EXT:core/Resources/Private/Language/locallang_core.xlf');
         $pageRenderer->addInlineLanguageLabelFile('EXT:core/Resources/Private/Language/locallang_misc.xlf');
         $pageRenderer->addInlineLanguageLabelFile('EXT:backend/Resources/Private/Language/locallang_layout.xlf');
+        $pageRenderer->addInlineLanguageLabelFile('EXT:backend/Resources/Private/Language/locallang_settingseditor.xlf');
         $pageRenderer->addInlineLanguageLabelFile('EXT:core/Resources/Private/Language/locallang_mod_web_list.xlf');
         $pageRenderer->addInlineLanguageLabelFile('EXT:core/Resources/Private/Language/wizard.xlf');
 
         // @todo: We can not put this into the template since PageRendererViewHelper does not deal with namespace in addInlineSettings argument
         $pageRenderer->addInlineSetting('ShowItem', 'moduleUrl', (string)$this->uriBuilder->buildUriFromRoute('show_item'));
+        $pageRenderer->addInlineSetting('Resource', 'thumbnailUrl', (string)$this->uriBuilder->buildUriFromRoute('resource_request_thumbnail'));
         $pageRenderer->addInlineSetting('RecordHistory', 'moduleUrl', (string)$this->uriBuilder->buildUriFromRoute('record_history'));
         $pageRenderer->addInlineSetting('NewRecord', 'moduleUrl', (string)$this->uriBuilder->buildUriFromRoute('db_new'));
         $pageRenderer->addInlineSetting('FormEngine', 'moduleUrl', (string)$this->uriBuilder->buildUriFromRoute('record_edit'));
         $pageRenderer->addInlineSetting('RecordCommit', 'moduleUrl', (string)$this->uriBuilder->buildUriFromRoute('tce_db'));
         $pageRenderer->addInlineSetting('FileCommit', 'moduleUrl', (string)$this->uriBuilder->buildUriFromRoute('tce_file'));
         $pageRenderer->addInlineSetting('Clipboard', 'moduleUrl', (string)$this->uriBuilder->buildUriFromRoute('clipboard_process'));
+        $pageRenderer->addInlineSetting('Wizards', 'elementBrowserUrl', (string)$this->uriBuilder->buildUriFromRoute('wizard_element_browser'));
 
         // Needed for FormEngine manipulation (date picker)
         $formatter = new DateFormatter();
         $dateFormat = [];
         $dateFormat[0] = $formatter->convertPhpFormatToLuxon($GLOBALS['TYPO3_CONF_VARS']['SYS']['ddmmyy'] ?? 'Y-m-d');
-        $dateFormat[1] = $formatter->convertPhpFormatToLuxon($GLOBALS['TYPO3_CONF_VARS']['SYS']['hhmm'] ?? 'H:i') . ' ' . $dateFormat[0];
+        $dateFormat[1] = $dateFormat[0] . ' ' . $formatter->convertPhpFormatToLuxon($GLOBALS['TYPO3_CONF_VARS']['SYS']['hhmm'] ?? 'H:i');
         $pageRenderer->addInlineSetting('DateTimePicker', 'DateFormat', $dateFormat);
 
         $typo3Version = 'TYPO3 CMS ' . $this->typo3Version->getVersion();
@@ -160,6 +177,10 @@ class BackendController
             'modulesCollapsed' => $this->getCollapseStateOfMenu(),
             'modulesInformation' => GeneralUtility::jsonEncodeForHtmlAttribute($this->getModulesInformation(), false),
             'startupModule' => $this->getStartupModule($request),
+            'entryPoint' => $this->backendEntryPointResolver->getPathFromRequest($request),
+            // /typo3/install.php is currently physically and statically installed to typo3/install.php
+            // so we must not use BackendEntryPointResolver which is targeted towards virtual backend paths.
+            'installToolPath' => $request->getAttribute('normalizedParams')->getSitePath() . 'typo3/install.php',
             'stateTracker' => (string)$this->uriBuilder->buildUriFromRoute('state-tracker'),
             'sitename' => $title,
             'sitenameFirstInBackendTitle' => ($backendUser->uc['backendTitleFormat'] ?? '') === 'sitenameFirst',
@@ -242,14 +263,14 @@ class BackendController
      */
     protected function getToolbarItems(ServerRequestInterface $request): array
     {
-        return array_map(static function (ToolbarItemInterface $toolbarItem) use ($request) {
+        return array_map(static function (ToolbarItemInterface $toolbarItem) use ($request): ToolbarItemInterface {
             if ($toolbarItem instanceof RequestAwareToolbarItemInterface) {
                 $toolbarItem->setRequest($request);
             }
             return $toolbarItem;
         }, array_filter(
             $this->toolbarItemsRegistry->getToolbarItems(),
-            static fn(ToolbarItemInterface $toolbarItem) => $toolbarItem->checkAccess()
+            static fn(ToolbarItemInterface $toolbarItem): bool => $toolbarItem->checkAccess()
         ));
     }
 

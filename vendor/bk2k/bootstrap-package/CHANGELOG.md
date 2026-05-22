@@ -1,78 +1,350 @@
-# 13.0.5
+# 15.0.4
+
+## FEATURE
+
+- 8f9e374b [FEATURE] Add bluesky, discord, mastodon, researchgate and whatsapp to social media (#1564)
+
+## TASK
+
+- 9b5a1b2d [TASK] Use type cast (#1589)
+- 51400500 [TASK] Replace deprecated apple-mobile-web-app-capable with mobile-web-app-capable meta tag (#1563)
+- b75f9a99 [TASK] Format InlineViewHelper correctly (#1570)
+- ad2aa3f7 [TASK] Update node dependencies and bootstrap (#1587)
+- 0037e17d [TASK] Run publish on ubuntu-latest
+
+## Contributors
+
+- Benjamin Kott
+- Patrick Lenk
+- Simon Schaufelberger
+- Simon Woll
+
+# 15.0.3
+
+## FEATURE
+
+- 9bb0719c [FEATURE] Introduce event to modify icon providers (#1582)
+
+## TASK
+
+- 49679b12 [TASK] Fix PHPStan issue and PHP 8.1 compatibility (#1584)
+- 3b05a548 [TASK] Remove PHPUnit deprecations (#1583)
 
 ## BUGFIX
 
-- 9c7bbe6f [BUGFIX] Make IconWizard compatible with v11
+- 09f3cc89 [BUGFIX] Correct include paths old backend layout tsconfig includes
+- 84621cea [BUGFIX] Do not treat form element grid column as section
+
+## Contributors
+
+- Benjamin Kott
+- Marvin Buchmann
+
+# 15.0.2
+
+## BUGFIX
+
+- 4fffb57c [BUGFIX] Correct spelling in folder name for Bootstrap 5 Set - fixes #1561
+- 124407bb [BUGFIX] Correct Google Fonts TypoScript path in site set (#1560)
+- 493e840f [BUGFIX] Move pagets to their respected site sets
+
+## Contributors
+
+- Benjamin Kott
+- Uwe W.
+
+# 15.0.1
+
+## TASK
+
+- 5cf6ae2d [TASK] Raise ci node version to 22
+- 905220dd [TASK] Migrate from node-sass to sass
+
+## BUGFIX
+
+- e8de10ba [BUGFIX] Drop base table class
+- deb5ba4a [BUGFIX] Migrate Table CKEditor plugin
+- 1056a391 [BUGFIX] Migrate Text Indent CKEditor plugin
+- 15bb7f31 [BUGFIX] Migrate Text Columns CKEditor plugin
+- c9c4bbc8 [BUGFIX] Migrate Box CKEditor plugin
+- a9bd7cdf [BUGFIX] Migrate Address CKEditor plugin
+- cf951913 [BUGFIX] Do not render empty image galleries for textpic above and below (#1442)
+- a90e3fc6 [BUGFIX] Respect carousel type specific responsive image settings (#1552)
+- 4600e4d6 [BUGFIX] Correct settings defaults for templateRootPaths (#1553)
+- b6c2badd [BUGFIX] Correct settings definition for gallery class settings - #1541
+
+## Contributors
+
+- Benjamin Kott
+- Johannes Quack
+- T. Legat
+- Uwe
+
+# 15.0.0
+
+## BREAKING
+
+- 73d459cd [!!!][TASK] Allow v13 and drop v11 support
+
+## FEATURE
+
+- 205e17b6 [FEATURE] Add threads and telegram to social media - fixes #1517
+
+## TASK
+
+- 01ed74bd [TASK] Add set support for TYPO3 v13 (#1521)
+- 32c1e1d3 [TASK] Migrate carousel interal to type number
+- cdab5786 [TASK] Avoid deprecated calls to get request in ViewHelpers (#1520)
+- d87feed0 [TASK] Avoid deprecated INCLUDE_TYPOSCRIPT (#1519)
+- ca6bd80a [TASK] Avoid deprecated EMU::addPageTSConfig() (#1518)
+- f65c7bef [TASK] Add descriptions to content element registration
+- ffd27231 [TASK] Allow installation of TYPO3 v13 (#1512)
+- 376bf5f5 [TASK] Cleanup constant viewhelper
+- 901dfb41 [TASK] Move ignoring phpstan to usages
+- 0c6fb2be [TASK] Add phpmyadmin to ddev
+- b574acac [TASK] Drop google plus
+- 9d2cd59e [TASK] Drop leftover phpstan ignores in Is* ViewHelpers
+- df3330c6 [TASK] Cleanup pagination Pagination ViewHelpers
+- f3b07542 [TASK] Drop obsolte phpstan ignores for ContentSecurityPolicies
+- 56c5c0a2 [TASK] Drop leftover phpstan ignores of ScssParserTest
+- 6952284a [TASK] Drop leftover phpstan ignores of TypoScriptUtility
+- 59576f0d [TASK] Cleanup GoogleFontHook
+- 6efbddc8 [TASK] Drop usage of deprecated Connection::PARAM_STR_ARRAY
+- 6bf598f3 [TASK] Remove deprecated attribute registrations for TagBasedViewHelper
+- 3988f668 [TASK] Register upgrade wizards via attribute
+- 024543df [TASK] Cleanup flexforms
+- b7bf7e12 [TASK] Add trailing comma in multiline fixer rule
+- 82e09327 [TASK] Cleanup TCA
+- a9754755 [TASK] Remove obsolete settings from demo ext_emconf
+- 487f6c2a [TASK] Add return type void to initializeArguments
+- a75309ae [TASK] Set lowest supported version to 12.4
+- 59f2da05 [TASK] Use currentColor in systeminformation icon
+- e2956c2f [TASK] Replace twitter with x
+- d83517cb [TASK] Upgrade frontend dependencies
+- dba66892 [TASK] Upgrade stylelint to v16
+- b6f45a9e [TASK] Drop modernizr
+- 803a14c6 [TASK] Run functional and unit tests only on latest PHP version (#1515)
+- 22941858 [TASK] Cleanup SvgUtility
+- 62a32fd3 [TASK] Update extension-helper and php-cs-fixer
+- 248d65fc [TASK] Update CI builds to include php 8.3
+- ff450ec3 [TASK] Update github actions to latest version
+- c106703a [TASK] Cleanup tests (#1514)
+- 7ae6542a [TASK] Use node 20 in ci
+- 87cc012e [TASK] Update bundled scssphp to 1.13.0
+- 2603055d [TASK] Drop ExtensionConfiguration checks
+- 3b286e33 [TASK] Make AbstractUpdate v13 compatible
+- 12f22ab6 [TASK] Remove fallback to $GLOBALS['TSFE']
+- 82b6685d [TASK] Remove fallback for authMode
+- cb8940d7 [TASK] Drop deprecated renderStatic
+- 66880ab9 [TASK] Add .build/vendor to intelephense include path
+- 8789636a [TASK] Update vscode config
+- 9a84ab1c [TASK] Add Crowdin configuration file (#1488)
+- 9ea91d33 [TASK] PHP Stan Corrections
+- 6f3e3c2b [TASK] Remove deprecated TCEforms flexform XML element (#1434)
+- 1462f2fa [TASK] Migrate grid column view element to esm (#1419)
+- e11054bf [TASK] Add skiplink to mainnavigation (#1416)
+- f7b757e0 [TASK] Update ddev config
+- 817dc1c3 [TASK] Update phpcsfixer
+- d355cebc [TASK] Drop usage of custom trim viewhelper
+- aa4d9d6b [TASK] Cleanup color usages in cookie consent
+- 2eee06a4 [TASK] Make icons non translatable
+- 4790f8ec [TASK] Force accessible focus styles
+- a5c39a42 [TASK] Use legacy set attribute instead of internal attribute
+- 6f32e3a1 [TASK] Streamline link titles in file uploads
+- 9e5ba72d [TASK] Raise dependencies
+- ef542aba [TASK] Use control section in tca to allow custom tables on standard pages
+- 24d46fc7 [TASK] Add TYPO3 v13 to readme
+- c2e14e7d [TASK] Set next version to 15
+- f964fad5 [TASK] Remove fallback in scss parser test
+- a8ac2f5c [TASK] Remove fallbacks in paginate view helper
+- 64ea7726 [TASK] Remove fallback in iconwizard
+- 17a6bed2 [TASK] Migrate media fields to file
+- 73d459cd [!!!][TASK] Allow v13 and drop v11 support
+
+## BUGFIX
+
+- 8b51cb79 [BUGFIX] Replace legacy color-yiq with color-contrast - fixes #1511
+- 6ffb9d4b [BUGFIX] Remove leftover ignored errors from phpstan
+- 3feaae78 [BUGFIX] data undefined in IconsDataProcessor (#1452)
+- 2ed9ddd5 [BUGFIX] Fix JavaScript error when cookieconsent.min.js is blocked by secure browser (#1453)
+- d0b8e5b5 [BUGFIX] Remove outdated language settings (#1494)
+- 8bce06dc [BUGFIX] Add missing display class in header template - fixes #1508
+- a792a6bf [BUGFIX] Add missing configuration for address tag in RTE (#1513)
+- 29b8dfa1 [BUGFIX] Correct namespace for tests
+- 6325cbb8 [BUGFIX] Correct viewhelper documentation (#1476)
+- 9125f1f2 [BUGFIX] Add missing core extension requirements to functionals (#1435)
+- 2e9703ba [BUGFIX] Correct title attribute in external media preview
+- 7dbbf216 [BUGFIX] Prevent array offset access on non existing keys
+- 7c6459bd [BUGFIX] Use block styling for image links instead of inline-block
+- d4c4a1b8 [BUGFIX] Correct css variable usage
+- 1a75e051 [BUGFIX] Correct upper camel case viewhelper usage
+- 1c265530 [BUGFIX] Add missing compiled css
+- f4345a7b [BUGFIX] Explicitly set title for image
+- 76155e01 [BUGFIX] Filenames are no headlines
+- ac8f1b01 [BUGFIX] Avoid clipping of footer meta menu focus styles
+- d37d22ec [BUGFIX] Update cookie consent styling
+- 98db5ffa [BUGFIX] Force button focus styles to be accessible
+- a39fc134 [BUGFIX] Correct search result markup
+
+## Contributors
+
+- Benjamin Kott
+- Christian Kuhn
+- Garvin Hicking
+- Lina Wolf
+- Peter Kraume
+- Rafał Jania
+- Stephan Kellermayr
+- Uwe
+- jokumer
+
+# 14.0.2
+
+## BUGFIX
+
+- 7773f962 [BUGFIX] PHPStan
+- f410d58c [BUGFIX] Correct position of subnav left
+- 582e01ad [BUGFIX] Make IconWizard compatible with v11
 
 ## Contributors
 
 - Benjamin Kott
 
-# 13.0.4
+# 14.0.1
 
 ## TASK
 
-- 96b3a914 [TASK] Improve icon selector performance in backend (#1392)
+- dc4723ee [TASK] Improve icon selector performance in backend (#1392)
+- 35de69f6 [TASK] Add new external media field to assign an iframe title (#1296) (#1371)
 
 ## BUGFIX
 
-- f02e24bc [BUGFIX] Correct docs for overrideParserVariables
+- 223d9a31 [BUGFIX] Correct docs for overrideParserVariables
+- 25be2791 [BUGFIX] Slightly increase contrast for succes, info, warning
+- 3f68d295 [BUGFIX] Slightly increase contrast for danger color
 
 ## Contributors
 
 - Benjamin Kott
+- schmigotzki
 
-# 13.0.3
+# 14.0.0
+
+## BREAKING
+
+- 2bceb149 [!!!][TASK] Move main tag to contain all relevant content
+- d721e1ac [!!!][TASK] Optimize Card links (#1372)
+- b224a40e [!!!][TASK] Make carousel accessible
+
+## FEATURE
+
+- 9132b048 [FEATURE] Introduce dedicated gridcolumn element
+- c37afe30 [FEATURE] Allow display class on all default content headers (#1366)
+- 671acf60 [FEATURE] Make header level for child items configurable by the editor (#1353)
 
 ## TASK
 
-- 2fbfd0c0 [TASK] Add tests for update scripts (#1388)
-- d08447ae [TASK] Add display: swap to iconfont
-- acbc2ee6 [TASK] Add label to extended resume form field of indexed search
-- 029df1d0 [TASK] Remove obsolete intrinsicsize attribute (#1380)
-- 9579cf7f [TASK] Optimize indexed search form
-- 2f078474 [TASK] Enable functional tests for v12 (#1219)
-- 61640d1e [TASK] Drop legacy path include test
-- 37ce7eb1 [TASK] Set dev env to 8.2
-- 22fd5cb7 [TASK] Update php-cs-fixer
-- 618ce0ee [TASK] Add aria-hidden to social-media icons
-- e8ed7295 [TASK] Move Registering of Icons to ServiceContainer  (#1374)
-- 9eeb6486 [TASK] Add aria-labels for main and sub navigation (#1363)
-- 70b2e188 [TASK] Drop link decoration settings from constant editor
-- 968ea224 [TASK] Only use aria-current for the last item in breadcrumb (#1359)
-- 13eb6dcd [TASK] Add meaningful label to each second field in a group in extended search form (#1351)
-- 8247f48e [TASK] Duplicate css class removed (#1345)
-- ada51882 [TASK] Add aria-hidden attributes for decorative icons (#1336)
+- d369f9af [TASK] Add v14 to readme
+- 60f68f01 [TASK] Set next version to v14.0.0
+- f0ec1806 [TASK] Add tests for update scripts (#1388)
+- b1269590 [TASK] Add display: swap to iconfont
+- c00384ff [TASK] Drop obsolete form compat overrides
+- f3a37727 [TASK] Remove deprecations from cookieconsent
+- 50cf3082 [TASK] Add skip to page footer
+- c942e01b [TASK] Remove obsolete data-parent
+- 354a87c0 [TASK] Optimize file downloads
+- 39ed5cd9 [TASK] Split input border and general border colors
+- 8dc41eab [TASK] Add role and roledescription to carousel
+- f453860f [TASK] Replace aria-roledescription with aria-label on lightbox
+- 63101284 [TASK] Add label to extended resume form field of indexed search
+- cd882682 [TASK] Add indicator to subnav and enhance mainnav version
+- 95ab34ae [TASK] Show outlines in navigation only on focus-visible
+- 5f313916 [TASK] Make focus visible for carousel links
+- ca6df9f6 [TASK] Simplify lightbox
+- ec4d6134 [TASK] Remove obsolete intrinsicsize attribute (#1380)
+- 2775146d [TASK] Make main navigation more accessible (#1385)
+- 4814d8f4 [TASK] Finetune color contrast on subnav
+- a2608626 [TASK] Render subnavigation after content
+- 077a7650 [TASK] Do not wrap images directly with links
+- c918a8ae [TASK] Optimize Carousel
+- 8698ff99 [TASK] Optimize indexed search form
+- 99bcab40 [TASK] Modernize typoscript setup and constant access (#1379)
+- 44d99188 [TASK] Enable functional tests for v12 (#1219)
+- f392b795 [TASK] Drop legacy path include test
+- dd93e18c [TASK] Set dev env to 8.2
+- fe79501f [TASK] Update php-cs-fixer
+- 2ab06cf6 [TASK] Update lightbox and modernize rendering (#1378)
+- 97cd5520 [TASK] Change default cookieconsent to include header
+- 2bceb149 [!!!][TASK] Move main tag to contain all relevant content
+- d721e1ac [!!!][TASK] Optimize Card links (#1372)
+- 8e36778d [TASK] Removed header tags from all headings for accessibility reason... (#1370)
+- a3e9899e [TASK] Add aria-hidden to social-media icons
+- b224a40e [!!!][TASK] Make carousel accessible
+- ad7004d5 [TASK] Move Registering of Icons to ServiceContainer  (#1374)
+- 028f56de [TASK] Add a11y color calculation tools to scss and adjust colors slightly
+- 50a46c0c [TASK] Expose social link labels to constant editor and improve label rendering for screen reader (#1361)
+- fe802783 [TASK] Add aria-labels for main and sub navigation (#1363)
+- a776db59 [TASK] Drop link decoration settings from constant editor
+- 955656cc [TASK] Underline links in content by default (#1357)
+- 3af07f58 [TASK] Fix border color contrast of form inputs (#1360)
+- 0c663eec [TASK] Use buttons for "allow" and "dismiss" in cookie consent (#1349)
+- 0ae2c793 [TASK] replace nav tag with div tag in custom element tab (#1350)
+- bdd775c2 [TASK] Rename mandatory field label (#1356)
+- 37415612 [TASK] Only use aria-current for the last item in breadcrumb (#1359)
+- 6958b74d [TASK] Add meaningful label to each second field in a group in extended search form (#1351)
+- edebd6e0 [TASK] Duplicate css class removed (#1345)
+- a6096e54 [TASK] Switched forms template variant to version2 (#1338)
+- 34c6b0e3 [TASK] Resize cookiee consent header to 1.5rem
+- d0d0a89d [TASK] Remove role navigation and role main
+- 84158b75 [TASK] Overwrite default cookie consent configuration
+- 3383109d [TASK] Add aria-hidden attributes for decorative icons (#1336)
 - 344fef87 [TASK] Update bundled scssphp to v1.11.0
 - e75e83e3 [TASK] Update popper.js and some build deps
 - 89c2228b [TASK] Update to Bootstrap 5.3.0
 
 ## BUGFIX
 
-- e6f69713 [BUGFIX] Make screenreader current label translatable
-- 08cb3706 [BUGFIX] Align sitemap behavior with core
-- 5181da79 [BUGFIX] Remove unwanted vertical gap on sections
-- 1657d99c [BUGFIX] Correct scroll position and prevent click if target exists on site
-- d4f9792e [BUGFIX] Correct column gap count for 3 column layout
-- a45f0187 [BUGFIX] Drop obsolete felogin config
-- cb43c6c8 [BUGFIX] Correct media position in accordion and tab items (#1384)
-- 4d8b8436 [BUGFIX] Restore search rules functionality
-- 5f208050 [BUGFIX] Correct search form classes
-- 160319f0 [BUGFIX] Use contextual icon color for system information icon (#1377)
-- 3d96d245 [BUGFIX] Correct path to photoswipe assets
-- 002dd8fc [BUGFIX] Fix access to overrideParserVariables
-- 4128f24a [BUGFIX] Handle allowed file extensions for TYPO3 v12 (#1365)
-- 9ce3b0b1 [BUGFIX] Fix Sticky Header (#1362)
-- 52a834fd [BUGFIX] Source mapping is now public path agnostic (#1352)
-- 0187b254 [BUGFIX] Fix missing spaces in the output of content elements (#1343)
+- f9daa32c [BUGFIX] Make screenreader current label translatable
+- a03a700a [BUGFIX] Align sitemap behavior with core
+- fed7f268 [BUGFIX] Remove unwanted vertical gap on sections
+- 82626f3a [BUGFIX] Drop obsolete felogin config
+- f589ba07 [BUGFIX] Correct scroll position and prevent click if target exists on site
+- 6c63f70b [BUGFIX] Correct column gap count for 3 column layout
+- d40cf768 [BUGFIX] Correct media position in accordion and tab items (#1384)
+- ab2c2c99 [BUGFIX] Restore search rules functionality
+- fb628591 [BUGFIX] Correct search form classes
+- 24a7bf76 [BUGFIX] CGL
+- 32a9bc61 [BUGFIX] Unflatten typoscript constants in dataprocessor
+- def5d84d [BUGFIX] Optimize gridcolumn svg
+- 4cfef651 [BUGFIX] Avoid clipping on social links and footer language menu
+- fb437ab3 [BUGFIX] Use contextual icon color for system information icon (#1377)
+- f9813bb5 [BUGFIX] Correct generated css
+- 80c745d7 [BUGFIX] Correct path to photoswipe assets
+- 25792ec3 [BUGFIX] Fix access to overrideParserVariables
+- f4fb0a5b [BUGFIX] Inherit link styling on breadcrumbs (#1373)
+- 26da9080 [BUGFIX] Improve visibility of skip to content link on focus (#1367)
+- 92c32149 [BUGFIX] Add missing subitems_header_layout to card group
+- e124fb58 [BUGFIX] SCSS linting
+- c2a22ed4 [BUGFIX] Calculate foreground colors for cookie consent
+- 13ce41cb [BUGFIX] Handle allowed file extensions for TYPO3 v12 (#1365)
+- 86b24843 [BUGFIX] Fix Sticky Header (#1362)
+- 5c26d81b [BUGFIX] Source mapping is now public path agnostic (#1352)
+- 87d5f049 [BUGFIX] Fix missing spaces in the output of content elements (#1343)
+- e60c1dcb [BUGFIX] Make carousel controls visible on focus
 - 5ffa09cc [BUGFIX] Add title to social links
 - 7d4e95ca [BUGFIX] Avoid text-muted for unavailable languages
 - 55ca8360 [BUGFIX] Undefined array keys in Compile Service
+
+## MISC
+
+- e61fdea2 [DOCS] How to build frontend files for contribution (#1341)
+- acf2ac0f [DOCS] Adjust Templates for PRs and Issues (#1342)
 
 ## Contributors
 
 - Benjamin Kott
 - Eike Starkmann
+- Elias Häußler
 - Elias Häußler
 - Felix Althaus
 - Lina Wolf

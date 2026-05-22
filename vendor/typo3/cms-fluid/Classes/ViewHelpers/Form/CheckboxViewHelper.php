@@ -18,47 +18,14 @@ declare(strict_types=1);
 namespace TYPO3\CMS\Fluid\ViewHelpers\Form;
 
 /**
- * ViewHelper which creates a simple checkbox :html:`<input type="checkbox">`.
+ * ViewHelper which renders a simple checkbox `<input type="checkbox">`.
  *
- * Examples
- * ========
+ * ```
+ *   <f:form.checkbox property="interests" value="TYPO3" multiple="1" />
+ *   <f:form.checkbox name="interest" value="TYPO3" checked="{object.interest} == 'TYPO3'" />
+ * ```
  *
- * Simple one
- * ----------
- *
- * ::
- *
- *    <f:form.checkbox name="myCheckBox" value="someValue" />
- *
- * Output::
- *
- *    <input type="checkbox" name="myCheckBox" value="someValue" />
- *
- * Preselect
- * ---------
- *
- * ::
- *
- *    <f:form.checkbox name="myCheckBox" value="someValue" checked="{object.value} == 5" />
- *
- * Output::
- *
- *    <input type="checkbox" name="myCheckBox" value="someValue" checked="checked" />
- *
- * Depending on bound ``object`` to surrounding :ref:`f:form <typo3-fluid-form>`.
- *
- * Bind to object property
- * -----------------------
- *
- * ::
- *
- *    <f:form.checkbox property="interests" value="TYPO3" multiple="1" />
- *
- * Output::
- *
- *    <input type="checkbox" name="user[interests][]" value="TYPO3" checked="checked" />
- *
- * Depending on property ``interests``.
+ * @see https://docs.typo3.org/permalink/t3viewhelper:typo3-fluid-form-checkbox
  */
 final class CheckboxViewHelper extends AbstractFormFieldViewHelper
 {
@@ -70,11 +37,6 @@ final class CheckboxViewHelper extends AbstractFormFieldViewHelper
     public function initializeArguments(): void
     {
         parent::initializeArguments();
-        $this->registerTagAttribute(
-            'disabled',
-            'string',
-            'Specifies that the input element should be disabled when the page loads'
-        );
         $this->registerArgument(
             'errorClass',
             'string',
@@ -82,8 +44,7 @@ final class CheckboxViewHelper extends AbstractFormFieldViewHelper
             false,
             'f3-form-error'
         );
-        $this->overrideArgument('value', 'string', 'Value of input tag. Required for checkboxes', true);
-        $this->registerUniversalTagAttributes();
+        $this->registerArgument('value', 'string', 'Value of input tag. Required for checkboxes', true);
         $this->registerArgument('checked', 'bool', 'Specifies that the input element should be preselected');
         $this->registerArgument('multiple', 'bool', 'Specifies whether this checkbox belongs to a multivalue (is part of a checkbox group)', false, false);
     }

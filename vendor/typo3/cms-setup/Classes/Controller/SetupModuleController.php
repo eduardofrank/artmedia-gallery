@@ -20,6 +20,7 @@ namespace TYPO3\CMS\Setup\Controller;
 use Psr\EventDispatcher\EventDispatcherInterface;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
+use TYPO3\CMS\Backend\Attribute\AsController;
 use TYPO3\CMS\Backend\Backend\Avatar\DefaultAvatarProvider;
 use TYPO3\CMS\Backend\Module\ModuleProvider;
 use TYPO3\CMS\Backend\Routing\UriBuilder;
@@ -29,14 +30,12 @@ use TYPO3\CMS\Backend\Utility\BackendUtility;
 use TYPO3\CMS\Core\Authentication\BackendUserAuthentication;
 use TYPO3\CMS\Core\Authentication\Mfa\MfaProviderRegistry;
 use TYPO3\CMS\Core\Core\Environment;
-use TYPO3\CMS\Core\Crypto\PasswordHashing\InvalidPasswordHashException;
-use TYPO3\CMS\Core\Crypto\PasswordHashing\PasswordHashFactory;
 use TYPO3\CMS\Core\Database\Connection;
 use TYPO3\CMS\Core\Database\ConnectionPool;
 use TYPO3\CMS\Core\DataHandling\DataHandler;
 use TYPO3\CMS\Core\FormProtection\FormProtectionFactory;
-use TYPO3\CMS\Core\Imaging\Icon;
 use TYPO3\CMS\Core\Imaging\IconFactory;
+use TYPO3\CMS\Core\Imaging\IconSize;
 use TYPO3\CMS\Core\Localization\LanguageService;
 use TYPO3\CMS\Core\Localization\LanguageServiceFactory;
 use TYPO3\CMS\Core\Localization\Locales;
@@ -60,6 +59,7 @@ use TYPO3\CMS\Setup\Event\AddJavaScriptModulesEvent;
  *
  * @internal This is a specific Backend Controller implementation and is not considered part of the Public TYPO3 API.
  */
+#[AsController]
 class SetupModuleController
 {
     protected const PASSWORD_NOT_UPDATED = 0;
@@ -71,6 +71,10 @@ class SetupModuleController
     protected array $overrideConf = [];
     protected bool $languageUpdate = false;
     protected bool $pagetreeNeedsRefresh = false;
+    protected bool $colorSchemeChanged = false;
+    protected bool $themeChanged = false;
+    protected bool $backendTitleFormatChanged = false;
+
     protected array $tsFieldConf = [];
     protected int $passwordIsUpdated = self::PASSWORD_NOT_UPDATED;
     protected bool $passwordIsSubmitted = false;
@@ -112,8 +116,28 @@ class SetupModuleController
     {
         $view = $this->initialize($request);
         $this->storeIncomingData($request);
-        if ($this->pagetreeNeedsRefresh) {
+        if ($this->pagetreeNeedsRefresh || $this->settingsAreResetToDefault) {
             BackendUtility::setUpdateSignal('updatePageTree');
+        }
+        if ($this->colorSchemeChanged || $this->settingsAreResetToDefault) {
+            BackendUtility::setUpdateSignal('updateColorScheme', $this->getBackendUser()->uc['colorScheme'] ?? 'auto');
+        }
+        if ($this->themeChanged || $this->settingsAreResetToDefault) {
+            BackendUtility::setUpdateSignal('updateTheme', $this->getBackendUser()->uc['theme'] ?? 'modern');
+        }
+        if ($this->backendTitleFormatChanged || $this->settingsAreResetToDefault) {
+            BackendUtility::setUpdateSignal('updateTitleFormat', $this->getBackendUser()->uc['backendTitleFormat'] ?? 'titleFirst');
+        }
+        if ($this->languageUpdate) {
+            $this->getLanguageService()->init($this->getBackendUser()->user['lang'] ?? 'default');
+            $locale = $this->getLanguageService()->getLocale();
+            if ($locale !== null) {
+                $parameters = [
+                    'language' => $locale->getLanguageCode(),
+                    'direction' => $locale->isRightToLeftLanguageDirection() ? 'rtl' : null,
+                ];
+                BackendUtility::setUpdateSignal('updateBackendLanguage', $parameters);
+            }
         }
         $formProtection = $this->formProtectionFactory->createFromRequest($request);
         $this->addFlashMessages($view);
@@ -151,7 +175,6 @@ class SetupModuleController
         // if password is disabled, disable repeat of password too (password2)
         if ($this->tsFieldConf['password.']['disabled'] ?? false) {
             $this->tsFieldConf['password2.']['disabled'] = 1;
-            $this->tsFieldConf['passwordCurrent.']['disabled'] = 1;
         }
         return $view;
     }
@@ -162,10 +185,6 @@ class SetupModuleController
         $event = $this->eventDispatcher->dispatch($event);
         foreach ($event->getJavaScriptModules() as $specifier) {
             $this->pageRenderer->loadJavaScriptModule($specifier);
-        }
-        foreach ($event->getModules() as $moduleName) {
-            // The deprecation is added in AddJavaScriptModulesEvent::addModule, and therefore silenced here.
-            $this->pageRenderer->loadRequireJsModule($moduleName, null, true);
         }
     }
 
@@ -200,6 +219,16 @@ class SetupModuleController
             if (isset($d['titleLen']) && $d['titleLen'] !== $backendUser->uc['titleLen']) {
                 $this->pagetreeNeedsRefresh = true;
             }
+            if (isset($d['colorScheme']) && $d['colorScheme'] !== ($backendUser->uc['colorScheme'] ?? null)) {
+                $this->colorSchemeChanged = true;
+            }
+            if (isset($d['theme']) && $d['theme'] !== ($backendUser->uc['theme'] ?? null)) {
+                $this->themeChanged = true;
+            }
+            if (isset($d['backendTitleFormat']) && $d['backendTitleFormat'] !== ($backendUser->uc['backendTitleFormat'] ?? null)) {
+                $this->backendTitleFormatChanged = true;
+            }
+
             if ($d['setValuesToDefault']) {
                 // If every value should be default
                 $backendUser->resetUC();
@@ -210,7 +239,7 @@ class SetupModuleController
                     if (!in_array($field, $fieldList, true)) {
                         continue;
                     }
-                    if (($config['table']  ?? '') === 'be_users' && !in_array($field, ['password', 'password2', 'passwordCurrent', 'email', 'realName', 'admin', 'avatar'], true)) {
+                    if (($config['table']  ?? '') === 'be_users' && !in_array($field, ['password', 'password2', 'email', 'realName', 'admin', 'avatar'], true)) {
                         if (!isset($config['access']) || $this->checkAccess($config) && ($backendUser->user[$field] !== $d['be_users'][$field])) {
                             if (($config['type'] ?? false) === 'check') {
                                 $fieldValue = isset($d['be_users'][$field]) ? 1 : 0;
@@ -242,7 +271,7 @@ class SetupModuleController
                 $contextData = new ContextData(
                     loginMode: 'BE',
                     currentPasswordHash: $this->getBackendUser()->user['password'],
-                    newUserFullName: $be_user_data['realName']
+                    newUserFullName: $be_user_data['realName'] ?? $this->getBackendUser()->user['realName']
                 );
                 $contextData->setData('currentUsername', $this->getBackendUser()->user['username']);
                 $event = $this->eventDispatcher->dispatch(
@@ -255,8 +284,8 @@ class SetupModuleController
                 $contextData = $event->getContextData();
 
                 $passwordValid = true;
-                if ($passwordIsConfirmed &&
-                    !$this->passwordPolicyValidator->isValidPassword($be_user_data['password'], $contextData)
+                if ($passwordIsConfirmed
+                    && !$this->passwordPolicyValidator->isValidPassword($be_user_data['password'], $contextData)
                 ) {
                     $passwordValid = false;
                     $this->passwordIsUpdated = self::PASSWORD_POLICY_FAILED;
@@ -272,26 +301,8 @@ class SetupModuleController
                 }
                 // Update the password:
                 if ($passwordIsConfirmed && $passwordValid) {
-                    if ($backendUser->isAdmin()) {
-                        $passwordOk = true;
-                    } else {
-                        $currentPasswordHashed = $backendUser->user['password'];
-                        $passwordOk = false;
-                        $saltFactory = GeneralUtility::makeInstance(PasswordHashFactory::class);
-                        try {
-                            $hashInstance = $saltFactory->get($currentPasswordHashed, 'BE');
-                            $passwordOk = $hashInstance->checkPassword($be_user_data['passwordCurrent'], $currentPasswordHashed);
-                        } catch (InvalidPasswordHashException $e) {
-                            // Could not find hash class responsible for existing password. This is a
-                            // misconfiguration and user can not change its password.
-                        }
-                    }
-                    if ($passwordOk) {
-                        $this->passwordIsUpdated = self::PASSWORD_UPDATED;
-                        $storeRec['be_users'][$beUserId]['password'] = $be_user_data['password'];
-                    } else {
-                        $this->passwordIsUpdated = self::PASSWORD_OLD_WRONG;
-                    }
+                    $this->passwordIsUpdated = self::PASSWORD_UPDATED;
+                    $storeRec['be_users'][$beUserId]['password'] = $be_user_data['password'];
                 } elseif ($passwordIsConfirmed) {
                     $this->passwordIsUpdated = self::PASSWORD_POLICY_FAILED;
                 } else {
@@ -308,7 +319,7 @@ class SetupModuleController
             // If something in the uc-array of the user has changed, we save the array...
             if ($save_before != $save_after) {
                 $backendUser->writeUC();
-                $backendUser->writelog(SystemLogType::SETTING, SystemLogSettingAction::CHANGE, SystemLogErrorClassification::MESSAGE, 1, 'Personal settings changed', []);
+                $backendUser->writelog(SystemLogType::SETTING, SystemLogSettingAction::CHANGE, SystemLogErrorClassification::MESSAGE, null, 'Personal settings changed', []);
                 $this->setupIsUpdated = true;
             }
             // Persist data if something has changed:
@@ -323,6 +334,7 @@ class SetupModuleController
                 // This is to make sure that the users record can be updated even if in another workspace. This is tolerated.
                 $dataHandler->bypassWorkspaceRestrictions = true;
                 $dataHandler->process_datamap();
+                $dataHandler->printLogErrorMessages();
                 // reset the user record admin flag to previous value, just in case it gets used any further.
                 $backendUser->user['admin'] = $savedUserAdminState;
                 if ($this->passwordIsUpdated === self::PASSWORD_NOT_UPDATED || count($storeRec['be_users'][$beUserId]) > 1) {
@@ -346,7 +358,7 @@ class SetupModuleController
             ->setValue('1')
             ->setForm('SetupModuleController')
             ->setShowLabelText(true)
-            ->setIcon($this->iconFactory->getIcon('actions-document-save', Icon::SIZE_SMALL));
+            ->setIcon($this->iconFactory->getIcon('actions-document-save', IconSize::SMALL));
 
         $buttonBar->addButton($saveButton);
         $shortcutButton = $buttonBar->makeShortcutButton()
@@ -414,8 +426,8 @@ class SetupModuleController
                 $more .= ' disabled="disabled"';
             }
             $isBeUsersTable = ($config['table'] ?? false) === 'be_users';
-            $value = $isBeUsersTable ? ($backendUser->user[$fieldName] ?? false) : ($backendUser->uc[$fieldName] ?? false);
-            if (!$value && isset($config['default'])) {
+            $value = $isBeUsersTable ? ($backendUser->user[$fieldName] ?? null) : ($backendUser->uc[$fieldName] ?? null);
+            if ($value === null && isset($config['default'])) {
                 $value = $config['default'];
             }
             $dataAdd = $isBeUsersTable ? '[be_users]' : '';
@@ -451,13 +463,13 @@ class SetupModuleController
                     }
 
                     $html = '<input id="field_' . htmlspecialchars($fieldName) . '"
-                        type="' . htmlspecialchars($type) . '" ' .
-                        ($addPasswordRequirementsDescription ? 'aria-describedby="description_' . htmlspecialchars($fieldName) . '" ' : '') .
-                        'name="data' . $dataAdd . '[' . htmlspecialchars($fieldName) . ']" ' .
-                        $autocomplete .
-                        'value="' . htmlspecialchars((string)$value) . '" ' .
-                        $more .
-                        ' />';
+                        type="' . htmlspecialchars($type) . '" '
+                        . ($addPasswordRequirementsDescription ? 'aria-describedby="description_' . htmlspecialchars($fieldName) . '" ' : '')
+                        . 'name="data' . $dataAdd . '[' . htmlspecialchars($fieldName) . ']" '
+                        . $autocomplete
+                        . 'value="' . htmlspecialchars((string)$value) . '" '
+                        . $more
+                        . ' />';
 
                     if ($addPasswordRequirementsDescription) {
                         $description = $this->getLanguageService()->sL('LLL:EXT:core/Resources/Private/Language/locallang_password_policy.xlf:passwordRequirements.description');
@@ -470,10 +482,10 @@ class SetupModuleController
                     $html = '<input id="field_' . htmlspecialchars($fieldName) . '"
                         type="checkbox"
                         class="form-check-input"
-                        name="data' . $dataAdd . '[' . htmlspecialchars($fieldName) . ']"' .
-                        ($value ? ' checked="checked"' : '') .
-                        $more .
-                        ' />';
+                        name="data' . $dataAdd . '[' . htmlspecialchars($fieldName) . ']"'
+                        . ($value ? ' checked="checked"' : '')
+                        . $more
+                        . ' />';
                     break;
                 case 'language':
                     $html = $this->renderLanguageSelect();
@@ -483,8 +495,8 @@ class SetupModuleController
                         $html = GeneralUtility::callUserFunction($config['itemsProcFunc'], $config, $this);
                     } else {
                         $html = '<select id="field_' . htmlspecialchars($fieldName) . '"
-                            name="data' . $dataAdd . '[' . htmlspecialchars($fieldName) . ']"' .
-                            $more . '>' . LF;
+                            name="data' . $dataAdd . '[' . htmlspecialchars($fieldName) . ']"'
+                            . $more . '>' . LF;
                         foreach ($config['items'] as $key => $optionLabel) {
                             $html .= '<option value="' . htmlspecialchars((string)$key) . '"' . ($value == $key ? ' selected="selected"' : '') . '>' . $this->getLabel($optionLabel, '', false) . '</option>' . LF;
                         }
@@ -540,25 +552,25 @@ class SetupModuleController
                         $defaultAvatarProvider = GeneralUtility::makeInstance(DefaultAvatarProvider::class);
                         $avatarImage = $defaultAvatarProvider->getImage($backendUser->user, 32);
                         if ($avatarImage) {
-                            $icon = '<span class="avatar avatar-size-medium mb-2"><span class="avatar-image">' .
-                                '<img alt="" src="' . htmlspecialchars($avatarImage->getUrl()) . '"' .
-                                ' width="' . (int)$avatarImage->getWidth() . '"' .
-                                ' height="' . (int)$avatarImage->getHeight() . '"' .
-                                ' alt="" />' .
-                                '</span></span>';
+                            $icon = '<span class="avatar avatar-size-medium mb-2"><span class="avatar-image">'
+                                . '<img alt="" src="' . htmlspecialchars($avatarImage->getUrl()) . '"'
+                                . ' width="' . (int)$avatarImage->getWidth() . '"'
+                                . ' height="' . (int)$avatarImage->getHeight() . '"'
+                                . ' alt="" />'
+                                . '</span></span>';
                             $html .= '<span id="image_' . htmlspecialchars($fieldName) . '">' . $icon . ' </span>';
                         }
                     }
-                    $html .= '<input id="field_' . htmlspecialchars($fieldName) . '" type="hidden" ' .
-                            'name="data' . $dataAdd . '[' . htmlspecialchars($fieldName) . ']"' . $more .
-                            ' value="' . $avatarFileUid . '" data-setup-avatar-field="' . htmlspecialchars($fieldName) . '" />';
+                    $html .= '<input id="field_' . htmlspecialchars($fieldName) . '" type="hidden" '
+                            . 'name="data' . $dataAdd . '[' . htmlspecialchars($fieldName) . ']"' . $more
+                            . ' value="' . $avatarFileUid . '" data-setup-avatar-field="' . htmlspecialchars($fieldName) . '" />';
 
                     $html .= '<typo3-formengine-container-files><div class="form-group"><div class="form-group"><div class="form-control-wrap">';
                     $html .= '<button type="button" id="add_button_' . htmlspecialchars($fieldName)
                         . '" class="btn btn-default"'
                         . ' title="' . htmlspecialchars($this->getLanguageService()->sL('LLL:EXT:setup/Resources/Private/Language/locallang.xlf:avatar.openFileBrowser')) . '"'
                         . ' data-setup-avatar-url="' . htmlspecialchars((string)$this->uriBuilder->buildUriFromRoute('wizard_element_browser', ['mode' => 'file', 'bparams' => '|||allowed=' . ($GLOBALS['TYPO3_CONF_VARS']['GFX']['imagefile_ext'] ?? '') . '~disallowed=|-0-be_users-avatar-avatar'])) . '"'
-                        . '>' . $this->iconFactory->getIcon('actions-insert-record', Icon::SIZE_SMALL)
+                        . '>' . $this->iconFactory->getIcon('actions-insert-record', IconSize::SMALL)
                         . htmlspecialchars($this->getLanguageService()->sL('LLL:EXT:setup/Resources/Private/Language/locallang.xlf:avatar.openFileBrowser'))
                         . '</button>';
                     if ($avatarFileUid) {
@@ -567,7 +579,7 @@ class SetupModuleController
                         $html .= '<button type="button" id="clear_button_' . htmlspecialchars($fieldName)
                         . '" class="btn btn-default"'
                         . ' title="' . htmlspecialchars($this->getLanguageService()->sL('LLL:EXT:setup/Resources/Private/Language/locallang.xlf:avatar.clear')) . '" '
-                        . '>' . $this->iconFactory->getIcon('actions-delete', Icon::SIZE_SMALL)
+                        . '>' . $this->iconFactory->getIcon('actions-delete', IconSize::SMALL)
                         . htmlspecialchars($this->getLanguageService()->sL('LLL:EXT:setup/Resources/Private/Language/locallang.xlf:avatar.clear'))
                         . '</button>';
                     }
@@ -610,26 +622,26 @@ class SetupModuleController
             }
             if ($type === 'check') {
                 $htmlPrepended = '<div class="formengine-field-item t3js-formengine-field-item"><div class="form-wizards-wrap">'
-                    . '<div class="form-wizards-element"><div class="form-check form-switch">';
+                    . '<div class="form-wizards-item-element"><div class="form-check form-switch">';
                 $htmlAppended = '</div></div></div></div>';
             }
             if ($type === 'select' || $type === 'language') {
                 $htmlPrepended = '<div class="formengine-field-item t3js-formengine-field-item"><div class="form-control-wrap">'
-                    . '<div class="form-wizards-wrap"><div class="form-wizards-element"><div class="input-group">';
+                    . '<div class="form-wizards-wrap"><div class="form-wizards-item-element"><div class="input-group">';
                 $htmlAppended = '</div></div></div></div></div>';
             }
             if ($type === 'text' || $type === 'number' || $type === 'email' || $type === 'password') {
                 $htmlPrepended = '<div class="formengine-field-item t3js-formengine-field-item"><div class="form-control-wrap">'
-                    . '<div class="form-wizards-wrap"><div class="form-wizards-element">';
+                    . '<div class="form-wizards-wrap"><div class="form-wizards-item-element">';
                 $htmlAppended = '</div></div></div></div>';
             }
 
-            $code[] = '<fieldset class="form-section"><div class="row"><div class="form-group col-md-12">'
+            $code[] = '<fieldset class="form-section"><div class="form-group">'
                 . $label
                 . $htmlPrepended
                 . $html
                 . $htmlAppended
-                . '</div></div></fieldset>';
+                . '</div></fieldset>';
         }
 
         $result[] = [
@@ -659,7 +671,14 @@ class SetupModuleController
             if (!$this->locales->isLanguageKeyAvailable($languageCode)) {
                 continue;
             }
-            $labelIdentifier = $officialLanguages->getLabelIdentifier($languageCode);
+            // TYPO3 + Ecosystem wrongly uses "ch" as Chinese, but it should be Chamorro (see #106125)
+            // Ideally, we should remove "ch" from the system, marked as chinese, and then "go for it".
+            // Chinese Simplified is "zh-CN"
+            if ($languageCode === 'ch') {
+                $labelIdentifier = $languageService->sL('LLL:EXT:setup/Resources/Private/Language/locallang.xlf:warning.chineseSimplified');
+            } else {
+                $labelIdentifier = $officialLanguages->getLabelIdentifier($languageCode);
+            }
             $localizedName = htmlspecialchars($languageService->sL($labelIdentifier) ?: $name);
             $defaultName = $defaultLanguageLabelService->sL($labelIdentifier);
             if ($defaultName === $localizedName || $defaultName === '') {
@@ -767,14 +786,6 @@ class SetupModuleController
     protected function getFieldsFromShowItem()
     {
         $allowedFields = GeneralUtility::trimExplode(',', $GLOBALS['TYPO3_USER_SETTINGS']['showitem'], true);
-        if ($this->getBackendUser()->isAdmin()) {
-            // Do not ask for current password if admin (unknown for other users and no security gain)
-            $key = array_search('passwordCurrent', $allowedFields);
-            if ($key !== false) {
-                unset($allowedFields[$key]);
-            }
-        }
-
         $backendUser = $this->getBackendUser();
         if ($backendUser->getOriginalUserIdWhenInSwitchUserMode() && $backendUser->isSystemMaintainer(true)) {
             // DataHandler denies changing the password of system maintainer users in switch user mode.
@@ -916,14 +927,8 @@ class SetupModuleController
         if ($this->settingsAreResetToDefault) {
             $view->addFlashMessage($languageService->sL('LLL:EXT:setup/Resources/Private/Language/locallang.xlf:settingsAreReset'), $languageService->sL('LLL:EXT:setup/Resources/Private/Language/locallang.xlf:resetConfiguration'));
         }
-        if ($this->setupIsUpdated || $this->settingsAreResetToDefault) {
-            $view->addFlashMessage($languageService->sL('LLL:EXT:setup/Resources/Private/Language/locallang.xlf:activateChanges'), '', ContextualFeedbackSeverity::INFO);
-        }
         if ($this->passwordIsSubmitted) {
             switch ($this->passwordIsUpdated) {
-                case self::PASSWORD_OLD_WRONG:
-                    $view->addFlashMessage($languageService->sL('LLL:EXT:setup/Resources/Private/Language/locallang.xlf:oldPassword_failed'), $languageService->sL('LLL:EXT:setup/Resources/Private/Language/locallang.xlf:newPassword'), ContextualFeedbackSeverity::ERROR);
-                    break;
                 case self::PASSWORD_NOT_THE_SAME:
                     $view->addFlashMessage($languageService->sL('LLL:EXT:setup/Resources/Private/Language/locallang.xlf:newPassword_failed'), $languageService->sL('LLL:EXT:setup/Resources/Private/Language/locallang.xlf:newPassword'), ContextualFeedbackSeverity::ERROR);
                     break;

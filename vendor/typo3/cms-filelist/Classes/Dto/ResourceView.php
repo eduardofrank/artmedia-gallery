@@ -18,13 +18,12 @@ declare(strict_types=1);
 namespace TYPO3\CMS\Filelist\Dto;
 
 use TYPO3\CMS\Core\Imaging\Icon;
+use TYPO3\CMS\Core\Imaging\IconSize;
 use TYPO3\CMS\Core\Resource\File;
 use TYPO3\CMS\Core\Resource\Folder;
 use TYPO3\CMS\Core\Resource\InaccessibleFolder;
-use TYPO3\CMS\Core\Resource\ProcessedFile;
 use TYPO3\CMS\Core\Resource\ResourceInterface;
 use TYPO3\CMS\Core\Resource\Utility\ListUtility;
-use TYPO3\CMS\Core\Utility\GeneralUtility;
 
 /**
  * @internal
@@ -58,14 +57,6 @@ class ResourceView
     public function getIdentifier(): string
     {
         return $this->resource->getStorage()->getUid() . ':' . $this->resource->getIdentifier();
-    }
-
-    /**
-     * Calculates a state identifier used for drag&drop into the file tree
-     */
-    public function getStateIdentifier(): string
-    {
-        return $this->resource->getStorage()->getUid() . '_' . GeneralUtility::md5int($this->resource->getIdentifier());
     }
 
     public function getMetaDataUid(): ?int
@@ -132,22 +123,15 @@ class ResourceView
         return null;
     }
 
-    public function getThumbnailUri(): ?string
+    public function getIconIdentifier(): string
     {
-        $preview = $this->getPreview();
-        if (!$preview) {
-            return null;
-        }
-
-        return $preview
-            ->process(ProcessedFile::CONTEXT_IMAGECROPSCALEMASK, ['width' => '32c', 'height' => '32c'])
-            ->getPublicUrl() ?? null;
+        return $this->icon->getIdentifier();
     }
 
     public function getIconSmall(): Icon
     {
         $icon = clone $this->icon;
-        $icon->setSize(Icon::SIZE_SMALL);
+        $icon->setSize(IconSize::SMALL);
 
         return $icon;
     }
@@ -155,7 +139,7 @@ class ResourceView
     public function getIconMedium(): Icon
     {
         $icon = clone $this->icon;
-        $icon->setSize(Icon::SIZE_MEDIUM);
+        $icon->setSize(IconSize::MEDIUM);
 
         return $icon;
     }
@@ -163,7 +147,7 @@ class ResourceView
     public function getIconLarge(): Icon
     {
         $icon = clone $this->icon;
-        $icon->setSize(Icon::SIZE_LARGE);
+        $icon->setSize(IconSize::LARGE);
 
         return $icon;
     }

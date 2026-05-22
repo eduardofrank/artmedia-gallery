@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 /*
  * This file belongs to the package "TYPO3 Fluid".
  * See LICENSE.txt that was shipped with this package.
@@ -26,12 +28,9 @@ class SimpleFileCache implements FluidCacheInterface
     /**
      * @var string
      */
-    protected $directory = self::DIRECTORY_DEFAULT;
+    protected string $directory = self::DIRECTORY_DEFAULT;
 
-    /**
-     * @param string $directory
-     */
-    public function __construct($directory = self::DIRECTORY_DEFAULT)
+    public function __construct(string $directory = self::DIRECTORY_DEFAULT)
     {
         $this->directory = rtrim($directory, '/') . '/';
     }
@@ -42,9 +41,9 @@ class SimpleFileCache implements FluidCacheInterface
      * cached on-the-fly to this FluidCacheInterface
      * implementaion.
      *
-     * @return FluidCacheWarmerInterface
+     * @deprecated Will be removed in Fluid v5
      */
-    public function getCacheWarmer()
+    public function getCacheWarmer(): FluidCacheWarmerInterface
     {
         return new StandardCacheWarmer();
     }
@@ -54,11 +53,8 @@ class SimpleFileCache implements FluidCacheInterface
      * entry does not exist. Returns true if the cached
      * class file was included, false if it does not
      * exist in the cache directory.
-     *
-     * @param string $name
-     * @return bool
      */
-    public function get($name)
+    public function get(string $name): bool
     {
         if (class_exists($name)) {
             return true;
@@ -75,11 +71,9 @@ class SimpleFileCache implements FluidCacheInterface
      * Set or updates an entry identified by $name
      * into the cache.
      *
-     * @param string $name
-     * @param mixed $value
      * @throws \RuntimeException
      */
-    public function set($name, $value)
+    public function set(string $name, mixed $value): void
     {
         if (!file_exists(rtrim($this->directory, '/'))) {
             throw new \RuntimeException(sprintf('Invalid Fluid cache directory - %s does not exist!', $this->directory));
@@ -90,50 +84,33 @@ class SimpleFileCache implements FluidCacheInterface
     /**
      * Flushes the cache either by entry or flushes
      * the entire cache if no entry is provided.
-     *
-     * @param string|null $name
      */
-    public function flush($name = null)
+    public function flush(?string $name = null): void
     {
         if ($name !== null) {
             $this->flushByName($name);
         } else {
             $files = $this->getCachedFilenames();
-            if (is_array($files)) {
-                array_walk($files, [$this, 'flushByFilename']);
-            }
+            array_walk($files, [$this, 'flushByFilename']);
         }
     }
 
-    /**
-     * @return array
-     */
-    protected function getCachedFilenames()
+    protected function getCachedFilenames(): array
     {
         return glob($this->directory . '*.php');
     }
 
-    /**
-     * @param string $name
-     */
-    protected function flushByName($name)
+    protected function flushByName(string $name): void
     {
         $this->flushByFilename($this->getCachedFilePathAndFilename($name));
     }
 
-    /**
-     * @param string $filename
-     */
-    protected function flushByFilename($filename)
+    protected function flushByFilename(string $filename): void
     {
         unlink($filename);
     }
 
-    /**
-     * @param string $identifier
-     * @return string
-     */
-    protected function getCachedFilePathAndFilename($identifier)
+    protected function getCachedFilePathAndFilename(string $identifier): string
     {
         return $this->directory . $identifier . '.php';
     }

@@ -17,6 +17,9 @@ declare(strict_types=1);
 
 namespace TYPO3\CMS\Form\Mvc\Property;
 
+use Symfony\Component\DependencyInjection\Attribute\Autoconfigure;
+use TYPO3\CMS\Core\Resource\Exception\FolderDoesNotExistException;
+use TYPO3\CMS\Core\Resource\Exception\InsufficientFolderAccessPermissionsException;
 use TYPO3\CMS\Core\Resource\ResourceFactory;
 use TYPO3\CMS\Core\Utility\GeneralUtility;
 use TYPO3\CMS\Core\Utility\PathUtility;
@@ -34,6 +37,7 @@ use TYPO3\CMS\Form\Mvc\Validation\MimeTypeValidator;
  * Scope: frontend
  * @internal
  */
+#[Autoconfigure(public: true)]
 class PropertyMappingConfiguration implements AfterFormStateInitializedInterface
 {
     public function __construct(protected readonly ValidatorResolver $validatorResolver) {}
@@ -71,7 +75,7 @@ class PropertyMappingConfiguration implements AfterFormStateInitializedInterface
 
             $allowedMimeTypes = [];
             $validators = [];
-            if (isset($renderable->getProperties()['allowedMimeTypes']) && \is_array($renderable->getProperties()['allowedMimeTypes'])) {
+            if (isset($renderable->getProperties()['allowedMimeTypes']) && is_array($renderable->getProperties()['allowedMimeTypes'])) {
                 $allowedMimeTypes = array_filter($renderable->getProperties()['allowedMimeTypes']);
             }
             if (!empty($allowedMimeTypes)) {
@@ -96,17 +100,23 @@ class PropertyMappingConfiguration implements AfterFormStateInitializedInterface
                 UploadedFileReferenceConverter::CONFIGURATION_UPLOAD_CONFLICT_MODE => 'rename',
             ];
 
-            $saveToFileMountIdentifier = $renderable->getProperties()['saveToFileMount'] ?? '';
-            if ($this->checkSaveFileMountAccess($saveToFileMountIdentifier)) {
-                $uploadConfiguration[UploadedFileReferenceConverter::CONFIGURATION_UPLOAD_FOLDER] = $saveToFileMountIdentifier;
-            } else {
-                // @todo Why should uploaded files be stored to the same directory as the *.form.yaml definitions?
-                $persistenceIdentifier = $renderable->getRootForm()->getPersistenceIdentifier();
-                if (!empty($persistenceIdentifier)) {
-                    $pathinfo = PathUtility::pathinfo($persistenceIdentifier);
-                    $saveToFileMountIdentifier = $pathinfo['dirname'];
-                    if ($this->checkSaveFileMountAccess($saveToFileMountIdentifier)) {
-                        $uploadConfiguration[UploadedFileReferenceConverter::CONFIGURATION_UPLOAD_FOLDER] = $saveToFileMountIdentifier;
+            // In preview mode (Form Editor backend module), skip upload folder resolution
+            // entirely. File uploads are non-functional during preview and resolving the
+            // target folder may throw access permission exceptions for backend users who
+            // do not have access to the configured upload storage.
+            if (!($renderable->getRootForm()->getRenderingOptions()['previewMode'] ?? false)) {
+                $saveToFileMountIdentifier = $renderable->getProperties()['saveToFileMount'] ?? '';
+                if ($this->checkSaveFileMountAccess($saveToFileMountIdentifier)) {
+                    $uploadConfiguration[UploadedFileReferenceConverter::CONFIGURATION_UPLOAD_FOLDER] = $saveToFileMountIdentifier;
+                } else {
+                    // @todo Why should uploaded files be stored to the same directory as the *.form.yaml definitions?
+                    $persistenceIdentifier = $renderable->getRootForm()->getPersistenceIdentifier();
+                    if (!empty($persistenceIdentifier)) {
+                        $pathinfo = PathUtility::pathinfo($persistenceIdentifier);
+                        $saveToFileMountIdentifier = $pathinfo['dirname'];
+                        if ($this->checkSaveFileMountAccess($saveToFileMountIdentifier)) {
+                            $uploadConfiguration[UploadedFileReferenceConverter::CONFIGURATION_UPLOAD_FOLDER] = $saveToFileMountIdentifier;
+                        }
                     }
                 }
             }
@@ -143,7 +153,7 @@ class PropertyMappingConfiguration implements AfterFormStateInitializedInterface
         try {
             $resourceFactory->getFolderObjectFromCombinedIdentifier($saveToFileMountIdentifier);
             return true;
-        } catch (\InvalidArgumentException $e) {
+        } catch (\InvalidArgumentException|InsufficientFolderAccessPermissionsException|FolderDoesNotExistException $e) {
             return false;
         }
     }

@@ -25,9 +25,7 @@ use TYPO3\CMS\Core\Utility\GeneralUtility;
 use TYPO3\CMS\Form\Domain\Model\Renderable\RenderableInterface;
 use TYPO3\CMS\Form\Domain\Model\Renderable\RootRenderableInterface;
 use TYPO3\CMS\Form\Domain\Runtime\FormRuntime;
-use TYPO3Fluid\Fluid\Core\Rendering\RenderingContextInterface;
 use TYPO3Fluid\Fluid\Core\ViewHelper\AbstractViewHelper;
-use TYPO3Fluid\Fluid\Core\ViewHelper\Traits\CompileWithRenderStatic;
 
 /**
  * Render a renderable.
@@ -36,11 +34,11 @@ use TYPO3Fluid\Fluid\Core\ViewHelper\Traits\CompileWithRenderStatic;
  * and return the rendered content.
  *
  * Scope: frontend
+ *
+ * @see https://docs.typo3.org/permalink/t3viewhelper:typo3-form-renderrenderable
  */
 final class RenderRenderableViewHelper extends AbstractViewHelper
 {
-    use CompileWithRenderStatic;
-
     /**
      * @var bool
      */
@@ -51,15 +49,13 @@ final class RenderRenderableViewHelper extends AbstractViewHelper
         $this->registerArgument('renderable', RootRenderableInterface::class, 'A RenderableInterface instance', true);
     }
 
-    public static function renderStatic(array $arguments, \Closure $renderChildrenClosure, RenderingContextInterface $renderingContext): string
+    public function render(): string
     {
         /** @var FormRuntime $formRuntime */
-        $formRuntime = $renderingContext
+        $formRuntime = $this->renderingContext
             ->getViewHelperVariableContainer()
             ->get(self::class, 'formRuntime');
-
-        $renderable = $arguments['renderable'];
-
+        $renderable = $this->arguments['renderable'];
         foreach ($GLOBALS['TYPO3_CONF_VARS']['SC_OPTIONS']['ext/form']['beforeRendering'] ?? [] as $className) {
             $hookObj = GeneralUtility::makeInstance($className);
             if (method_exists($hookObj, 'beforeRendering')) {
@@ -69,13 +65,10 @@ final class RenderRenderableViewHelper extends AbstractViewHelper
                 );
             }
         }
-
         $content = '';
-
         if ($renderable instanceof FormRuntime || $renderable instanceof RenderableInterface && $renderable->isEnabled()) {
-            $content = $renderChildrenClosure();
+            $content = $this->renderChildren();
         }
-
         // Wrap every renderable with a span with an identifier path data attribute if previewMode is active
         if (!empty($content)) {
             $renderingOptions = $formRuntime->getRenderingOptions();

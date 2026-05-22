@@ -10,12 +10,11 @@ declare(strict_types=1);
 
 namespace BK2K\BootstrapPackage\Updates;
 
+use TYPO3\CMS\Install\Attribute\UpgradeWizard;
 use TYPO3\CMS\Install\Updates\RepeatableInterface;
 use TYPO3\CMS\Install\Updates\UpgradeWizardInterface;
 
-/**
- * TexticonSizeUpdate
- */
+#[UpgradeWizard(TexticonSizeUpdate::class)]
 class TexticonSizeUpdate extends AbstractUpdate implements UpgradeWizardInterface, RepeatableInterface
 {
     /**
@@ -40,7 +39,7 @@ class TexticonSizeUpdate extends AbstractUpdate implements UpgradeWizardInterfac
         0 => 'default',
         1 => 'medium',
         2 => 'large',
-        3 => 'awesome'
+        3 => 'awesome',
     ];
 
     public function updateNecessary(): bool
@@ -59,7 +58,7 @@ class TexticonSizeUpdate extends AbstractUpdate implements UpgradeWizardInterfac
         $records = $this->getRecordsByCriteria($queryBuilder, $criteria);
 
         foreach ($records as $record) {
-            if (null !== $newValue = $this->mapValues(intval($record[$this->field]))) {
+            if (null !== $newValue = $this->mapValues((int)($record[$this->field]))) {
                 $this->updateRecord(
                     (int) $record['uid'],
                     [$this->field => $newValue]

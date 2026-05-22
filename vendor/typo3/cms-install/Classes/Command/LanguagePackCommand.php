@@ -34,22 +34,17 @@ use TYPO3\CMS\Install\Service\LateBootService;
  */
 class LanguagePackCommand extends Command
 {
-    /**
-     * @var LateBootService
-     */
-    private $lateBootService;
-
     public function __construct(
         string $name,
-        LateBootService $lateBootService
+        private readonly LateBootService $lateBootService
     ) {
-        $this->lateBootService = $lateBootService;
         parent::__construct($name);
     }
+
     /**
      * Configure the command by defining the name, options and arguments
      */
-    protected function configure()
+    protected function configure(): void
     {
         $this->setDescription('Update the language files of all activated extensions')
             ->addArgument(

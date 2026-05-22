@@ -13,16 +13,16 @@ $gray-800:                          #313131 !default;
 $gray-900:                          #212121 !default;
 $black:                             #000000 !default;
 
-$primary:                           #2a9d8f !default;
-$secondary:                         #e76f51 !default;
-$tertiary:                          #f4a261 !default;
-$quaternary:                        #e9c46a !default;
+$primary:                           #577760 !default;
+$secondary:                         #514553 !default;
+$tertiary:                          #758c7f !default;
+$quaternary:                        #2d1e2f !default;
 
 $default:                           #eaebec !default;
-$success:                           #5cb85c !default;
-$info:                              #319fc0 !default;
-$warning:                           #f0ad4e !default;
-$danger:                            #d9534f !default;
+$success:                           #3a833a !default;
+$info:                              #287f9a !default;
+$warning:                           #a4660e !default;
+$danger:                            #d4403a !default;
 $lighter:                           $gray-100 !default;
 $light:                             $gray-200 !default;
 $dark:                              $gray-800 !default;
@@ -77,12 +77,6 @@ $display-font-sizes: (
 ) !default;
 
 //
-// Links
-// --------------------------------------------------
-$link-decoration:                   none !default;
-$link-hover-decoration:             underline !default;
-
-//
 // Breakpoints
 // --------------------------------------------------
 $grid-float-breakpoint:             992px !default;
@@ -95,7 +89,6 @@ $grid-gutter-width:                 40px !default;
 //
 // Navbar
 // --------------------------------------------------
-$navbar-nav-link-padding-x:         1rem !default;
 $navbar-heights: (
     xs: 70px,
     sm: 70px,
@@ -103,6 +96,14 @@ $navbar-heights: (
     lg: 100px,
     xl: 110px,
     xxl: 110px
+) !default;
+$navbar-dropdown-columns: (
+    xs: 2,
+    sm: 2,
+    md: 4,
+    lg: 4,
+    xl: 6,
+    xxl: 6
 ) !default;
 
 //
@@ -129,3 +130,14 @@ $accordion-padding-y:               1rem !default;
 $accordion-padding-x:               1.25rem !default;
 $accordion-body-padding-y:          $accordion-padding-x !default;
 $accordion-body-padding-x:          $accordion-padding-x !default;
+
+//
+// Carousel
+//
+$carousel-control-opacity:          .8 !default;
+
+//
+// Input
+//
+$border-color:                      $gray-400 !default;
+$input-border-color:                #959595 !default;

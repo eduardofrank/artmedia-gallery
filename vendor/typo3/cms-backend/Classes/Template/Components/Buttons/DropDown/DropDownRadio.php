@@ -15,8 +15,8 @@
 
 namespace TYPO3\CMS\Backend\Template\Components\Buttons\DropDown;
 
-use TYPO3\CMS\Core\Imaging\Icon;
 use TYPO3\CMS\Core\Imaging\IconFactory;
+use TYPO3\CMS\Core\Imaging\IconSize;
 use TYPO3\CMS\Core\Utility\GeneralUtility;
 
 /**
@@ -30,8 +30,9 @@ use TYPO3\CMS\Core\Utility\GeneralUtility;
  * At least 2 of these items need to exist within a dropdown button,
  * so a user has a choice of a state to select.
  *
- * Example: Viewmode -> List / Tiles
+ * Example:
  *
+ * ```
  * $item = GeneralUtility::makeInstance(DropDownRadio::class)
  *     ->setHref('#')
  *     ->setActive(true)
@@ -49,6 +50,7 @@ use TYPO3\CMS\Core\Utility\GeneralUtility;
  *     ->setIcon($this->iconFactory->getIcon('actions-viewmode-tiles'))
  *     ->setAttributes(['data-type' => 'tiles']);
  * $dropDownButton->addItem($item);
+ * ```
  */
 class DropDownRadio extends AbstractDropDownItem implements DropDownItemInterface
 {
@@ -70,9 +72,9 @@ class DropDownRadio extends AbstractDropDownItem implements DropDownItemInterfac
         // Status Icon
         $iconFactory = GeneralUtility::makeInstance(IconFactory::class);
         if ($this->isActive()) {
-            $statusIcon = '<span class="text-primary">' . $iconFactory->getIcon('actions-dot', Icon::SIZE_SMALL)->render() . '</span>';
+            $statusIcon = '<span class="text-primary">' . $iconFactory->getIcon('actions-dot', IconSize::SMALL)->render() . '</span>';
         } else {
-            $statusIcon = $iconFactory->getIcon('empty-empty', Icon::SIZE_SMALL)->render();
+            $statusIcon = $iconFactory->getIcon('empty-empty', IconSize::SMALL)->render();
         }
 
         return '<' . $this->getTag() . ' ' . $this->getAttributesString() . '>'

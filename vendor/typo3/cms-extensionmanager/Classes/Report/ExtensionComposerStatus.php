@@ -54,13 +54,13 @@ class ExtensionComposerStatus implements RequestAwareStatusProviderInterface
         ];
 
         if ($request !== null) {
-            $queryParameters['returnUrl'] =
-                $request->getAttribute('normalizedParams')->getRequestUri();
+            $queryParameters['returnUrl']
+                = $request->getAttribute('normalizedParams')->getRequestUri();
         }
 
         $dispatchAction = 'TYPO3.ModuleMenu.showModule';
         $dispatchArgs = [
-            'tools_ExtensionmanagerExtensionmanager',
+            'extensionmanager',
             '&' . http_build_query($queryParameters),
         ];
 

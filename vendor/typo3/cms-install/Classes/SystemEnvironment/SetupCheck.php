@@ -54,7 +54,6 @@ class SetupCheck implements CheckInterface
         $this->checkLocaleWithUTF8filesystem();
         $this->checkSomePhpOpcodeCacheIsLoaded();
         $this->isTrueTypeFontWorking();
-        $this->checkLibXmlBug();
 
         return $this->messageQueue;
     }
@@ -73,6 +72,9 @@ class SetupCheck implements CheckInterface
                 ContextualFeedbackSeverity::WARNING
             ));
         } else {
+            if (Environment::isCli()) {
+                return;
+            }
             $verifyHostHeader = new VerifyHostHeader($GLOBALS['TYPO3_CONF_VARS']['SYS']['trustedHostsPattern'] ?? '');
             if ($verifyHostHeader->isAllowedHostHeaderValue($_SERVER['HTTP_HOST'], $_SERVER)) {
                 $this->messageQueue->enqueue(new FlashMessage(
@@ -274,30 +276,6 @@ class SetupCheck implements CheckInterface
                     . ' support. This is missing on your system. Please install it.',
                 'PHP GD library freetype2 support missing',
                 ContextualFeedbackSeverity::ERROR
-            ));
-        }
-    }
-
-    /**
-     * Check for bug in libxml
-     */
-    protected function checkLibXmlBug()
-    {
-        $sampleArray = ['Test>><<Data'];
-        $xmlContent = '<numIndex index="0">Test&gt;&gt;&lt;&lt;Data</numIndex>' . LF;
-        $xml = GeneralUtility::array2xml($sampleArray, '', -1);
-        if ($xmlContent !== $xml) {
-            $this->messageQueue->enqueue(new FlashMessage(
-                'Some hosts have problems saving ">><<" in a flexform.'
-                    . ' To fix this, enable [BE][flexformForceCDATA] in'
-                    . ' All Configuration.',
-                'PHP libxml bug present',
-                ContextualFeedbackSeverity::ERROR
-            ));
-        } else {
-            $this->messageQueue->enqueue(new FlashMessage(
-                '',
-                'PHP libxml bug not present'
             ));
         }
     }

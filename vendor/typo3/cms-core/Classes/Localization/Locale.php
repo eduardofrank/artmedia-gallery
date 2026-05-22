@@ -28,14 +28,6 @@ namespace TYPO3\CMS\Core\Localization;
  */
 class Locale implements \Stringable
 {
-    protected string $locale;
-    protected string $languageCode;
-    protected ?string $languageScript = null;
-    protected ?string $countryCode = null;
-    protected ?string $codeSet = null;
-    // see https://wiki.archlinux.org/title/locale#Generating_locales
-    protected ?string $charsetModifier = null;
-
     // taken from https://meta.wikimedia.org/wiki/Template:List_of_language_names_ordered_by_code
     protected const RIGHT_TO_LEFT_LANGUAGE_CODES = [
         'ar', // Arabic
@@ -54,6 +46,13 @@ class Locale implements \Stringable
         'uz-AF', // Uzbeki Afghanistan
         'yi', // Yiddish
     ];
+    protected string $locale;
+    protected string $languageCode;
+    protected ?string $languageScript = null;
+    protected ?string $countryCode = null;
+    protected ?string $codeSet = null;
+    // see https://wiki.archlinux.org/title/locale#Generating_locales
+    protected ?string $charsetModifier = null;
 
     /**
      * List of language dependencies for an actual language. This setting is used for local variants of a language
@@ -102,19 +101,7 @@ class Locale implements \Stringable
         }
 
         $this->locale = $this->languageCode . ($this->languageScript ? '-' . $this->languageScript : '') . ($this->countryCode ? '-' . $this->countryCode : '');
-        $this->dependencies = array_map(fn($dep) => $this->normalize($dep), $dependencies);
-    }
-
-    /**
-     * @internal not part of TYPO3 public API
-     */
-    public function setDependencies(array $dependencies, bool $raw = false): void
-    {
-        if ($raw) {
-            $this->dependencies = $dependencies;
-        } else {
-            $this->dependencies = array_map(fn($dep) => $this->normalize($dep), $dependencies);
-        }
+        $this->dependencies = array_map($this->normalize(...), $dependencies);
     }
 
     public function getName(): string

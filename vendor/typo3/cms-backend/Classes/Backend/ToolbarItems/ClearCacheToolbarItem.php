@@ -19,6 +19,7 @@ namespace TYPO3\CMS\Backend\Backend\ToolbarItems;
 
 use Psr\EventDispatcher\EventDispatcherInterface;
 use Psr\Http\Message\ServerRequestInterface;
+use Symfony\Component\DependencyInjection\Attribute\Autoconfigure;
 use TYPO3\CMS\Backend\Backend\Event\ModifyClearCacheActionsEvent;
 use TYPO3\CMS\Backend\Routing\UriBuilder;
 use TYPO3\CMS\Backend\Toolbar\RequestAwareToolbarItemInterface;
@@ -30,11 +31,29 @@ use TYPO3\CMS\Core\Authentication\BackendUserAuthentication;
  * Render cache clearing toolbar item.
  * Adds a dropdown if there are more than one item to clear (usually for admins to render the flush all caches).
  * The dropdown items can be manipulated using ModifyClearCacheActionsEvent.
+ *
+ * @phpstan-type CacheAction array{
+ *     href: non-empty-string,
+ *     id: non-empty-string,
+ *     iconIdentifier: non-empty-string,
+ *     title: non-empty-string,
+ *     description?: non-empty-string,
+ *     severity?: 'notice'|'info'|'succcess'|'warning'|'error'|'danger',
+ * }
  */
+#[Autoconfigure(public: true)]
 class ClearCacheToolbarItem implements ToolbarItemInterface, RequestAwareToolbarItemInterface
 {
+    /**
+     * @var list<CacheAction>
+     */
     protected array $cacheActions = [];
+
+    /**
+     * @var list<non-empty-string>
+     */
     protected array $optionValues = [];
+
     private ServerRequestInterface $request;
 
     public function __construct(

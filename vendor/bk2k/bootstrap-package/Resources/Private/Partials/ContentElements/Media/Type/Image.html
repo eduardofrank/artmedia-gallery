@@ -15,9 +15,20 @@
                         maxWidth="{settings.lightbox.image.maxWidth}"
                         class="{settings.lightbox.cssClass}"
                         rel="{settings.lightbox.prefix}-{data.uid}"
-                        title="{file.properties.title}"
-                        caption="{file.properties.description}"
+                        lightbox-title="{file.properties.title}"
+                        lightbox-alt="{file.properties.alternative}"
+                        lightbox-caption="{file.properties.description}"
                     >
+                        <span class="visually-hidden">
+                            <f:if condition="{file.properties.alternative}">
+                                <f:then>
+                                    <f:translate key="lightbox.screenreader.alternative.prefix" extensionName="bootstrap_package" />
+                                </f:then>
+                                <f:else>
+                                    <f:translate key="lightbox.screenreader.label" extensionName="bootstrap_package" />
+                                </f:else>
+                            </f:if>
+                        </span>
                         <f:render partial="Media/Rendering/Image" arguments="{file: file, data: data, settings: settings, variants: variants}" />
                     </bk2k:link.lightbox>
                 </f:then>

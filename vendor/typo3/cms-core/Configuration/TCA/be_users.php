@@ -39,14 +39,8 @@ return [
                 'eval' => 'nospace,trim,lower,unique',
                 'autocomplete' => false,
             ],
-        ],
-        'description' => [
-            'label' => 'LLL:EXT:core/Resources/Private/Language/locallang_general.xlf:LGL.description',
-            'config' => [
-                'type' => 'text',
-                'rows' => 5,
-                'cols' => 30,
-                'max' => 2000,
+            'authenticationContext' => [
+                'group' => 'be.userManagement',
             ],
         ],
         'password' => [
@@ -57,6 +51,10 @@ return [
                 'size' => 20,
                 'required' => true,
             ],
+            'authenticationContext' => [
+                //'group' => 'be.userManagement',
+                'once' => true,
+            ],
         ],
         'mfa' => [
             'label' => 'LLL:EXT:core/Resources/Private/Language/locallang_tca.xlf:be_users.mfa',
@@ -64,6 +62,9 @@ return [
                 // @todo Use a new internal TCA type to prevent raw data being displayed in the backend
                 'type' => 'none',
                 'renderType' => 'mfaInfo',
+            ],
+            'authenticationContext' => [
+                'group' => 'be.userManagement',
             ],
         ],
         'usergroup' => [
@@ -73,6 +74,7 @@ return [
                 'renderType' => 'selectMultipleSideBySide',
                 'foreign_table' => 'be_groups',
                 'size' => 5,
+                'dbFieldLength' => 512,
                 'fieldControl' => [
                     'editPopup' => [
                         'disabled' => false,
@@ -95,12 +97,15 @@ return [
                     ],
                 ],
             ],
+            'authenticationContext' => [
+                'group' => 'be.userManagement',
+            ],
         ],
         'avatar' => [
             'label' => 'LLL:EXT:core/Resources/Private/Language/locallang_tca.xlf:be_users.avatar',
             'config' => [
                 'type' => 'file',
-                'maxitems' => 1,
+                'relationship' => 'manyToOne',
                 'allowed' => 'common-image-types',
             ],
         ],
@@ -112,6 +117,9 @@ return [
                 'size' => 3,
                 'maxitems' => 100,
                 'autoSizeMax' => 10,
+            ],
+            'authenticationContext' => [
+                'group' => 'be.userManagement',
             ],
         ],
         'file_mountpoints' => [
@@ -146,12 +154,18 @@ return [
                     ],
                 ],
             ],
+            'authenticationContext' => [
+                'group' => 'be.userManagement',
+            ],
         ],
         'email' => [
             'label' => 'LLL:EXT:core/Resources/Private/Language/locallang_general.xlf:LGL.email',
             'config' => [
                 'type' => 'email',
                 'size' => 20,
+            ],
+            'authenticationContext' => [
+                'group' => 'be.userManagement',
             ],
         ],
         'realName' => [
@@ -161,21 +175,6 @@ return [
                 'size' => 20,
                 'eval' => 'trim',
                 'max' => 80,
-            ],
-        ],
-        'disable' => [
-            'label' => 'LLL:EXT:core/Resources/Private/Language/locallang_general.xlf:LGL.enabled',
-            'displayCond' => 'USER:' . \TYPO3\CMS\Core\Hooks\TcaDisplayConditions::class . '->isRecordCurrentUser:false',
-            'config' => [
-                'type' => 'check',
-                'renderType' => 'checkboxToggle',
-                'items' => [
-                    [
-                        'label' => '',
-                        'invertStateDisplay' => true,
-                    ],
-                ],
-                'default' => 1,
             ],
         ],
         'admin' => [
@@ -189,6 +188,9 @@ return [
                         'renderType' => 'adminIsSystemMaintainer',
                     ],
                 ],
+            ],
+            'authenticationContext' => [
+                'group' => 'be.userManagement',
             ],
         ],
         'options' => [
@@ -231,9 +233,13 @@ return [
                 'maxitems' => 17,
                 'default' => 'readFolder,writeFolder,addFolder,renameFolder,moveFolder,deleteFolder,readFile,writeFile,addFile,renameFile,replaceFile,moveFile,copyFile,deleteFile',
             ],
+            'authenticationContext' => [
+                'group' => 'be.userManagement',
+            ],
         ],
         'workspace_perms' => [
             'displayCond' => 'USER:TYPO3\CMS\Core\Hooks\TcaDisplayConditions->isExtensionInstalled:workspaces',
+            'description' => 'LLL:EXT:core/Resources/Private/Language/locallang_tca.xlf:workspace_perms.description',
             'label' => 'LLL:EXT:core/Resources/Private/Language/locallang_tca.xlf:workspace_perms',
             'config' => [
                 'type' => 'check',
@@ -243,22 +249,8 @@ return [
                     ['label' => 'LLL:EXT:core/Resources/Private/Language/locallang_tca.xlf:workspace_perms_live'],
                 ],
             ],
-        ],
-        'starttime' => [
-            'label' => 'LLL:EXT:core/Resources/Private/Language/locallang_general.xlf:LGL.starttime',
-            'config' => [
-                'type' => 'datetime',
-                'default' => 0,
-            ],
-        ],
-        'endtime' => [
-            'label' => 'LLL:EXT:core/Resources/Private/Language/locallang_general.xlf:LGL.endtime',
-            'config' => [
-                'type' => 'datetime',
-                'default' => 0,
-                'range' => [
-                    'upper' => mktime(0, 0, 0, 1, 1, 2038),
-                ],
+            'authenticationContext' => [
+                'group' => 'be.userManagement',
             ],
         ],
         'lang' => [
@@ -286,6 +278,9 @@ return [
                 'autoSizeMax' => 50,
                 'maxitems' => 100,
             ],
+            'authenticationContext' => [
+                'group' => 'be.userManagement',
+            ],
         ],
         'allowed_languages' => [
             'label' => 'LLL:EXT:core/Resources/Private/Language/locallang_tca.xlf:allowed_languages',
@@ -294,6 +289,10 @@ return [
                 'type' => 'select',
                 'renderType' => 'selectCheckBox',
                 'itemsProcFunc' => \TYPO3\CMS\Core\Localization\TcaSystemLanguageCollector::class . '->populateAvailableSiteLanguages',
+                'dbFieldLength' => 255,
+            ],
+            'authenticationContext' => [
+                'group' => 'be.userManagement',
             ],
         ],
         'TSconfig' => [
@@ -326,6 +325,9 @@ return [
                     ],
                 ],
             ],
+            'authenticationContext' => [
+                'group' => 'be.userManagement',
+            ],
         ],
     ],
     'types' => [
@@ -334,10 +336,10 @@ return [
                 admin, username, password, mfa, usergroup, lang, lastlogin,
             --div--;LLL:EXT:core/Resources/Private/Language/locallang_tca.xlf:be_users.tabs.personal_data,
                 realName, email, avatar,
-            --div--;LLL:EXT:core/Resources/Private/Language/locallang_tca.xlf:be_users.tabs.rights,
-                userMods, allowed_languages,
+            --div--;LLL:EXT:core/Resources/Private/Language/locallang_tca.xlf:be_users.tabs.permissions,
+                userMods, allowed_languages, workspace_perms,
             --div--;LLL:EXT:core/Resources/Private/Language/locallang_tca.xlf:be_users.tabs.mounts_and_workspaces,
-                workspace_perms, db_mountpoints, options, file_mountpoints, file_permissions, category_perms,
+                db_mountpoints, options, file_mountpoints, file_permissions, category_perms,
             --div--;LLL:EXT:core/Resources/Private/Language/locallang_tca.xlf:be_users.tabs.options,
                 TSconfig,
             --div--;LLL:EXT:core/Resources/Private/Language/Form/locallang_tabs.xlf:access,

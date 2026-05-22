@@ -26,10 +26,12 @@ if (!is_array($GLOBALS['TCA']['tt_content']['types']['audio'] ?? false)) {
     'tt_content',
     'CType',
     [
-        'LLL:EXT:bootstrap_package/Resources/Private/Language/Backend.xlf:content_element.audio',
-        'audio',
-        'content-audio',
-        'bootstrap_package'
+        'label' => 'LLL:EXT:bootstrap_package/Resources/Private/Language/Backend.xlf:content_element.audio',
+        'description' => 'LLL:EXT:bootstrap_package/Resources/Private/Language/Backend.xlf:content_element.audio.description',
+        'value' => 'audio',
+        'icon' => 'content-audio',
+        'group' => 'bootstrap_package',
+
     ],
     'accordion',
     'after'
@@ -47,6 +49,7 @@ $GLOBALS['TCA']['tt_content']['types']['audio'] = array_replace_recursive(
                 --palette--;LLL:EXT:frontend/Resources/Private/Language/locallang_ttc.xlf:palette.general;general,
                 --palette--;LLL:EXT:frontend/Resources/Private/Language/locallang_ttc.xlf:palette.headers;headers,
             --div--;LLL:EXT:frontend/Resources/Private/Language/locallang_ttc.xlf:tabs.media,
+                subitems_header_layout,
                 assets,
             --div--;LLL:EXT:frontend/Resources/Private/Language/locallang_ttc.xlf:tabs.appearance,
                 --palette--;LLL:EXT:frontend/Resources/Private/Language/locallang_ttc.xlf:palette.frames;frames,
@@ -64,8 +67,10 @@ $GLOBALS['TCA']['tt_content']['types']['audio'] = array_replace_recursive(
         ',
         'columnsOverrides' => [
             'assets' => [
-                'config' => \BK2K\BootstrapPackage\Utility\TcaUtility::getConfigForFileExtensions(['mp3']),
-            ]
-        ]
+                'config' => [
+                    'allowed' => ['mp3'],
+                ],
+            ],
+        ],
     ]
 );

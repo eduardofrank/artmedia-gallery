@@ -10,6 +10,8 @@
 namespace GeorgRinger\News\Domain\Model;
 
 use DateTime;
+use TYPO3\CMS\Extbase\Annotation\ORM\Lazy;
+use TYPO3\CMS\Extbase\Annotation\ORM\Transient;
 use TYPO3\CMS\Extbase\DomainObject\AbstractEntity;
 use TYPO3\CMS\Extbase\Persistence\ObjectStorage;
 
@@ -18,34 +20,22 @@ use TYPO3\CMS\Extbase\Persistence\ObjectStorage;
  */
 class News extends AbstractEntity
 {
-    /**
-     * @var \DateTime
-     */
+    /** @var \DateTime */
     protected $crdate;
 
-    /**
-     * @var \DateTime
-     */
+    /** @var \DateTime */
     protected $tstamp;
 
-    /**
-     * @var int
-     */
+    /** @var int */
     protected $sysLanguageUid = 0;
 
-    /**
-     * @var int
-     */
+    /** @var int */
     protected $l10nParent = 0;
 
-    /**
-     * @var \DateTime
-     */
+    /** @var \DateTime */
     protected $starttime;
 
-    /**
-     * @var \DateTime
-     */
+    /** @var ?\DateTime */
     protected $endtime;
 
     /**
@@ -55,187 +45,126 @@ class News extends AbstractEntity
      */
     protected $feGroup = '';
 
-    /**
-     * @var bool
-     */
+    /** @var bool */
     protected $hidden = false;
 
-    /**
-     * @var bool
-     */
+    /** @var bool */
     protected $deleted = false;
 
-    /**
-     * @var int
-     */
-    protected $cruserId = 0;
-
-    /**
-     * @var string
-     */
+    /** @var string */
     protected $title = '';
 
-    /**
-     * @var string
-     */
+    /** @var string */
     protected $alternativeTitle = '';
 
-    /**
-     * @var string
-     */
+    /** @var string */
     protected $teaser = '';
 
-    /**
-     * @var string
-     */
+    /** @var string */
     protected $bodytext = '';
 
-    /**
-     * @var \DateTime
-     */
+    /** @var \DateTime */
     protected $datetime;
 
-    /**
-     * @var \DateTime
-     */
+    /** @var \DateTime */
     protected $archive;
 
-    /**
-     * @var string
-     */
+    /** @var string */
     protected $author = '';
 
-    /**
-     * @var string
-     */
+    /** @var string */
     protected $authorEmail = '';
 
-    /**
-     * @var \TYPO3\CMS\Extbase\Persistence\ObjectStorage<\GeorgRinger\News\Domain\Model\Category>
-     * @TYPO3\CMS\Extbase\Annotation\ORM\Lazy
-     */
-    protected $categories;
+    /** @var ObjectStorage<Category> */
+    #[Lazy]
+    protected ObjectStorage $categories;
 
-    /**
-     * @var \TYPO3\CMS\Extbase\Persistence\ObjectStorage<\GeorgRinger\News\Domain\Model\News>
-     * @TYPO3\CMS\Extbase\Annotation\ORM\Lazy
-     */
+    /** @var ObjectStorage<\GeorgRinger\News\Domain\Model\News> */
+    #[Lazy]
     protected $related;
 
-    /**
-     * @var \TYPO3\CMS\Extbase\Persistence\ObjectStorage<\GeorgRinger\News\Domain\Model\News>
-     * @TYPO3\CMS\Extbase\Annotation\ORM\Lazy
-     */
+    /** @var ObjectStorage<\GeorgRinger\News\Domain\Model\News> */
+    #[Lazy]
     protected $relatedFrom;
 
     /**
      * Fal related files
      *
-     * @var \TYPO3\CMS\Extbase\Persistence\ObjectStorage<\GeorgRinger\News\Domain\Model\FileReference>
-     * @TYPO3\CMS\Extbase\Annotation\ORM\Lazy
+     * @var ObjectStorage<FileReference>
      */
-    protected $falRelatedFiles;
+    #[Lazy]
+    protected ObjectStorage $falRelatedFiles;
 
-    /**
-     * @var \TYPO3\CMS\Extbase\Persistence\ObjectStorage<\GeorgRinger\News\Domain\Model\Link>
-     * @TYPO3\CMS\Extbase\Annotation\ORM\Lazy
-     */
-    protected $relatedLinks;
+    /** @var ObjectStorage<Link> */
+    #[Lazy]
+    protected ObjectStorage $relatedLinks;
 
-    /**
-     * @var array
-     */
+    /** @var array */
     protected $sortingForeign;
 
-    /**
-     * @var string
-     */
+    /** @var string */
     protected $type = '';
 
-    /**
-     * @var string
-     */
+    /** @var string */
     protected $keywords = '';
 
-    /**
-     * @var string
-     */
+    /** @var string */
     protected $description = '';
 
     /**
      * Fal media items
      *
-     * @var \TYPO3\CMS\Extbase\Persistence\ObjectStorage<\GeorgRinger\News\Domain\Model\FileReference>
-     * @TYPO3\CMS\Extbase\Annotation\ORM\Lazy
+     * @var ObjectStorage<FileReference>
      */
+    #[Lazy]
     protected $falMedia;
 
     /**
      * Fal media items with showinpreview set
      *
      * @var array
-     * @TYPO3\CMS\Extbase\Annotation\ORM\Transient
      */
+    #[Transient]
     protected $falMediaPreviews;
 
     /**
      * Fal media items with showinpreview not set
      *
      * @var array
-     * @TYPO3\CMS\Extbase\Annotation\ORM\Transient
      */
+    #[Transient]
     protected $falMediaNonPreviews;
 
-    /**
-     * @var string
-     */
+    /** @var string */
     protected $internalurl = '';
 
-    /**
-     * @var string
-     */
+    /** @var string */
     protected $externalurl = '';
 
-    /**
-     * @var bool
-     */
+    /** @var bool */
     protected $istopnews = false;
 
-    /**
-     * @var \TYPO3\CMS\Extbase\Persistence\ObjectStorage<\GeorgRinger\News\Domain\Model\TtContent>
-     * @TYPO3\CMS\Extbase\Annotation\ORM\Lazy
-     */
-    protected $contentElements;
+    /** @var ObjectStorage<TtContent> */
+    #[Lazy]
+    protected ObjectStorage $contentElements;
 
-    /**
-     * @var \TYPO3\CMS\Extbase\Persistence\ObjectStorage<\GeorgRinger\News\Domain\Model\Tag>
-     * @TYPO3\CMS\Extbase\Annotation\ORM\Lazy
-     */
-    protected $tags;
+    /** @var ObjectStorage<Tag> */
+    #[Lazy]
+    protected ObjectStorage $tags;
 
-    /**
-     * @var string
-     */
+    /** @var string */
     protected $pathSegment = '';
 
-    /**
-     * @var int
-     */
+    /** @var int */
     protected $editlock = 0;
 
-    /**
-     * @var string
-     */
+    /** @var string */
     protected $importId = '';
 
-    /**
-     * @var string
-     */
+    /** @var string */
     protected $importSource = '';
 
-    /**
-     * @var int
-     */
+    /** @var int */
     protected $sorting = 0;
 
     /** @var string */
@@ -255,18 +184,24 @@ class News extends AbstractEntity
     }
 
     /**
-     * Get title
-     *
-     * @return string
+     * Called again with initialize object, as fetching an entity from the DB does not use the constructor
      */
+    public function initializeObject(): void
+    {
+        $this->categories = $this->categories ?? new ObjectStorage();
+        $this->contentElements = $this->contentElements ?? new ObjectStorage();
+        $this->relatedLinks = $this->relatedLinks ?? new ObjectStorage();
+        $this->falMedia = $this->falMedia ?? new ObjectStorage();
+        $this->falRelatedFiles = $this->falRelatedFiles ?? new ObjectStorage();
+        $this->tags = $this->tags ?? new ObjectStorage();
+    }
+
     public function getTitle(): string
     {
         return $this->title;
     }
 
     /**
-     * Set title
-     *
      * @param string $title title
      */
     public function setTitle($title): void
@@ -276,8 +211,6 @@ class News extends AbstractEntity
 
     /**
      * Get alternative title
-     *
-     * @return string
      */
     public function getAlternativeTitle(): string
     {
@@ -296,8 +229,6 @@ class News extends AbstractEntity
 
     /**
      * Get Teaser text
-     *
-     * @return string
      */
     public function getTeaser(): string
     {
@@ -314,19 +245,12 @@ class News extends AbstractEntity
         $this->teaser = $teaser;
     }
 
-    /**
-     * Get bodytext
-     *
-     * @return string
-     */
     public function getBodytext(): string
     {
         return $this->bodytext;
     }
 
     /**
-     * Set bodytext
-     *
      * @param string $bodytext main content
      */
     public function setBodytext($bodytext): void
@@ -334,11 +258,6 @@ class News extends AbstractEntity
         $this->bodytext = $bodytext;
     }
 
-    /**
-     * Get datetime
-     *
-     * @return DateTime|null
-     */
     public function getDatetime(): ?DateTime
     {
         return $this->datetime;
@@ -376,18 +295,14 @@ class News extends AbstractEntity
 
     /**
      * Get day of datetime
-     *
-     * @return int
      */
     public function getDayOfDatetime(): int
     {
-        return (int)$this->datetime->format('d');
+        return (int)$this->getDatetime()->format('d');
     }
 
     /**
      * Get archive date
-     *
-     * @return DateTime|null
      */
     public function getArchive(): ?DateTime
     {
@@ -406,8 +321,6 @@ class News extends AbstractEntity
 
     /**
      * Get year of archive date
-     *
-     * @return int
      */
     public function getYearOfArchive(): int
     {
@@ -419,8 +332,6 @@ class News extends AbstractEntity
 
     /**
      * Get Month or archive date
-     *
-     * @return int
      */
     public function getMonthOfArchive(): int
     {
@@ -432,8 +343,6 @@ class News extends AbstractEntity
 
     /**
      * Get day of archive date
-     *
-     * @return int
      */
     public function getDayOfArchive(): int
     {
@@ -443,19 +352,12 @@ class News extends AbstractEntity
         return 0;
     }
 
-    /**
-     * Get author
-     *
-     * @return string
-     */
     public function getAuthor(): string
     {
         return $this->author;
     }
 
     /**
-     * Set author
-     *
      * @param string $author author
      */
     public function setAuthor($author): void
@@ -465,8 +367,6 @@ class News extends AbstractEntity
 
     /**
      * Get author's email
-     *
-     * @return string
      */
     public function getAuthorEmail(): string
     {
@@ -484,9 +384,7 @@ class News extends AbstractEntity
     }
 
     /**
-     * Get categories
-     *
-     * @return ObjectStorage<\GeorgRinger\News\Domain\Model\Category>|null
+     * @return ObjectStorage<Category>|null
      */
     public function getCategories(): ?ObjectStorage
     {
@@ -495,8 +393,6 @@ class News extends AbstractEntity
 
     /**
      * Get first category
-     *
-     * @return Category|null
      */
     public function getFirstCategory(): ?Category
     {
@@ -509,9 +405,7 @@ class News extends AbstractEntity
     }
 
     /**
-     * Set categories
-     *
-     * @param  ObjectStorage<\GeorgRinger\News\Domain\Model\Category> $categories
+     * @param ObjectStorage<Category> $categories
      */
     public function setCategories($categories): void
     {
@@ -520,8 +414,6 @@ class News extends AbstractEntity
 
     /**
      * Adds a category to this categories.
-     *
-     * @param Category $category
      */
     public function addCategory(Category $category): void
     {
@@ -560,15 +452,13 @@ class News extends AbstractEntity
 
     /**
      * Return related from items sorted by datetime
-     *
-     * @return array
      */
     public function getRelatedFromSorted(): array
     {
         $items = $this->getRelatedFrom();
         if ($items) {
             $items = $items->toArray();
-            usort($items, function ($a, $b) {
+            usort($items, function ($a, $b): int {
                 return $b->getDatetime() <=> $a->getDatetime();
             });
         }
@@ -577,8 +467,6 @@ class News extends AbstractEntity
 
     /**
      * Return related from items sorted by datetime
-     *
-     * @return array
      */
     public function getAllRelatedSorted(): array
     {
@@ -595,7 +483,7 @@ class News extends AbstractEntity
         $all = array_unique($all);
 
         if (count($all) > 0) {
-            usort($all, function ($a, $b) {
+            usort($all, function ($a, $b): int {
                 return $b->getDatetime() <=> $a->getDatetime();
             });
         }
@@ -604,15 +492,13 @@ class News extends AbstractEntity
 
     /**
      * Return related items sorted by datetime
-     *
-     * @return array
      */
     public function getRelatedSorted(): array
     {
         $items = $this->getRelated();
         if ($items) {
             $items = $items->toArray();
-            usort($items, function ($a, $b) {
+            usort($items, function ($a, $b): int {
                 return $b->getDatetime() <=> $a->getDatetime();
             });
         }
@@ -622,7 +508,7 @@ class News extends AbstractEntity
     /**
      * Set related news
      *
-     * @param \TYPO3\CMS\Extbase\Persistence\ObjectStorage $related related news
+     * @param ObjectStorage $related related news
      */
     public function setRelated($related): void
     {
@@ -632,7 +518,7 @@ class News extends AbstractEntity
     /**
      * Get related links
      *
-     * @return ObjectStorage<\GeorgRinger\News\Domain\Model\Link>|null
+     * @return ObjectStorage<Link>|null
      */
     public function getRelatedLinks(): ?ObjectStorage
     {
@@ -642,7 +528,7 @@ class News extends AbstractEntity
     /**
      * Get FAL related files
      *
-     * @return ObjectStorage<\GeorgRinger\News\Domain\Model\FileReference>|null
+     * @return ObjectStorage<FileReference>|null
      */
     public function getFalRelatedFiles(): ?ObjectStorage
     {
@@ -652,7 +538,7 @@ class News extends AbstractEntity
     /**
      * Short method for getFalRelatedFiles
      *
-     * @return ObjectStorage<\GeorgRinger\News\Domain\Model\FileReference>|null
+     * @return ObjectStorage<FileReference>|null
      */
     public function getRelatedFiles(): ?ObjectStorage
     {
@@ -662,7 +548,7 @@ class News extends AbstractEntity
     /**
      * Set FAL related files
      *
-     * @param ObjectStorage<\GeorgRinger\News\Domain\Model\FileReference> $falRelatedFiles FAL related files
+     * @param ObjectStorage<FileReference> $falRelatedFiles FAL related files
      */
     public function setFalRelatedFiles($falRelatedFiles): void
     {
@@ -671,8 +557,6 @@ class News extends AbstractEntity
 
     /**
      * Adds a file to this files.
-     *
-     * @param FileReference $file
      */
     public function addFalRelatedFile(FileReference $file): void
     {
@@ -685,7 +569,7 @@ class News extends AbstractEntity
     /**
      * Set related links
      *
-     * @param ObjectStorage<\GeorgRinger\News\Domain\Model\Link> $relatedLinks related links relation
+     * @param ObjectStorage<Link> $relatedLinks related links relation
      */
     public function setRelatedLinks($relatedLinks): void
     {
@@ -694,8 +578,6 @@ class News extends AbstractEntity
 
     /**
      * Get type of news
-     *
-     * @return string
      */
     public function getType(): string
     {
@@ -712,19 +594,12 @@ class News extends AbstractEntity
         $this->type = $type;
     }
 
-    /**
-     * Get keywords
-     *
-     * @return string
-     */
     public function getKeywords(): string
     {
         return $this->keywords;
     }
 
     /**
-     * Set keywords
-     *
      * @param string $keywords keywords
      */
     public function setKeywords($keywords): void
@@ -732,19 +607,12 @@ class News extends AbstractEntity
         $this->keywords = $keywords;
     }
 
-    /**
-     * Get description
-     *
-     * @return string
-     */
     public function getDescription(): string
     {
         return $this->description;
     }
 
     /**
-     * Set description
-     *
      * @param string $description description
      */
     public function setDescription($description): void
@@ -754,8 +622,6 @@ class News extends AbstractEntity
 
     /**
      * Adds a related link.
-     *
-     * @param Link $relatedLink
      */
     public function addRelatedLink(Link $relatedLink): void
     {
@@ -768,7 +634,7 @@ class News extends AbstractEntity
     /**
      * Get the Fal media items
      *
-     * @return ObjectStorage<\GeorgRinger\News\Domain\Model\FileReference>|null
+     * @return ObjectStorage<FileReference>|null
      */
     public function getFalMedia(): ?ObjectStorage
     {
@@ -778,7 +644,7 @@ class News extends AbstractEntity
     /**
      * Short method for getFalMedia()
      *
-     * @return ObjectStorage<\GeorgRinger\News\Domain\Model\FileReference>|null
+     * @return ObjectStorage<FileReference>|null
      */
     public function getMedia(): ?ObjectStorage
     {
@@ -788,7 +654,7 @@ class News extends AbstractEntity
     /**
      * Set Fal media relation
      *
-     * @param ObjectStorage<\GeorgRinger\News\Domain\Model\FileReference> $falMedia
+     * @param ObjectStorage<FileReference> $falMedia
      */
     public function setFalMedia(ObjectStorage $falMedia): void
     {
@@ -797,8 +663,6 @@ class News extends AbstractEntity
 
     /**
      * Add a Fal media file reference
-     *
-     * @param FileReference $falMedia
      */
     public function addFalMedia(FileReference $falMedia): void
     {
@@ -810,8 +674,6 @@ class News extends AbstractEntity
 
     /**
      * Get the Fal media items
-     *
-     * @return array
      */
     public function getMediaPreviews(): array
     {
@@ -821,8 +683,6 @@ class News extends AbstractEntity
 
     /**
      * Get all media elements which are allowed for detail views
-     *
-     * @return array
      */
     public function getMediaNonPreviews(): array
     {
@@ -832,8 +692,6 @@ class News extends AbstractEntity
 
     /**
      * Get all media elements which are only for list views
-     *
-     * @return array
      */
     public function getMediaListOnly(): array
     {
@@ -843,8 +701,6 @@ class News extends AbstractEntity
 
     /**
      * Get all media elements which are only for detail views
-     *
-     * @return array
      */
     public function getMediaDetailOnly(): array
     {
@@ -854,8 +710,6 @@ class News extends AbstractEntity
 
     /**
      * Get first preview
-     *
-     * @return \TYPO3\CMS\Extbase\Domain\Model\FileReference|null
      */
     public function getFirstPreview(): ?\TYPO3\CMS\Extbase\Domain\Model\FileReference
     {
@@ -867,8 +721,6 @@ class News extends AbstractEntity
 
     /**
      * Get first non preview
-     *
-     * @return \TYPO3\CMS\Extbase\Domain\Model\FileReference|null
      */
     public function getFirstNonePreview(): ?\TYPO3\CMS\Extbase\Domain\Model\FileReference
     {
@@ -878,10 +730,6 @@ class News extends AbstractEntity
         return null;
     }
 
-    /**
-     * @param array $list
-     * @return array
-     */
     protected function getMediaItemsByConfiguration(array $list): array
     {
         $items = [];
@@ -899,8 +747,6 @@ class News extends AbstractEntity
 
     /**
      * Get internal url
-     *
-     * @return string
      */
     public function getInternalurl(): string
     {
@@ -919,8 +765,6 @@ class News extends AbstractEntity
 
     /**
      * Get external url
-     *
-     * @return string
      */
     public function getExternalurl(): string
     {
@@ -939,8 +783,6 @@ class News extends AbstractEntity
 
     /**
      * Get top news flag
-     *
-     * @return bool
      */
     public function getIstopnews(): bool
     {
@@ -960,9 +802,9 @@ class News extends AbstractEntity
     /**
      * Get content elements
      *
-     * @return \TYPO3\CMS\Extbase\Persistence\ObjectStorage<\GeorgRinger\News\Domain\Model\TtContent>
+     * @return ObjectStorage<TtContent>
      */
-    public function getContentElements(): ?\TYPO3\CMS\Extbase\Persistence\ObjectStorage
+    public function getContentElements(): ?ObjectStorage
     {
         return $this->contentElements;
     }
@@ -970,7 +812,7 @@ class News extends AbstractEntity
     /**
      * Set content element list
      *
-     * @param \TYPO3\CMS\Extbase\Persistence\ObjectStorage<\GeorgRinger\News\Domain\Model\TtContent> $contentElements content elements
+     * @param ObjectStorage<TtContent> $contentElements content elements
      */
     public function setContentElements($contentElements): void
     {
@@ -979,8 +821,6 @@ class News extends AbstractEntity
 
     /**
      * Adds a content element to the record
-     *
-     * @param \GeorgRinger\News\Domain\Model\TtContent $contentElement
      */
     public function addContentElement(TtContent $contentElement): void
     {
@@ -992,8 +832,6 @@ class News extends AbstractEntity
 
     /**
      * Get id list of content elements
-     *
-     * @return string
      */
     public function getContentElementIdList(): string
     {
@@ -1002,8 +840,6 @@ class News extends AbstractEntity
 
     /**
      * Get translated id list of content elements
-     *
-     * @return string
      */
     public function getTranslatedContentElementIdList(): string
     {
@@ -1030,7 +866,6 @@ class News extends AbstractEntity
      * Collect id list
      *
      * @param bool $original
-     * @return string
      */
     protected function getIdOfContentElements($original = true): string
     {
@@ -1038,7 +873,7 @@ class News extends AbstractEntity
         $contentElements = $this->getContentElements();
         if ($contentElements) {
             foreach ($contentElements as $contentElement) {
-                if ($contentElement->getColPos() >= 0) {
+                if ($contentElement->getColPos() >= 0 && $contentElement->getSysLanguageUid() === $this->getSysLanguageUid()) {
                     $idList[] = $original ? $contentElement->getUid() : $contentElement->_getProperty('_localizedUid');
                 }
             }
@@ -1051,7 +886,6 @@ class News extends AbstractEntity
      * Currently only supports container elements of EXT:container
      *
      * @param bool $original
-     * @return string
      */
     protected function getIdOfNonNestedContentElements($original = true): string
     {
@@ -1059,7 +893,7 @@ class News extends AbstractEntity
         $contentElements = $this->getContentElements();
         if ($contentElements) {
             foreach ($contentElements as $contentElement) {
-                if ($contentElement->getColPos() >= 0 && $contentElement->getTxContainerParent() === 0) {
+                if ($contentElement->getColPos() >= 0 && $contentElement->getTxContainerParent() === 0 && $contentElement->getSysLanguageUid() === $this->getSysLanguageUid()) {
                     $idList[] = $original ? $contentElement->getUid() : $contentElement->_getProperty('_localizedUid');
                 }
             }
@@ -1069,9 +903,7 @@ class News extends AbstractEntity
     }
 
     /**
-     * Get Tags
-     *
-     * @return ObjectStorage<\GeorgRinger\News\Domain\Model\Tag>|null
+     * @return ObjectStorage<Tag>|null
      */
     public function getTags(): ?ObjectStorage
     {
@@ -1079,9 +911,7 @@ class News extends AbstractEntity
     }
 
     /**
-     * Set Tags
-     *
-     * @param \TYPO3\CMS\Extbase\Persistence\ObjectStorage<\GeorgRinger\News\Domain\Model\Tag> $tags tags
+     * @param ObjectStorage<Tag> $tags tags
      */
     public function setTags($tags): void
     {
@@ -1090,8 +920,6 @@ class News extends AbstractEntity
 
     /**
      * Adds a tag
-     *
-     * @param \GeorgRinger\News\Domain\Model\Tag $tag
      */
     public function addTag(Tag $tag): void
     {
@@ -1100,8 +928,6 @@ class News extends AbstractEntity
 
     /**
      * Removes a tag
-     *
-     * @param \GeorgRinger\News\Domain\Model\Tag $tag
      */
     public function removeTag(Tag $tag): void
     {
@@ -1110,8 +936,6 @@ class News extends AbstractEntity
 
     /**
      * Get path segment
-     *
-     * @return string
      */
     public function getPathSegment(): string
     {
@@ -1130,8 +954,6 @@ class News extends AbstractEntity
 
     /**
      * Get creation date
-     *
-     * @return DateTime
      */
     public function getCrdate(): DateTime
     {
@@ -1170,19 +992,12 @@ class News extends AbstractEntity
 
     /**
      * Get day of crdate
-     *
-     * @return int
      */
     public function getDayOfCrdate(): int
     {
         return (int)$this->crdate->format('d');
     }
 
-    /**
-     * Get timestamp
-     *
-     * @return DateTime
-     */
     public function getTstamp(): DateTime
     {
         return $this->tstamp;
@@ -1210,8 +1025,6 @@ class News extends AbstractEntity
 
     /**
      * Get sys language
-     *
-     * @return int
      */
     public function getSysLanguageUid(): int
     {
@@ -1230,8 +1043,6 @@ class News extends AbstractEntity
 
     /**
      * Get l10n parent
-     *
-     * @return int
      */
     public function getL10nParent(): int
     {
@@ -1260,8 +1071,6 @@ class News extends AbstractEntity
 
     /**
      * Get day of tstamp
-     *
-     * @return int
      */
     public function getDayOfTimestamp(): int
     {
@@ -1269,29 +1078,7 @@ class News extends AbstractEntity
     }
 
     /**
-     * Get id of creator user
-     *
-     * @return int
-     */
-    public function getCruserId(): int
-    {
-        return $this->cruserId;
-    }
-
-    /**
-     * Set cruser id
-     *
-     * @param int $cruserId id of creator user
-     */
-    public function setCruserId($cruserId): void
-    {
-        $this->cruserId = $cruserId;
-    }
-
-    /**
      * Get editlock flag
-     *
-     * @return int
      */
     public function getEditlock(): int
     {
@@ -1310,8 +1097,6 @@ class News extends AbstractEntity
 
     /**
      * Get hidden flag
-     *
-     * @return bool
      */
     public function getHidden(): bool
     {
@@ -1330,8 +1115,6 @@ class News extends AbstractEntity
 
     /**
      * Get deleted flag
-     *
-     * @return bool
      */
     public function getDeleted(): bool
     {
@@ -1350,8 +1133,6 @@ class News extends AbstractEntity
 
     /**
      * Get start time
-     *
-     * @return DateTime|null
      */
     public function getStarttime(): ?DateTime
     {
@@ -1370,8 +1151,6 @@ class News extends AbstractEntity
 
     /**
      * Get year of starttime
-     *
-     * @return int
      */
     public function getYearOfStarttime(): int
     {
@@ -1383,8 +1162,6 @@ class News extends AbstractEntity
 
     /**
      * Get month of starttime
-     *
-     * @return int
      */
     public function getMonthOfStarttime(): int
     {
@@ -1396,8 +1173,6 @@ class News extends AbstractEntity
 
     /**
      * Get day of starttime
-     *
-     * @return int
      */
     public function getDayOfStarttime(): int
     {
@@ -1407,11 +1182,6 @@ class News extends AbstractEntity
         return 0;
     }
 
-    /**
-     * Get endtime
-     *
-     * @return DateTime|null
-     */
     public function getEndtime(): ?DateTime
     {
         return $this->endtime;
@@ -1422,15 +1192,13 @@ class News extends AbstractEntity
      *
      * @param DateTime $endtime end time
      */
-    public function setEndtime(DateTime $endtime): void
+    public function setEndtime($endtime): void
     {
         $this->endtime = $endtime;
     }
 
     /**
      * Get year of endtime
-     *
-     * @return int
      */
     public function getYearOfEndtime(): int
     {
@@ -1442,8 +1210,6 @@ class News extends AbstractEntity
 
     /**
      * Get month of endtime
-     *
-     * @return int
      */
     public function getMonthOfEndtime(): int
     {
@@ -1455,8 +1221,6 @@ class News extends AbstractEntity
 
     /**
      * Get day of endtime
-     *
-     * @return int
      */
     public function getDayOfEndtime(): int
     {
@@ -1468,8 +1232,6 @@ class News extends AbstractEntity
 
     /**
      * Get fe groups
-     *
-     * @return string
      */
     public function getFeGroup(): string
     {
@@ -1488,8 +1250,6 @@ class News extends AbstractEntity
 
     /**
      * Get import id
-     *
-     * @return string
      */
     public function getImportId(): string
     {
@@ -1506,19 +1266,12 @@ class News extends AbstractEntity
         $this->importId = $importId;
     }
 
-    /**
-     * Get sorting
-     *
-     * @return int
-     */
     public function getSorting(): int
     {
         return $this->sorting;
     }
 
     /**
-     * Set sorting
-     *
      * @param int $sorting sorting
      */
     public function setSorting($sorting): void
@@ -1527,8 +1280,6 @@ class News extends AbstractEntity
     }
 
     /**
-     * Set importSource
-     *
      * @param string $importSource
      */
     public function setImportSource($importSource): void
@@ -1536,35 +1287,21 @@ class News extends AbstractEntity
         $this->importSource = $importSource;
     }
 
-    /**
-     * Get importSource
-     *
-     * @return string
-     */
     public function getImportSource(): string
     {
         return $this->importSource;
     }
 
-    /**
-     * @return string
-     */
     public function getNotes(): string
     {
         return $this->notes;
     }
 
-    /**
-     * @param string $notes
-     */
     public function setNotes(string $notes): void
     {
         $this->notes = $notes;
     }
 
-    /**
-     * @return array
-     */
     public function getFalMediaPreviews(): array
     {
         return $this->getMediaPreviews();
@@ -1606,7 +1343,7 @@ class News extends AbstractEntity
         $items = $this->getRelated();
         if ($items) {
             $items = $items->toArray();
-            usort($items, function ($a, $b) {
+            usort($items, function ($a, $b): int {
                 return $b->getSortingForeign() <=> $a->getSortingForeign();
             });
         }

@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 /*
  * This file is part of the TYPO3 CMS project.
  *
@@ -15,9 +17,9 @@
 
 namespace TYPO3\CMS\Filelist\ElementBrowser;
 
+use Psr\Http\Message\ServerRequestInterface;
 use TYPO3\CMS\Backend\ElementBrowser\AbstractElementBrowser;
 use TYPO3\CMS\Backend\ElementBrowser\ElementBrowserInterface;
-use TYPO3\CMS\Backend\Routing\Route;
 use TYPO3\CMS\Backend\Template\Components\Buttons\ButtonInterface;
 use TYPO3\CMS\Backend\Template\Components\Buttons\DropDown\DropDownDivider;
 use TYPO3\CMS\Backend\Template\Components\Buttons\DropDown\DropDownItemInterface;
@@ -25,15 +27,15 @@ use TYPO3\CMS\Backend\Template\Components\Buttons\DropDown\DropDownRadio;
 use TYPO3\CMS\Backend\Template\Components\Buttons\DropDown\DropDownToggle;
 use TYPO3\CMS\Backend\Template\Components\Buttons\DropDownButton;
 use TYPO3\CMS\Backend\Tree\View\LinkParameterProviderInterface;
-use TYPO3\CMS\Core\Core\Environment;
 use TYPO3\CMS\Core\Resource\Exception\FolderDoesNotExistException;
+use TYPO3\CMS\Core\Resource\Exception\InsufficientFolderAccessPermissionsException;
 use TYPO3\CMS\Core\Resource\Folder;
 use TYPO3\CMS\Core\Resource\ResourceFactory;
 use TYPO3\CMS\Core\Utility\GeneralUtility;
-use TYPO3\CMS\Core\Utility\HttpUtility;
-use TYPO3\CMS\Core\Utility\PathUtility;
 use TYPO3\CMS\Filelist\FileList;
 use TYPO3\CMS\Filelist\Matcher\Matcher;
+use TYPO3\CMS\Filelist\Type\Mode;
+use TYPO3\CMS\Filelist\Type\SortDirection;
 use TYPO3\CMS\Filelist\Type\ViewMode;
 
 /**
@@ -46,8 +48,10 @@ abstract class AbstractResourceBrowser extends AbstractElementBrowser implements
     protected string $moduleStorageIdentifier = 'media_management';
 
     protected ?FileList $filelist = null;
-    protected ?string $viewMode = null;
-    protected ?string $displayThumbs = null;
+    protected string $sortField = 'name';
+    protected ?SortDirection $sortDirection = null;
+    protected ?ViewMode $viewMode = null;
+    protected bool $displayThumbs = true;
 
     protected ?Folder $selectedFolder = null;
     protected ?Matcher $resourceDisplayMatcher = null;
@@ -56,9 +60,9 @@ abstract class AbstractResourceBrowser extends AbstractElementBrowser implements
     /**
      * Loads additional JavaScript
      */
-    protected function initialize(): void
+    protected function initialize(ServerRequestInterface $request): void
     {
-        parent::initialize();
+        parent::initialize($request);
         $this->view = $this->backendViewFactory->create($this->getRequest(), ['typo3/cms-filelist']);
         $this->view->assign('initialNavigationWidth', $this->getBackendUser()->uc['selector']['navigation']['width'] ?? 250);
 
@@ -68,79 +72,119 @@ abstract class AbstractResourceBrowser extends AbstractElementBrowser implements
         $this->pageRenderer->loadJavaScriptModule('@typo3/backend/global-event-handler.js');
     }
 
-    protected function initVariables(): void
+    protected function initVariables(ServerRequestInterface $request): void
     {
-        parent::initVariables();
-        $request = $this->getRequest();
+        parent::initVariables($request);
 
         $this->currentPage = (int)($request->getParsedBody()['currentPage'] ?? $request->getQueryParams()['currentPage'] ?? 1);
         $this->expandFolder = $request->getParsedBody()['expandFolder'] ?? $request->getQueryParams()['expandFolder'] ?? null;
+        $this->sortField = ($request->getParsedBody()['sortField'] ?? $request->getQueryParams()['sortField'] ?? 'name');
+        $this->sortDirection = SortDirection::tryFrom($request->getParsedBody()['sortDirection'] ?? $request->getQueryParams()['sortDirection'] ?? '') ?? SortDirection::ASCENDING;
 
-        $this->viewMode = $request->getParsedBody()['viewMode'] ?? $request->getQueryParams()['viewMode'] ?? null;
+        $this->viewMode = ViewMode::tryFrom($request->getParsedBody()['viewMode'] ?? $request->getQueryParams()['viewMode'] ?? '');
         if ($this->viewMode !== null) {
             $this->getBackendUser()->pushModuleData(
                 $this->moduleStorageIdentifier,
-                array_merge($this->getBackendUser()->getModuleData($this->moduleStorageIdentifier) ?? [], ['viewMode' => $this->viewMode])
+                array_merge($this->getBackendUser()->getModuleData($this->moduleStorageIdentifier) ?? [], ['viewMode' => $this->viewMode->value])
             );
         } else {
-            $this->viewMode = $this->getBackendUser()->getModuleData($this->moduleStorageIdentifier)['viewMode'] ?? ViewMode::TILES->value;
+            $this->viewMode = ViewMode::tryFrom($this->getBackendUser()->getModuleData($this->moduleStorageIdentifier)['viewMode'] ?? '')
+                ?? ViewMode::tryFrom($this->getBackendUser()->getTSConfig()['options.']['defaultResourcesViewMode'] ?? '')
+                ?? ViewMode::TILES;
         }
 
-        $this->displayThumbs = $request->getParsedBody()['displayThumbs'] ?? $request->getQueryParams()['displayThumbs'] ?? null;
-        if ($this->displayThumbs !== null) {
+        $displayThumbs = $request->getParsedBody()['displayThumbs'] ?? $request->getQueryParams()['displayThumbs'] ?? null;
+        if ($displayThumbs !== null) {
+            $this->displayThumbs = (bool)$displayThumbs;
             $this->getBackendUser()->pushModuleData(
                 $this->moduleStorageIdentifier,
                 array_merge($this->getBackendUser()->getModuleData($this->moduleStorageIdentifier) ?? [], ['displayThumbs' => $this->displayThumbs])
             );
         } else {
-            $this->displayThumbs = $this->getBackendUser()->getModuleData($this->moduleStorageIdentifier)['displayThumbs'] ?? true;
+            $this->displayThumbs = (bool)($this->getBackendUser()->getModuleData($this->moduleStorageIdentifier)['displayThumbs'] ?? true);
         }
 
         $this->filelist = GeneralUtility::makeInstance(FileList::class, $this->getRequest());
-        $this->filelist->viewMode = ViewMode::tryFrom($this->viewMode) ?? ViewMode::TILES;
+        $this->filelist->viewMode = $this->viewMode;
         $this->filelist->thumbs = ($GLOBALS['TYPO3_CONF_VARS']['GFX']['thumbnails'] ?? false) && $this->displayThumbs;
     }
 
+    /**
+     * Last selected folder is stored in user module session. Sanitize it
+     * to set $this->selectedFolder or keep it null.
+     */
     protected function initSelectedFolder(): void
     {
         $resourceFactory = GeneralUtility::makeInstance(ResourceFactory::class);
-
-        // Select folder
         if ($this->expandFolder) {
             try {
                 $this->selectedFolder = $resourceFactory->getFolderObjectFromCombinedIdentifier($this->expandFolder);
-            } catch (FolderDoesNotExistException $e) {
+            } catch (FolderDoesNotExistException|InsufficientFolderAccessPermissionsException) {
+                // Outdated module session data: Last used folder has been removed meanwhile, or
+                // access to last used folder has been removed. Do not set a preselected folder.
             }
+        }
+    }
+
+    protected function getSortingModeButtons(Mode $mode): ButtonInterface
+    {
+        $sortingButton = GeneralUtility::makeInstance(DropDownButton::class)
+            ->setLabel($this->getLanguageService()->sL('LLL:EXT:core/Resources/Private/Language/locallang_core.xlf:labels.sorting'))
+            ->setIcon($this->iconFactory->getIcon($this->sortDirection->getIconIdentifier()));
+
+        $sortingModeButtons = [];
+        $sortableFields = $this->filelist->getSortableFields();
+        if (count($sortableFields) > 1) {
+            foreach ($sortableFields as $field) {
+                $label = $this->filelist->getFieldLabel($field);
+
+                $sortingModeButtons[] = GeneralUtility::makeInstance(DropDownRadio::class)
+                    ->setActive($this->sortField === $field)
+                    ->setHref($this->createUri([
+                        'sortField' => $field,
+                        'sortDirection' => SortDirection::ASCENDING->value,
+                        'currentPage' => 1,
+                    ]))
+                    ->setLabel($label);
+            }
+
+            $sortingModeButtons[] = GeneralUtility::makeInstance(DropDownDivider::class);
         }
 
-        if (!$this->selectedFolder) {
-            $allStorages = $this->getBackendUser()->getFileStorages();
-            $defaultStorage = $resourceFactory->getDefaultStorage();
-            if ($defaultStorage && array_key_exists($defaultStorage->getUid(), $allStorages)) {
-                $this->selectedFolder = $defaultStorage->getRootLevelFolder();
-            } else {
-                $this->selectedFolder = reset($allStorages)->getRootLevelFolder();
-            }
+        $defaultSortingDirectionParams = ['sortField' => $this->sortField, 'currentPage' => 1];
+        $sortingModeButtons[] = GeneralUtility::makeInstance(DropDownRadio::class)
+            ->setActive($this->sortDirection === SortDirection::ASCENDING)
+            ->setHref($this->createUri(array_merge($defaultSortingDirectionParams, ['sortDirection' => SortDirection::ASCENDING->value])))
+            ->setLabel($this->getLanguageService()->sL('LLL:EXT:core/Resources/Private/Language/locallang_core.xlf:labels.sorting.asc'));
+        $sortingModeButtons[] = GeneralUtility::makeInstance(DropDownRadio::class)
+            ->setActive($this->sortDirection === SortDirection::DESCENDING)
+            ->setHref($this->createUri(array_merge($defaultSortingDirectionParams, ['sortDirection' => SortDirection::DESCENDING->value])))
+            ->setLabel($this->getLanguageService()->sL('LLL:EXT:core/Resources/Private/Language/locallang_core.xlf:labels.sorting.desc'));
+
+        foreach ($sortingModeButtons as $sortingModeButton) {
+            $sortingButton->addItem($sortingModeButton);
         }
+
+        return $sortingButton;
     }
 
     protected function getViewModeButton(): ButtonInterface
     {
         $viewModeItems = [];
         $viewModeItems[] = GeneralUtility::makeInstance(DropDownRadio::class)
-            ->setActive($this->viewMode === ViewMode::TILES->value)
+            ->setActive($this->viewMode === ViewMode::TILES)
             ->setHref($this->createUri(['viewMode' => ViewMode::TILES->value]))
             ->setLabel($this->getLanguageService()->sL('LLL:EXT:core/Resources/Private/Language/locallang_core.xlf:labels.view.tiles'))
             ->setIcon($this->iconFactory->getIcon('actions-viewmode-tiles'));
         $viewModeItems[] = GeneralUtility::makeInstance(DropDownRadio::class)
-            ->setActive($this->viewMode === ViewMode::LIST->value)
+            ->setActive($this->viewMode === ViewMode::LIST)
             ->setHref($this->createUri(['viewMode' => ViewMode::LIST->value]))
             ->setLabel($this->getLanguageService()->sL('LLL:EXT:core/Resources/Private/Language/locallang_core.xlf:labels.view.list'))
             ->setIcon($this->iconFactory->getIcon('actions-viewmode-list'));
         if (!($this->getBackendUser()->getTSConfig()['options.']['noThumbsInEB'] ?? false)) {
-            $viewModeItems[] = GeneralUtility::makeInstance(DropdownDivider::class);
+            $viewModeItems[] = GeneralUtility::makeInstance(DropDownDivider::class);
             $viewModeItems[] = GeneralUtility::makeInstance(DropDownToggle::class)
-                ->setActive((bool)$this->displayThumbs)
+                ->setActive($this->displayThumbs)
                 ->setHref($this->createUri(['displayThumbs' => $this->displayThumbs ? 0 : 1]))
                 ->setLabel($this->getLanguageService()->sL('LLL:EXT:core/Resources/Private/Language/locallang_core.xlf:labels.view.showThumbnails'))
                 ->setIcon($this->iconFactory->getIcon('actions-image'));
@@ -157,34 +201,26 @@ abstract class AbstractResourceBrowser extends AbstractElementBrowser implements
     }
 
     /**
-     * @param array $parameters Array of values to include into the parameters
+     * @param array $values Array of values to include into the parameters
      * @return string[] Array of parameters which have to be added to URLs
      */
-    public function getUrlParameters(array $parameters): array
+    public function getUrlParameters(array $values): array
     {
-        $parameters = array_replace_recursive([
+        $values = array_replace_recursive([
             'mode' => $this->identifier,
-            'expandFolder' => $parameters['identifier'] ?? $this->expandFolder,
+            'expandFolder' => $values['identifier'] ?? $this->expandFolder,
             'bparams' => $this->bparams,
-        ], $parameters);
+        ], $values);
 
-        $parameters = array_filter($parameters, static function ($value) {
-            return $value !== null && trim($value) !== '';
+        return array_filter($values, static function ($value) {
+            return $value !== null && trim((string)$value) !== '';
         });
-
-        return $parameters;
     }
 
     protected function createUri(array $parameters = []): string
     {
         $parameters = $this->getUrlParameters($parameters);
-        if (($route = $this->getRequest()->getAttribute('route')) instanceof Route) {
-            $scriptUrl = (string)$this->uriBuilder->buildUriFromRoute($route->getOption('_identifier'), $parameters);
-        } else {
-            $scriptUrl = ($this->thisScript ?: PathUtility::basename(Environment::getCurrentScript())) . HttpUtility::buildQueryString($parameters, '&');
-        }
-
-        return $scriptUrl;
+        return (string)$this->uriBuilder->buildUriFromRequest($this->getRequest(), $parameters);
     }
 
     /**
@@ -203,15 +239,5 @@ abstract class AbstractResourceBrowser extends AbstractElementBrowser implements
             $store = false;
         }
         return [$data, $store];
-    }
-
-    public function isCurrentlySelectedItem(array $values): bool
-    {
-        return false;
-    }
-
-    public function getScriptUrl(): string
-    {
-        return $this->thisScript;
     }
 }

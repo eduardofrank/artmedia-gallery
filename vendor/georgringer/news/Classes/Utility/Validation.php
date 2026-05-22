@@ -11,9 +11,6 @@ namespace GeorgRinger\News\Utility;
 
 use TYPO3\CMS\Core\Utility\GeneralUtility;
 
-/**
- * Validation
- */
 class Validation
 {
     /**
@@ -21,7 +18,6 @@ class Validation
      *
      * @param string $fieldToCheck
      * @param string $allowedSettings
-     * @return bool
      */
     public static function isValidOrdering($fieldToCheck, $allowedSettings): bool
     {
@@ -46,8 +42,8 @@ class Validation
                         }
                         break;
                     case 2:
-                        if ((strtolower($split[1]) !== 'desc' && strtolower($split[1]) !== 'asc') ||
-                            !GeneralUtility::inList($allowedSettings, $split[0])
+                        if ((strtolower($split[1]) !== 'desc' && strtolower($split[1]) !== 'asc')
+                            || !GeneralUtility::inList($allowedSettings, $split[0])
                         ) {
                             $isValid = false;
                         }

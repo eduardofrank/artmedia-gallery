@@ -24,7 +24,11 @@ use TYPO3\CMS\Core\Utility\GeneralUtility;
 use TYPO3Fluid\Fluid\Core\ViewHelper\AbstractTagBasedViewHelper;
 
 /**
- * Render MFA status information
+ * ViewHelper to render MFA status information.
+ *
+ * ```
+ *   <beuser:mfaStatus userUid="{backendUser.uid}" />
+ * ```
  *
  * @internal
  */
@@ -35,7 +39,6 @@ final class MfaStatusViewHelper extends AbstractTagBasedViewHelper
     public function initializeArguments(): void
     {
         parent::initializeArguments();
-        $this->registerUniversalTagAttributes();
         $this->registerArgument('userUid', 'int', 'The uid of the user to check', true);
     }
 

@@ -60,12 +60,12 @@ uses the latest technologies provided by TYPO3 CMS.
     ..  card:: :ref:`Administration <admin-manual>`
 
         Install or upgrade EXT:news, learn how to migrate from EXT:tt_news
-        to news or from RealURL to Routes etc.
+        to news.
 
     ..  card:: :ref:`Reference <reference>`
 
         In-depth reference about certain aspects of this extension:
-        TypoScript, TSconfig, ViewHelpers etc
+        Site Sets, TypoScript, TSconfig, ViewHelpers etc
 
     ..  card:: :ref:`Support <support>`
 

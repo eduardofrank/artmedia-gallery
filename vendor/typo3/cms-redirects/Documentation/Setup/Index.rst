@@ -1,5 +1,7 @@
 .. include:: /Includes.rst.txt
 
+..  _setup:
+
 =====
 Setup
 =====
@@ -10,42 +12,81 @@ the settings and commands outlined in this page. Depending on your site and how
 editing is handled, changes in the configuration and regular maintenance may be
 required.
 
-.. _site-configuration:
+..  _site-configuration:
 
 Site configuration
 ==================
 
 The core comes with the following site settings for redirects which can be
-adjusted in the file :file:`config/sites/<site>/config.yaml` for
-each site.
+configured per site.
 
-.. hint::
+Configuration via backend module
+---------------------------------
 
-    In legacy installations, the file is found in
-    :file:`typo3conf/sites/<site>/config.yaml`.
+The redirect settings can be configured in the backend via
+:guilabel:`Site Management > Settings`.
 
-The following settings apply to **automatically created redirects**.
+Configuration via YAML files
+-----------------------------
 
-TYPO3 comes with working defaults. It is not necessary to add the settings
-section if you use the defaults.
+Sites using site sets (TYPO3 v13+)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+For sites using site sets, add the settings to
+:file:`config/sites/<site>/settings.yaml`:
+
+.. code-block:: yaml
+
+   redirects.autoCreateRedirects: false
+   redirects.autoUpdateSlugs: true
+   redirects.redirectTTL: 0
+   redirects.httpStatusCode: 307
+
+Alternatively, you can define these settings in your site package at
+:file:`mysitepackage/Configuration/Sets/mysiteset/settings.yaml` to provide
+defaults for all sites using this site set.
+
+Legacy site configuration (TYPO3 v12 and earlier)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+In legacy installations without site sets, add the settings to
+:file:`config/sites/<site>/config.yaml`:
 
 .. code-block:: yaml
 
    settings:
-      redirects:
-        # Automatically update slugs of all sub pages
-        # (default: true)
-        autoUpdateSlugs: true
-        # Automatically create redirects for pages with a new slug (works only in LIVE workspace)
-        # (default: true)
-        autoCreateRedirects: true
-        # Time To Live in days for redirect records to be created - `0` disables TTL, no expiration
-        # (default: 0)
-        redirectTTL: 0
-        # HTTP status code for automatically created redirects, see
-        # https://developer.mozilla.org/en-US/docs/Web/HTTP/Redirections#Temporary_redirections
-        # (default: 307)
-        httpStatusCode: 307
+     redirects:
+       autoUpdateSlugs: true
+       autoCreateRedirects: true
+       redirectTTL: 0
+       httpStatusCode: 307
+
+.. hint::
+   In older installations, the file is found in
+   :file:`typo3conf/sites/<site>/config.yaml`.
+
+Available settings
+------------------
+
+The following settings apply to **automatically created redirects**.
+TYPO3 comes with working defaults. It is not necessary to configure these
+settings if you use the defaults.
+
+**autoUpdateSlugs**
+   Automatically update slugs of all sub pages (default: ``true``)
+
+**autoCreateRedirects**
+   Automatically create redirects for pages with a new slug (works only in
+   LIVE workspace) (default: ``true``)
+
+**redirectTTL**
+   Time To Live in days for redirect records to be created - ``0`` disables
+   TTL, no expiration (default: ``0``)
+
+**httpStatusCode**
+   HTTP status code for automatically created redirects, see
+   `MDN: HTTP Redirections <https://developer.mozilla.org/en-US/docs/Web/HTTP/Redirections#Temporary_redirections>`__
+   (default: ``307``)
 
 The `httpStatusCode` does not affect the default status code for manually created
 redirects. This can be adjusted via TCA
@@ -61,6 +102,8 @@ redirects. This can be adjusted via TCA
     The `settings` in the site configuration are generally explained in
     "TYPO3 Explained" > :ref:`t3coreapi:sitehandling-settings`.
 
+..  _console-commands:
+
 Console commands
 ================
 
@@ -72,7 +115,7 @@ Please see the general information about this in "TYPO3 Explained" >
 We explain executing the commands from the command line here, it is recommended
 to automate regular execution, e.g. via cron.
 
-.. _redirects-cleanup:
+..  _redirects-cleanup:
 
 redirects:cleanup
 -----------------
@@ -144,7 +187,7 @@ and have a status code of 302 or 303.
             --age 90 --hitCount 100 --path "/foo/bar%" --statusCode 302 --statusCode 303
 
 
-.. _redirects-checkintegrity:
+..  _redirects-checkintegrity:
 
 redirects:checkintegrity
 ------------------------
@@ -203,7 +246,7 @@ this:
 You can now search for the affected redirects in the redirects module, e.g.
 by filtering with *Source Path* `/test-1`.
 
-.. _editor-permission:
+..  _editor-permission:
 
 Configure editor permission
 ===========================
@@ -247,7 +290,7 @@ group in the :guilabel:`Access Lists` tab > :guilabel:`Allowed excludefields` >
 
     Allowed excludefields
 
-.. _hit-counter:
+..  _hit-counter:
 
 Hit counter
 ===========
@@ -276,6 +319,9 @@ hit counter, a delete policy for unnecessary redirects can be defined.
 Visit the :ref:`redirects:cleanup <redirects-cleanup>` with the option
 `-c` for more information.
 
+
+..  _system-reports:
+
 System reports
 ==============
 
@@ -291,3 +337,44 @@ database).
     :class: with-shadow
 
     Redirect conflicts in system report
+
+In case :ref:`redirects:checkintegrity <redirects-checkintegrity>` was not run
+within the last 24 hours an additional informational status will appear in the
+report:
+
+..  attention::
+    List of conflicting redirects may not be up to date!
+    Regularly run the console command `redirects:checkintegrity`.
+
+This can be configured in the extension configuration with these 2 settings:
+
+*   :ref:`showCheckIntegrityInfoInReports <extconf_showCheckIntegrityInfoInReports>`
+*   :ref:`showCheckIntegrityInfoInReportsSeconds <extconf_showCheckIntegrityInfoInReportsSeconds>`
+
+..  _extconf:
+
+Extension configuration
+=======================
+
+**Reports**
+
+..  _extconf_showCheckIntegrityInfoInReports:
+
+..  confval:: Show information in reports if checkintegrity was not run.
+
+    :Field: showCheckIntegrityInfoInReports
+
+    Show informational status in the reports if redirects:checkintegrity was
+    not run within the last 24 hours, or rather the number of seconds indicated
+    in the setting
+    :ref:`showCheckIntegrityInfoInReportsSeconds <extconf_showCheckIntegrityInfoInReportsSeconds>`.
+
+..  _extconf_showCheckIntegrityInfoInReportsSeconds:
+
+..  confval:: Number of seconds to consider last checkintegrity report.
+
+    :Field: showCheckIntegrityInfoInReportsSeconds
+    :Default: 86400 (is 24 hours in seconds)
+
+    Number of seconds which must pass until the informational message is shown
+    about checkintegrity in the reports.

@@ -61,6 +61,7 @@ return [
             'dateTimeNotRequired' => '0',
             'hidePageTreeForAdministrationModule' => '0',
             'manualSorting' => '0',
+            'pageTreePluginPreview' => '1',
             'prependAtCopy' => '1',
             'resourceFolderImporter' => '/news_import',
             'rteForTeaser' => '0',
@@ -70,8 +71,17 @@ return [
             'storageUidImporter' => '1',
             'tagPid' => '1',
         ],
+        'redirects' => [
+            'showCheckIntegrityInfoInReports' => '1',
+            'showCheckIntegrityInfoInReportsSeconds' => '86400',
+        ],
         'rte_ckeditor_image' => [
+            'allowSvgImages' => '0',
+            'enableAutomaticPreviewRenderer' => '1',
+            'enableAutomaticRteSoftref' => '1',
+            'excludedTables' => '',
             'fetchExternalImages' => '1',
+            'includedTablesOnly' => '',
         ],
         'scheduler' => [
             'maxLifetime' => '1440',
@@ -88,8 +98,6 @@ return [
     ],
     'GFX' => [
         'processor' => 'ImageMagick',
-        'processor_allowTemporaryMasksAsPng' => false,
-        'processor_colorspace' => 'sRGB',
         'processor_effects' => true,
         'processor_enabled' => true,
         'processor_path' => '/usr/bin/',
@@ -159,7 +167,6 @@ return [
             'felogin.extbase' => true,
             'fluidBasedPageModule' => true,
             'rearrangedRedirectMiddlewares' => true,
-            'security.usePasswordPolicyForFrontendUsers' => true,
             'unifiedPageTranslationHandling' => true,
             'yamlImportsFollowDeclarationOrder' => true,
         ],

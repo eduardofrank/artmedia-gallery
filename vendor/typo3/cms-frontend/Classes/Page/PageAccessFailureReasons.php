@@ -29,6 +29,9 @@ final class PageAccessFailureReasons
     public const ROOTLINE_BROKEN = 'page.rootline';
     public const INVALID_EXTERNAL_URL = 'page.invalid_external_url';
 
+    // Site configuration issues
+    public const INVALID_SITE_SETS = 'site.sets.invalid';
+
     // Page configuration issues
     public const RENDERING_INSTRUCTIONS_NOT_FOUND = 'rendering_instructions';
     public const RENDERING_INSTRUCTIONS_NOT_CONFIGURED = 'rendering_instructions.type';
@@ -59,7 +62,7 @@ final class PageAccessFailureReasons
      *
      * @var string[]
      */
-    protected array $messages = [
+    private array $messages = [
         self::NO_PAGES_FOUND => 'No page on rootlevel found',
         self::PAGE_NOT_FOUND => 'The requested page does not exist',
         self::INVALID_EXTERNAL_URL => 'Page of type "External URL" could not be resolved properly',

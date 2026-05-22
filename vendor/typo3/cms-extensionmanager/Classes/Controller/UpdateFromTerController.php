@@ -18,12 +18,13 @@ declare(strict_types=1);
 namespace TYPO3\CMS\Extensionmanager\Controller;
 
 use Psr\Http\Message\ResponseInterface;
-use TYPO3\CMS\Backend\Utility\BackendUtility;
+use TYPO3\CMS\Core\Domain\DateTimeFactory;
+use TYPO3\CMS\Core\Http\AllowedMethodsTrait;
+use TYPO3\CMS\Core\Localization\DateFormatter;
 use TYPO3\CMS\Extbase\Mvc\View\JsonView;
 use TYPO3\CMS\Extensionmanager\Domain\Repository\ExtensionRepository;
 use TYPO3\CMS\Extensionmanager\Exception\ExtensionManagerException;
 use TYPO3\CMS\Extensionmanager\Remote\RemoteRegistry;
-use TYPO3\CMS\Extensionmanager\Utility\ListUtility;
 
 /**
  * Controller for actions relating to update of full extension list from TER
@@ -31,22 +32,22 @@ use TYPO3\CMS\Extensionmanager\Utility\ListUtility;
  */
 class UpdateFromTerController extends AbstractController
 {
-    /**
-     * @var string
-     */
-    protected $defaultViewObjectName = JsonView::class;
+    use AllowedMethodsTrait;
 
     public function __construct(
-        protected readonly RemoteRegistry $remoteRegistry,
-        protected readonly ListUtility $listUtility,
-        protected readonly ExtensionRepository $extensionRepository
-    ) {}
+        private readonly RemoteRegistry $remoteRegistry,
+        private readonly ExtensionRepository $extensionRepository
+    ) {
+        $this->defaultViewObjectName = JsonView::class;
+    }
 
     /**
      * Update extension list from TER
      */
     public function updateExtensionListFromTerAction(bool $forceUpdateCheck = false): ResponseInterface
     {
+        $this->assertAllowedHttpMethod($this->request, 'POST');
+
         $updated = false;
         $errorMessage = '';
         $lastUpdate = null;
@@ -71,9 +72,11 @@ class UpdateFromTerController extends AbstractController
             $lastUpdatedSince = $this->translate('LLL:EXT:extensionmanager/Resources/Private/Language/locallang.xlf:extensionList.updateFromTer.never');
             $lastUpdateTime = date($timeFormat);
         } else {
-            $lastUpdatedSince = BackendUtility::calcAge(
-                $GLOBALS['EXEC_TIME'] - $lastUpdate->format('U'),
-                $this->translate('LLL:EXT:core/Resources/Private/Language/locallang_core.xlf:labels.minutesHoursDaysYears')
+            $now = DateTimeFactory::createFromTimestamp($GLOBALS['EXEC_TIME']);
+            $lastUpdatedSince = (new DateFormatter())->formatDateInterval(
+                // absolute diff, we don't want a sign to be displayed
+                $now->diff($lastUpdate, true),
+                $this->translate('LLL:EXT:core/Resources/Private/Language/locallang_core.xlf:labels.minutesHoursDaysYears'),
             );
             $lastUpdateTime = $lastUpdate->format($timeFormat);
         }

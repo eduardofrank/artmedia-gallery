@@ -19,13 +19,12 @@ namespace TYPO3\CMS\Extensionmanager\Controller;
 
 use Psr\Http\Message\ResponseInterface;
 use TYPO3\CMS\Backend\Template\ModuleTemplate;
-use TYPO3\CMS\Core\Imaging\Icon;
+use TYPO3\CMS\Core\Configuration\ExtensionConfiguration;
 use TYPO3\CMS\Core\Imaging\IconFactory;
+use TYPO3\CMS\Core\Imaging\IconSize;
 use TYPO3\CMS\Core\Page\JavaScriptModuleInstruction;
 use TYPO3\CMS\Core\Page\PageRenderer;
-use TYPO3\CMS\Core\Utility\ExtensionManagementUtility;
 use TYPO3\CMS\Core\Utility\GeneralUtility;
-use TYPO3\CMS\Core\Utility\MathUtility;
 use TYPO3\CMS\Extensionmanager\Package\ComposerDeficitDetector;
 use TYPO3\CMS\Extensionmanager\Service\ComposerManifestProposalGenerator;
 
@@ -42,12 +41,14 @@ class ExtensionComposerStatusController extends AbstractController
         protected readonly ComposerDeficitDetector $composerDeficitDetector,
         protected readonly ComposerManifestProposalGenerator $composerManifestProposalGenerator,
         protected readonly PageRenderer $pageRenderer,
-        protected readonly IconFactory $iconFactory
+        protected readonly IconFactory $iconFactory,
+        protected readonly ExtensionConfiguration $extensionConfiguration
     ) {}
 
     protected function initializeAction(): void
     {
         parent::initializeAction();
+        $this->settings['offlineMode'] = (bool)$this->extensionConfiguration->get('extensionmanager', 'offlineMode');
         // The returnUrl, given in the request contains the actual destination, e.g. reports module.
         // Since we need to forward it in all actions, we define it as class variable here.
         if ($this->request->hasArgument('returnUrl')) {
@@ -100,27 +101,21 @@ class ExtensionComposerStatusController extends AbstractController
         if ($composerManifest === '') {
             return '';
         }
-        $rows = MathUtility::forceIntegerInRange(count(explode(LF, $composerManifest)), 1, PHP_INT_MAX);
-        if (ExtensionManagementUtility::isLoaded('t3editor')) {
-            $this->pageRenderer->loadJavaScriptModule('@typo3/t3editor/element/code-mirror-element.js');
-            $codeMirrorConfig = [
-                'label' => $extensionKey . ' > composer.json',
-                'panel' => 'bottom',
-                'mode' => GeneralUtility::jsonEncodeForHtmlAttribute(JavaScriptModuleInstruction::create('@codemirror/lang-json', 'json')->invoke(), false),
-                'nolazyload' => 'true',
-                'autoheight' => 'true',
-            ];
-            $textareaAttributes = [
-                'rows' => (string)count(explode(LF, $composerManifest)),
-                'class' => 'form-control',
-            ];
-            return '<typo3-t3editor-codemirror ' . GeneralUtility::implodeAttributes($codeMirrorConfig, true) . '>'
-                . '<textarea ' . GeneralUtility::implodeAttributes($textareaAttributes, true) . '>' . htmlspecialchars($composerManifest) . '</textarea>'
-                . '</typo3-t3editor-codemirror>';
-        }
-        return '<textarea ' . GeneralUtility::implodeAttributes(['class' => 'form-control', 'rows' => (string)++$rows], true) . '>'
-            . htmlspecialchars($composerManifest)
-            . '</textarea>';
+        $this->pageRenderer->loadJavaScriptModule('@typo3/backend/code-editor/element/code-mirror-element.js');
+        $codeMirrorConfig = [
+            'label' => $extensionKey . ' > composer.json',
+            'panel' => 'bottom',
+            'mode' => GeneralUtility::jsonEncodeForHtmlAttribute(JavaScriptModuleInstruction::create('@codemirror/lang-json', 'json')->invoke(), false),
+            'nolazyload' => 'true',
+            'autoheight' => 'true',
+        ];
+        $textareaAttributes = [
+            'rows' => (string)count(explode(LF, $composerManifest)),
+            'class' => 'form-control',
+        ];
+        return '<typo3-t3editor-codemirror ' . GeneralUtility::implodeAttributes($codeMirrorConfig, true) . '>'
+            . '<textarea ' . GeneralUtility::implodeAttributes($textareaAttributes, true) . '>' . htmlspecialchars($composerManifest) . '</textarea>'
+            . '</typo3-t3editor-codemirror>';
     }
 
     protected function registerDocHeaderButtons(ModuleTemplate $view): void
@@ -135,7 +130,7 @@ class ExtensionComposerStatusController extends AbstractController
                     ->setClasses('typo3-goBack')
                     ->setTitle($this->translate('LLL:EXT:core/Resources/Private/Language/locallang_core.xlf:labels.goBack'))
                     ->setShowLabelText(true)
-                    ->setIcon($this->iconFactory->getIcon('actions-view-go-back', Icon::SIZE_SMALL))
+                    ->setIcon($this->iconFactory->getIcon('actions-view-go-back', IconSize::SMALL))
             );
         }
     }

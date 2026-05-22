@@ -1,4 +1,5 @@
 <?php
+
 /**
  * An array consisting of implementations of middlewares for a middleware stack to be registered
  *
@@ -14,15 +15,8 @@
 return [
     'backend' => [
         /** internal: do not use or reference this middleware in your own code */
-        'typo3/cms-core/verify-host-header' => [
-            'target' => \TYPO3\CMS\Core\Middleware\VerifyHostHeader::class,
-        ],
-        /** internal: do not use or reference this middleware in your own code */
         'typo3/cms-core/normalized-params-attribute' => [
             'target' => \TYPO3\CMS\Core\Middleware\NormalizedParamsAttribute::class,
-            'after' => [
-                'typo3/cms-core/verify-host-header',
-            ],
         ],
         'typo3/cms-backend/locked-backend' => [
             'target' => \TYPO3\CMS\Backend\Middleware\LockedBackendGuard::class,

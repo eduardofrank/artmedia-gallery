@@ -19,6 +19,7 @@ namespace TYPO3\CMS\Backend\Security\SudoMode\Access;
 
 use Psr\Log\LoggerAwareInterface;
 use Psr\Log\LoggerAwareTrait;
+use Symfony\Component\DependencyInjection\Attribute\Autoconfigure;
 use TYPO3\CMS\Core\Authentication\BackendUserAuthentication;
 
 /**
@@ -26,6 +27,7 @@ use TYPO3\CMS\Core\Authentication\BackendUserAuthentication;
  *
  * @internal
  */
+#[Autoconfigure(public: true)]
 class AccessStorage implements LoggerAwareInterface
 {
     use LoggerAwareTrait;
@@ -62,6 +64,20 @@ class AccessStorage implements LoggerAwareInterface
             );
         }
         $items[$identity] = $grant;
+        $this->commitItems(self::GRANT_KEY, $items);
+    }
+
+    public function removeGrant(AccessGrant $grant): void
+    {
+        $items = $this->fetchGrants();
+        $identity = $grant->subject->getIdentity();
+        if (!isset($items[$identity])) {
+            $this->logger->warning(
+                sprintf('Grant %s does not exist', $identity),
+                $grant->jsonSerialize()
+            );
+        }
+        unset($items[$identity]);
         $this->commitItems(self::GRANT_KEY, $items);
     }
 
@@ -122,7 +138,7 @@ class AccessStorage implements LoggerAwareInterface
     protected function commitItems(string $sessionKey, array $items): void
     {
         // using `json_encode` here, since `UserSession` still uses PHP `serialize`
-        $this->getBackendUser()->setAndSaveSessionData($sessionKey, json_encode($items));
+        $this->getBackendUser()->setAndSaveSessionData($sessionKey, json_encode($items, JSON_INVALID_UTF8_SUBSTITUTE));
     }
 
     protected function subjectMatchesItem(AccessSubjectInterface $subject, array $item): bool

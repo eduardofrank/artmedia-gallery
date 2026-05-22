@@ -25,16 +25,20 @@ use TYPO3\CMS\Backend\Template\Components\ButtonBar;
 use TYPO3\CMS\Backend\Template\ModuleTemplate;
 use TYPO3\CMS\Backend\Utility\BackendUtility;
 use TYPO3\CMS\Core\Authentication\BackendUserAuthentication;
+use TYPO3\CMS\Core\Context\VisibilityAspect;
 use TYPO3\CMS\Core\Database\Connection;
 use TYPO3\CMS\Core\Database\ConnectionPool;
 use TYPO3\CMS\Core\Database\Query\QueryBuilder;
 use TYPO3\CMS\Core\Database\Query\Restriction\DeletedRestriction;
 use TYPO3\CMS\Core\DataHandling\DataHandler;
-use TYPO3\CMS\Core\Domain\Repository\PageRepository;
+use TYPO3\CMS\Core\Exception\SiteNotFoundException;
 use TYPO3\CMS\Core\Http\RedirectResponse;
-use TYPO3\CMS\Core\Imaging\Icon;
 use TYPO3\CMS\Core\Imaging\IconFactory;
+use TYPO3\CMS\Core\Imaging\IconSize;
 use TYPO3\CMS\Core\Localization\LanguageService;
+use TYPO3\CMS\Core\Site\Entity\Site;
+use TYPO3\CMS\Core\Site\Entity\SiteInterface;
+use TYPO3\CMS\Core\Site\SiteFinder;
 use TYPO3\CMS\Core\Utility\GeneralUtility;
 
 /**
@@ -47,6 +51,7 @@ abstract class AbstractTemplateModuleController
     protected IconFactory $iconFactory;
     protected UriBuilder $uriBuilder;
     protected ConnectionPool $connectionPool;
+    protected SiteFinder $siteFinder;
     private DataHandler $dataHandler;
 
     public function injectIconFactory(IconFactory $iconFactory): void
@@ -67,6 +72,11 @@ abstract class AbstractTemplateModuleController
     public function injectDataHandler(DataHandler $dataHandler)
     {
         $this->dataHandler = $dataHandler;
+    }
+
+    public function injectSiteFinder(SiteFinder $siteFinder)
+    {
+        $this->siteFinder = $siteFinder;
     }
 
     /**
@@ -114,36 +124,21 @@ abstract class AbstractTemplateModuleController
         return new RedirectResponse($this->uriBuilder->buildUriFromRoute($redirectTarget, ['id' => $pageUid]));
     }
 
-    protected function addPreviewButtonToDocHeader(ModuleTemplate $view, int $pageId, int $dokType): void
+    protected function addPreviewButtonToDocHeader(ModuleTemplate $view, array $pageRecord): void
     {
-        $languageService = $this->getLanguageService();
         $buttonBar = $view->getDocHeaderComponent()->getButtonBar();
 
-        // Don't add preview button for sysfolders and recycler by default, and look up TS config options
-        $excludedDokTypes = [
-            PageRepository::DOKTYPE_RECYCLER,
-            PageRepository::DOKTYPE_SYSFOLDER,
-            PageRepository::DOKTYPE_SPACER,
-        ];
-        $pagesTsConfig = BackendUtility::getPagesTSconfig($pageId);
-        if (isset($pagesTsConfig['TCEMAIN.']['preview.']['disableButtonForDokType'])) {
-            $excludedDokTypes = GeneralUtility::intExplode(
-                ',',
-                $pagesTsConfig['TCEMAIN.']['preview.']['disableButtonForDokType'],
-                true
-            );
-        }
-
-        if ($pageId && !in_array($dokType, $excludedDokTypes, true)) {
-            $previewDataAttributes = PreviewUriBuilder::create($pageId)
-                ->withRootLine(BackendUtility::BEgetRootLine($pageId))
+        $previewUriBuilder = PreviewUriBuilder::create($pageRecord);
+        if ($previewUriBuilder->isPreviewable()) {
+            $previewDataAttributes = $previewUriBuilder
+                ->withRootLine(BackendUtility::BEgetRootLine($pageRecord['uid']))
                 ->buildDispatcherDataAttributes();
             $viewButton = $buttonBar->makeLinkButton()
                 ->setHref('#')
                 ->setDataAttributes($previewDataAttributes ?? [])
                 ->setDisabled(!$previewDataAttributes)
                 ->setTitle($this->getLanguageService()->sL('LLL:EXT:core/Resources/Private/Language/locallang_core.xlf:labels.showPage'))
-                ->setIcon($this->iconFactory->getIcon('actions-view-page', Icon::SIZE_SMALL))
+                ->setIcon($this->iconFactory->getIcon('actions-view-page', IconSize::SMALL))
                 ->setShowLabelText(true);
             $buttonBar->addButton($viewButton, ButtonBar::BUTTON_POSITION_LEFT, 99);
         }
@@ -163,6 +158,25 @@ abstract class AbstractTemplateModuleController
         return [];
     }
 
+    protected function getScopedRootline(SiteInterface $site, array $fullRootLine): array
+    {
+        if (!$site instanceof Site) {
+            return $fullRootLine;
+        }
+        if (!$site->isTypoScriptRoot()) {
+            return $fullRootLine;
+        }
+        $rootLineUntilSite = [];
+        foreach ($fullRootLine as $index => $rootlinePage) {
+            $rootlinePageId = (int)($rootlinePage['uid'] ?? 0);
+            $rootLineUntilSite[$index] = $rootlinePage;
+            if ($rootlinePageId === $site->getRootPageId()) {
+                break;
+            }
+        }
+        return $rootLineUntilSite;
+    }
+
     /**
      * Get an array of all template records on a page.
      */
@@ -171,12 +185,35 @@ abstract class AbstractTemplateModuleController
         if (!$pageId) {
             return [];
         }
-        $result = $this->getTemplateQueryBuilder($pageId)->executeQuery();
-        $templateRows = [];
-        while ($row = $result->fetchAssociative()) {
-            $templateRows[] = $row;
+
+        $templateRecords = [];
+
+        try {
+            $site = $this->siteFinder->getSiteByRootPageId($pageId);
+            if ($site->isTypoScriptRoot()) {
+                $typoScript = $site->getTypoScript();
+                $templateRecords[] = [
+                    'type' => 'site',
+                    'pid' => $pageId,
+                    'constants' => $typoScript->constants ?? '',
+                    'config' => $typoScript->setup ?? '',
+                    'root' => 1,
+                    'clear' => 1,
+                    'sorting' => -1,
+                    'uid' => -1,
+                    'site' => $site,
+                    'title' => $site->getConfiguration()['websiteTitle'] ?? '',
+                ];
+            }
+        } catch (SiteNotFoundException) {
+            // ignore
         }
-        return $templateRows;
+
+        $result = $this->getTemplateQueryBuilder($pageId)->executeQuery();
+        while ($row = $result->fetchAssociative()) {
+            $templateRecords[] = [...$row, 'type' => 'sys_template'];
+        }
+        return $templateRecords;
     }
 
     /**
@@ -217,6 +254,26 @@ abstract class AbstractTemplateModuleController
                 $queryBuilder->expr()->eq('pid', $queryBuilder->createNamedParameter($pid, Connection::PARAM_INT))
             )
             ->orderBy($GLOBALS['TCA']['sys_template']['ctrl']['sortby']);
+    }
+
+    /**
+     * Create a VisibilityAspect that simulates frontend-like behavior:
+     * hidden templates and templates outside their scheduled time window
+     * are excluded, as they would be in the frontend.
+     */
+    protected function createVisibilityAspect(): VisibilityAspect
+    {
+        // For the context of the TypoScript management backend, we want to
+        // edit TypoScript records that are hidden. But in a backend submodule like
+        // the ActiveTypoScriptController / TemplateAnalyzerController, only
+        // non-hidden records with matching time constraints should be evaluated,
+        // just like in the frontend.
+        return new VisibilityAspect(
+            includeHiddenPages: true,
+            includeHiddenContent: false,
+            includeDeletedRecords: false,
+            includeScheduledRecords: false,
+        );
     }
 
     protected function getLanguageService(): LanguageService

@@ -25,6 +25,7 @@ use TYPO3\CMS\Backend\Search\LiveSearch\SearchRepository;
 use TYPO3\CMS\Backend\View\BackendViewFactory;
 use TYPO3\CMS\Core\Http\JsonResponse;
 use TYPO3\CMS\Core\Http\Response;
+use TYPO3\CMS\Core\Localization\LanguageService;
 use TYPO3\CMS\Core\Pagination\SlidingWindowPagination;
 
 /**
@@ -82,12 +83,13 @@ class LiveSearchController
         $searchProviders = $this->searchService->getSearchProviderState($searchDemand);
 
         $activeOptions = 0;
-        $activeOptions += count(array_filter($searchProviders, fn(array $searchProviderOption) => $searchProviderOption['isActive']));
+        // `isActive` is the result of `in_array()`, which returns a `bool`.
+        $activeOptions += count(array_filter($searchProviders, fn(array $searchProviderOption): bool => $searchProviderOption['isActive']));
 
         $view = $this->backendViewFactory->create($request, ['typo3/cms-backend']);
         $view->assignMultiple([
             'searchDemand' => $searchDemand,
-            'hint' => $hints[$randomHintKey],
+            'hint' => $this->getLanguageService()->sL($hints[$randomHintKey]),
             'searchProviders' => $searchProviders,
             'activeOptions' => $activeOptions,
         ]);
@@ -96,5 +98,10 @@ class LiveSearchController
         $response->getBody()->write($view->render('LiveSearch/Form'));
 
         return $response;
+    }
+
+    private function getLanguageService(): LanguageService
+    {
+        return $GLOBALS['LANG'];
     }
 }

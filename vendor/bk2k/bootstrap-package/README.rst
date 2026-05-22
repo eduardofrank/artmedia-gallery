@@ -53,6 +53,7 @@ Compatibility
    :header-rows: 1
 
    * -
+     - v13
      - v12
      - v11
      - v10
@@ -60,7 +61,26 @@ Compatibility
      - v8
      - v7
 
+   * - BP 15.x
+     - ✔️
+     - ✔️
+     -
+     -
+     -
+     -
+     -
+
+   * - BP 14.x
+     -
+     - ✔️
+     - ✔️
+     -
+     -
+     -
+     -
+
    * - BP 13.x
+     -
      - ✔️
      - ✔️
      -
@@ -70,6 +90,7 @@ Compatibility
 
    * - BP 12.x
      -
+     -
      - ✔️
      - ✔️
      -
@@ -77,6 +98,7 @@ Compatibility
      -
 
    * - BP 11.x
+     -
      -
      -
      - ✔️
@@ -88,11 +110,13 @@ Compatibility
      -
      -
      -
+     -
      - ✔️
      - ✔️
      -
 
    * - BP 7.x
+     -
      -
      -
      -

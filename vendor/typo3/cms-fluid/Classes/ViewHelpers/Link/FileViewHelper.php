@@ -18,6 +18,7 @@ declare(strict_types=1);
 namespace TYPO3\CMS\Fluid\ViewHelpers\Link;
 
 use TYPO3\CMS\Core\Core\Environment;
+use TYPO3\CMS\Core\Crypto\HashService;
 use TYPO3\CMS\Core\Resource\File;
 use TYPO3\CMS\Core\Resource\FileInterface;
 use TYPO3\CMS\Core\Resource\FileReference;
@@ -28,40 +29,13 @@ use TYPO3Fluid\Fluid\Core\ViewHelper\AbstractTagBasedViewHelper;
 use TYPO3Fluid\Fluid\Core\ViewHelper\Exception;
 
 /**
- * A ViewHelper for creating links to a file (FAL).
+ * ViewHelper for creating links to a file (FAL).
  *
- * Examples
- * ========
+ * ```
+ *   <f:link.file file="{file}" target="_blank" download="true" filename="some-file.pdf">See file</f:link.file>
+ * ```
  *
- * Link to a file
- * --------------
- *
- * ::
- *
- *    <f:link.file file="{file}" target="_blank">See file</f:link.file>
- *
- * Output of a public file::
- *
- *    <a href="https://example.com/fileadmin/path/to/file.jpg" target="_blank">See file</a>
- *
- * Output of a non-public file::
- *
- *    <a href="https://example.com/index.php?eID=dumpFile&t=f&f=123&token=79bce812" target="_blank">See file</a>
- *
- * Link to download a file
- * -----------------------
- *
- * ::
- *
- *    <f:link.file file="{file}" download="true" filename="alternative-name.jpg">Download file</f:link.file>
- *
- * Output of a public file::
- *
- *    <a href="https://example.com/fileadmin/path/to/file.jpg" download="alternative-name.jpg">Download file</a>
- *
- * Output of a non-public file::
- *
- *    <a href="https://example.com/index.php?eID=dumpFile&t=f&f=123&dl=1&fn=alternative-name.jpg&token=79bce812">Download file</a>
+ * @see https://docs.typo3.org/permalink/t3viewhelper:typo3-fluid-link-file
  */
 final class FileViewHelper extends AbstractTagBasedViewHelper
 {
@@ -76,11 +50,6 @@ final class FileViewHelper extends AbstractTagBasedViewHelper
         $this->registerArgument('file', FileInterface::class, 'Specifies the file to create a link to', true);
         $this->registerArgument('download', 'bool', 'Specifies if file should be downloaded instead of displayed');
         $this->registerArgument('filename', 'string', 'Specifies an alternative filename. If filename contains a file extension, this must be the same as from \'file\'.');
-        $this->registerUniversalTagAttributes();
-        $this->registerTagAttribute('name', 'string', 'Specifies the name of an anchor');
-        $this->registerTagAttribute('rel', 'string', 'Specifies the relationship between the current document and the linked document');
-        $this->registerTagAttribute('rev', 'string', 'Specifies the relationship between the linked document and the current document');
-        $this->registerTagAttribute('target', 'string', 'Specifies where to open the linked document');
     }
 
     public function render(): string
@@ -117,7 +86,8 @@ final class FileViewHelper extends AbstractTagBasedViewHelper
         }
 
         $this->tag->addAttribute('href', $publicUrl);
-        $this->tag->setContent($this->renderChildren() ?? htmlspecialchars($file->getName()));
+        $childContent = $this->renderChildren();
+        $this->tag->setContent($childContent ? (string)$childContent : htmlspecialchars($file->getName()));
         $this->tag->forceClosingTag(true);
 
         return $this->tag->render();
@@ -149,7 +119,8 @@ final class FileViewHelper extends AbstractTagBasedViewHelper
             $parameters['fn'] = $filename;
         }
 
-        $parameters['token'] = GeneralUtility::hmac(implode('|', $parameters), 'resourceStorageDumpFile');
+        $hashService = GeneralUtility::makeInstance(HashService::class);
+        $parameters['token'] = $hashService->hmac(implode('|', $parameters), 'resourceStorageDumpFile');
 
         return GeneralUtility::locationHeaderUrl(PathUtility::getAbsoluteWebPath(Environment::getPublicPath() . '/index.php'))
             . '?' . http_build_query($parameters, '', '&', PHP_QUERY_RFC3986);

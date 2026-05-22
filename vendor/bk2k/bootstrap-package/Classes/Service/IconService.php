@@ -10,7 +10,9 @@ declare(strict_types = 1);
 
 namespace BK2K\BootstrapPackage\Service;
 
+use BK2K\BootstrapPackage\Events\ModifyIconProvidersEvent;
 use BK2K\BootstrapPackage\Icons\IconProviderInterface;
+use Psr\EventDispatcher\EventDispatcherInterface;
 use TYPO3\CMS\Core\Utility\GeneralUtility;
 
 /**
@@ -18,6 +20,13 @@ use TYPO3\CMS\Core\Utility\GeneralUtility;
  */
 class IconService
 {
+    protected EventDispatcherInterface $eventDispatcher;
+
+    public function __construct()
+    {
+        $this->eventDispatcher = GeneralUtility::makeInstance(EventDispatcherInterface::class);
+    }
+
     public function getIconSetItems(array &$configuration): void
     {
         $iconSets = [];
@@ -27,7 +36,7 @@ class IconService
         foreach ($iconProviders as $iconProvider) {
             $iconSets[] = [
                 $iconProvider->getName(),
-                $iconProvider->getIdentifier()
+                $iconProvider->getIdentifier(),
             ];
         }
 
@@ -40,7 +49,7 @@ class IconService
         $iconItems[] = [
             'LLL:EXT:bootstrap_package/Resources/Private/Language/Backend.xlf:option.none',
             0,
-            'EXT:bootstrap_package/Resources/Public/Images/Icons/none.svg'
+            'EXT:bootstrap_package/Resources/Public/Images/Icons/none.svg',
         ];
 
         $iconSetField = $configuration['config']['itemsProcConfig']['iconSetField'] ?? 'icon_set';
@@ -52,7 +61,7 @@ class IconService
                 $iconItems[] = [
                     $icon->getName(),
                     $icon->getIdentifier(),
-                    $icon->getPreviewImage()
+                    $icon->getPreviewImage(),
                 ];
             }
         }
@@ -80,10 +89,15 @@ class IconService
         ) {
             foreach ($GLOBALS['TYPO3_CONF_VARS']['SC_OPTIONS']['ext/bootstrap-package/icons']['provider'] as $className) {
                 /** @var class-string<IconProviderInterface> $className */
-                $iconProviders[] = GeneralUtility::makeInstance($className);
+                /** @var IconProviderInterface $iconProvider */
+                $iconProvider = GeneralUtility::makeInstance($className);
+                $iconProviders[] = $iconProvider;
             }
         }
 
-        return $iconProviders;
+        /** @var ModifyIconProvidersEvent $event */
+        $event = $this->eventDispatcher->dispatch(new ModifyIconProvidersEvent($iconProviders));
+
+        return $event->getIconProviders();
     }
 }

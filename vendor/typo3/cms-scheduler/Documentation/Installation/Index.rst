@@ -1,21 +1,15 @@
-.. include:: /Includes.rst.txt
-
-
-
-.. _installation:
+..  include:: /Includes.rst.txt
+..  _installation:
 
 ====================
-Installation & setup
+Installation & Setup
 ====================
 
+..  toctree::
+    :maxdepth: 5
+    :titlesonly:
+    :glob:
 
-.. toctree::
-   :maxdepth: 5
-   :titlesonly:
-   :glob:
-
-   Installing/Index
-   SetupCheck/Index
-   CronJob/Index
-   BaseTasks/Index
-
+    Installing/Index
+    SetupCheck/Index
+    CronJob/Index

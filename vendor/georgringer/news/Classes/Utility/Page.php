@@ -9,14 +9,14 @@
 
 namespace GeorgRinger\News\Utility;
 
-use GeorgRinger\News\Database\QueryGenerator;
 use TYPO3\CMS\Backend\Tree\View\PageTreeView;
 use TYPO3\CMS\Backend\Utility\BackendUtility;
-use TYPO3\CMS\Core\Imaging\Icon;
+use TYPO3\CMS\Core\Authentication\BackendUserAuthentication;
 use TYPO3\CMS\Core\Imaging\IconFactory;
+use TYPO3\CMS\Core\Imaging\IconSize;
+use TYPO3\CMS\Core\Information\Typo3Version;
 use TYPO3\CMS\Core\Log\LogManager;
 use TYPO3\CMS\Core\Utility\GeneralUtility;
-use TYPO3\CMS\Core\Utility\StringUtility;
 use TYPO3\CMS\Frontend\ContentObject\ContentObjectRenderer;
 
 /**
@@ -25,35 +25,6 @@ use TYPO3\CMS\Frontend\ContentObject\ContentObjectRenderer;
 class Page
 {
     /**
-     * Find all ids from given ids and level
-     *
-     * @param string $pidList comma separated list of ids
-     * @param int $recursive recursive levels
-     * @return string comma separated list of ids
-     */
-    public static function extendPidListByChildren($pidList = '', $recursive = 0): string
-    {
-        $recursive = (int)$recursive;
-        if ($recursive <= 0) {
-            return $pidList ?? '';
-        }
-
-        $queryGenerator = GeneralUtility::makeInstance(QueryGenerator::class);
-        $recursiveStoragePids = $pidList;
-        $storagePids = GeneralUtility::intExplode(',', $pidList);
-        foreach ($storagePids as $startPid) {
-            if ($startPid >= 0) {
-                // @extensionScannerIgnoreLine
-                $pids = $queryGenerator->getTreeList($startPid, $recursive);
-                if (strlen($pids) > 0) {
-                    $recursiveStoragePids .= ',' . $pids;
-                }
-            }
-        }
-        return StringUtility::uniqueList($recursiveStoragePids);
-    }
-
-    /**
      * Set properties of an object/array in cobj->LOAD_REGISTER which can then
      * be used to be loaded via TS with register:name
      *
@@ -61,7 +32,7 @@ class Page
      * @param mixed $object object or array to get the properties
      * @param string $prefix optional prefix
      */
-    public static function setRegisterProperties($properties, $object, $prefix = 'news'): void
+    public static function setRegisterProperties($properties, mixed $object, $prefix = 'news'): void
     {
         if (!empty($properties) && $object !== null) {
             $cObj = GeneralUtility::makeInstance(ContentObjectRenderer::class);
@@ -79,7 +50,7 @@ class Page
                         }
                         $register[$key] = $value;
                     } catch (\Exception $e) {
-                        $logger = GeneralUtility::makeInstance(LogManager::class)->getLogger(__CLASS__);
+                        $logger = GeneralUtility::makeInstance(LogManager::class)->getLogger(self::class);
                         $logger->warning($e->getMessage());
                     }
                 }
@@ -97,7 +68,6 @@ class Page
      *
      * @param int $pageUid page to start with
      * @param int $treeLevel count of levels
-     * @return PageTreeView
      * @throws \Exception
      * @deprecated not in use
      */
@@ -117,11 +87,12 @@ class Page
         BackendUtility::workspaceOL('pages', $treeStartingRecord);
 
         $iconFactory = GeneralUtility::makeInstance(IconFactory::class);
+        $iconSize = (new Typo3Version())->getMajorVersion() >= 13 ? IconSize::SMALL : 'small';
 
         // Creating top icon; the current page
         $tree->tree[] = [
             'row' => $treeStartingRecord,
-            'HTML' => is_array($treeStartingRecord) ? $iconFactory->getIconForRecord('pages', $treeStartingRecord, Icon::SIZE_SMALL)->render() : '',
+            'HTML' => is_array($treeStartingRecord) ? $iconFactory->getIconForRecord('pages', $treeStartingRecord, $iconSize)->render() : '',
         ];
 
         $tree->getTree($pageUid, $treeLevel, '');
@@ -130,10 +101,8 @@ class Page
 
     /**
      * Get backend user
-     *
-     * @return \TYPO3\CMS\Core\Authentication\BackendUserAuthentication
      */
-    protected static function getBackendUser(): \TYPO3\CMS\Core\Authentication\BackendUserAuthentication
+    protected static function getBackendUser(): BackendUserAuthentication
     {
         return $GLOBALS['BE_USER'];
     }

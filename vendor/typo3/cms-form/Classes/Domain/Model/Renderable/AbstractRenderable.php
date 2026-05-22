@@ -21,6 +21,7 @@ declare(strict_types=1);
 
 namespace TYPO3\CMS\Form\Domain\Model\Renderable;
 
+use Psr\Http\Message\ServerRequestInterface;
 use TYPO3\CMS\Core\Cache\CacheManager;
 use TYPO3\CMS\Core\Utility\ArrayUtility;
 use TYPO3\CMS\Core\Utility\GeneralUtility;
@@ -100,6 +101,8 @@ abstract class AbstractRenderable implements RenderableInterface, VariableRender
 
     protected ?ValidatorResolver $validatorResolver = null;
 
+    protected ?ServerRequestInterface $request = null;
+
     /**
      * Get the type of the renderable
      */
@@ -122,6 +125,16 @@ abstract class AbstractRenderable implements RenderableInterface, VariableRender
     public function setIdentifier(string $identifier)
     {
         $this->identifier = $identifier;
+    }
+
+    public function getRequest(): ?ServerRequestInterface
+    {
+        return $this->request;
+    }
+
+    public function setRequest(?ServerRequestInterface $request): void
+    {
+        $this->request = $request;
     }
 
     /**
@@ -152,8 +165,8 @@ abstract class AbstractRenderable implements RenderableInterface, VariableRender
 
             foreach ($options['validators'] as $validatorConfiguration) {
                 $configurationHash = md5(
-                    spl_object_hash($this) .
-                    json_encode($validatorConfiguration)
+                    spl_object_hash($this)
+                    . json_encode($validatorConfiguration)
                 );
                 if (in_array($configurationHash, $configurationHashes)) {
                     continue;
@@ -196,7 +209,7 @@ abstract class AbstractRenderable implements RenderableInterface, VariableRender
                 $container = GeneralUtility::getContainer();
                 $this->validatorResolver = $container->get(ValidatorResolver::class);
             }
-            $validator = $this->validatorResolver->createValidator($implementationClassName, $defaultOptions);
+            $validator = $this->validatorResolver->createValidator($implementationClassName, $defaultOptions, $this->request);
             if ($validator !== null) {
                 $this->addValidator($validator);
             }

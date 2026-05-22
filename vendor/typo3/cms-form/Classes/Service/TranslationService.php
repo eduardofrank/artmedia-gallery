@@ -18,6 +18,8 @@ declare(strict_types=1);
 namespace TYPO3\CMS\Form\Service;
 
 use Psr\Http\Message\ServerRequestInterface;
+use Symfony\Component\DependencyInjection\Attribute\Autoconfigure;
+use Symfony\Component\DependencyInjection\Attribute\Autowire;
 use TYPO3\CMS\Core\Cache\Frontend\FrontendInterface;
 use TYPO3\CMS\Core\Http\ApplicationType;
 use TYPO3\CMS\Core\Localization\LanguageService;
@@ -41,6 +43,7 @@ use TYPO3\CMS\Form\Domain\Runtime\FormRuntime;
  * Scope: frontend / backend
  * @internal
  */
+#[Autoconfigure(public: true)]
 class TranslationService implements SingletonInterface
 {
     /**
@@ -53,6 +56,7 @@ class TranslationService implements SingletonInterface
     public function __construct(
         protected readonly ConfigurationManagerInterface $configurationManager,
         protected readonly LanguageServiceFactory $languageServiceFactory,
+        #[Autowire(service: 'cache.runtime')]
         protected readonly FrontendInterface $runtimeCache,
         protected readonly Locales $locales
     ) {}
@@ -245,7 +249,7 @@ class TranslationService implements SingletonInterface
     }
 
     /**
-     * @return string|array
+     * @return string|array|null
      * @throws \InvalidArgumentException
      * @internal
      */
@@ -336,7 +340,14 @@ class TranslationService implements SingletonInterface
                 $optionLabel = $this->isEmptyTranslatedValue($translatedValue) ? $optionLabel : $translatedValue;
             }
             $translatedValue = $defaultValue;
-        } elseif ($property === 'fluidAdditionalAttributes' && is_array($defaultValue)) {
+        } elseif ($property === 'fluidAdditionalAttributes') {
+            // "fluidAdditionalAttributes" is a globally available property and is used across all built-in
+            // form templates. However, it's not necessarily defined in the form configuration. This can lead to
+            // an empty string as default value, which is invalid. This check makes sure that an array is returned
+            // even if the property is not defined.
+            if (!is_array($defaultValue)) {
+                $defaultValue = [];
+            }
             foreach ($defaultValue as $propertyName => &$propertyValue) {
                 $translationKeyChain = [];
                 foreach ($translationFiles as $translationFile) {

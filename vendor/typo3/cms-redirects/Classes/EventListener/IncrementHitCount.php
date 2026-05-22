@@ -17,6 +17,7 @@ declare(strict_types=1);
 
 namespace TYPO3\CMS\Redirects\EventListener;
 
+use TYPO3\CMS\Core\Attribute\AsEventListener;
 use TYPO3\CMS\Core\Configuration\Features;
 use TYPO3\CMS\Core\Database\Connection;
 use TYPO3\CMS\Core\Database\ConnectionPool;
@@ -28,13 +29,14 @@ use TYPO3\CMS\Redirects\Event\RedirectWasHitEvent;
  */
 final class IncrementHitCount
 {
-    protected Features $features;
+    private Features $features;
 
     public function __construct(Features $features)
     {
         $this->features = $features;
     }
 
+    #[AsEventListener('redirects-increment-hit-count')]
     public function __invoke(RedirectWasHitEvent $event): void
     {
         $matchedRedirect = $event->getMatchedRedirect();

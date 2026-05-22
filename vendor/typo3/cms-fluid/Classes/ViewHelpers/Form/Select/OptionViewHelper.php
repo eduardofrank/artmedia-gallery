@@ -21,7 +21,20 @@ use TYPO3\CMS\Fluid\ViewHelpers\Form\AbstractFormFieldViewHelper;
 use TYPO3\CMS\Fluid\ViewHelpers\Form\SelectViewHelper;
 
 /**
- * Adds custom :html:`<option>` tags inside an :ref:`<f:form.select> <typo3-fluid-form-select>`.
+ * ViewHelper for adding custom `<option>` tags inside a `<f:form.select>`.
+ *
+ * ```
+ *   <f:form.select name="mySelect">
+ *     <f:form.select.option value="1">Option one</f:form.select.option>
+ *     <f:form.select.optgroup>
+ *       <f:form.select.option value="3">Grouped option one</f:form.select.option>
+ *       <f:form.select.option value="4">Grouped option two</f:form.select.option>
+ *     </f:form.select.optgroup>
+ *   </f:form.select>>
+ * ```
+ *
+ * @see https://docs.typo3.org/permalink/t3viewhelper:typo3-fluid-form-select-option
+ * @see https://docs.typo3.org/permalink/t3viewhelper:typo3-fluid-form-select
  */
 final class OptionViewHelper extends AbstractFormFieldViewHelper
 {
@@ -32,17 +45,16 @@ final class OptionViewHelper extends AbstractFormFieldViewHelper
 
     public function initializeArguments(): void
     {
-        $this->registerUniversalTagAttributes();
         $this->registerArgument('selected', 'boolean', 'If set, overrides automatic detection of selected state for this option.');
         $this->registerArgument('additionalAttributes', 'array', 'Additional tag attributes. They will be added directly to the resulting HTML tag.');
         $this->registerArgument('data', 'array', 'Additional data-* attributes. They will each be added with a "data-" prefix.');
-        $this->registerTagAttribute('value', 'mixed', 'Value to be inserted in HTML tag - must be convertible to string!');
+        $this->registerArgument('value', 'mixed', 'Value to be inserted in HTML tag - must be convertible to string!');
     }
 
     public function render(): string
     {
         $childContent = $this->renderChildren();
-        $this->tag->setContent($childContent);
+        $this->tag->setContent((string)$childContent);
         $value = $this->arguments['value'] ?? $childContent;
         if ($this->arguments['selected'] ?? $this->isValueSelected((string)$value)) {
             $this->tag->addAttribute('selected', 'selected');

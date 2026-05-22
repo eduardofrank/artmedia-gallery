@@ -18,21 +18,23 @@ declare(strict_types=1);
 namespace TYPO3\CMS\Fluid\ViewHelpers\Security;
 
 use TYPO3\CMS\Core\Core\RequestId;
+use TYPO3\CMS\Core\Security\ContentSecurityPolicy\Directive;
+use TYPO3\CMS\Core\Security\ContentSecurityPolicy\SourceKeyword;
 use TYPO3Fluid\Fluid\Core\ViewHelper\AbstractViewHelper;
 
 /**
- * This ViewHelper resolves the `nonce` attribute from the global server request object,
- * or from the `PolicyProvider` service as a fall-back value.
+ * ViewHelper to retrieve (and consume) a `nonce` attribute from
+ * the global server request object pool, or from the `PolicyProvider`
+ * service as a fall-back value.
  *
- * Examples
- * ========
+ * ```
+ *   <script nonce="{f:security.nonce(directive: 'script-src')}">const inline = 'script';</script>
+ *   <script nonce="{f:security.nonce(directive: 'script-src', scope: 'static')}" src="app.js"></script>
+ * ```
  *
- * Basic usage
- * -----------
- *
- * ::
- *
- *    <script nonce="{f:security.nonce()}">const inline = 'script';</script>
+ * @see https://docs.typo3.org/permalink/t3viewhelper:typo3-fluid-security-nonce
+ * @see https://docs.typo3.org/permalink/t3coreapi:content-security-policy
+ * @see \TYPO3\CMS\Core\Security\ContentSecurityPolicy\PolicyProvider
  */
 final class NonceViewHelper extends AbstractViewHelper
 {
@@ -41,10 +43,22 @@ final class NonceViewHelper extends AbstractViewHelper
     public function initializeArguments(): void
     {
         parent::initializeArguments();
+        $this->registerArgument('directive', 'string', 'Value of the CSP directive');
+        $this->registerArgument('scope', 'string', '`inline` or `static`', false, 'inline');
     }
 
     public function render(): string
     {
-        return $this->requestId->nonce->consume();
+        $applicableDirectives = SourceKeyword::nonceProxy->getApplicableDirectives();
+        $directive = Directive::tryFrom($this->arguments['directive'] ?? '');
+        $directive = $directive !== null && in_array($directive, $applicableDirectives, true)
+            ? $directive->value
+            : self::class;
+        $scope = $this->arguments['scope'] ?? '';
+        if ($scope === 'static') {
+            return $this->requestId->nonce->consumeStatic($directive);
+        }
+        // `inline` is guessed here, it might be `static` as well in templates
+        return $this->requestId->nonce->consumeInline($directive);
     }
 }

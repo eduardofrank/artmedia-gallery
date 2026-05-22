@@ -9,9 +9,7 @@ declare(strict_types=1);
 
 namespace TYPO3Fluid\Fluid\ViewHelpers;
 
-use TYPO3Fluid\Fluid\Core\Rendering\RenderingContextInterface;
 use TYPO3Fluid\Fluid\Core\ViewHelper\AbstractViewHelper;
-use TYPO3Fluid\Fluid\Core\ViewHelper\Traits\CompileWithRenderStatic;
 
 /**
  * The LastViewHelper returns the last item of an array.
@@ -26,39 +24,29 @@ use TYPO3Fluid\Fluid\Core\ViewHelper\Traits\CompileWithRenderStatic;
  * .. code-block:: text
  *
  *    second
+ *
+ * @api
+ * @see https://docs.typo3.org/permalink/fluid:typo3fluid-fluid-last
  */
 final class LastViewHelper extends AbstractViewHelper
 {
-    use CompileWithRenderStatic;
-
     public function initializeArguments(): void
     {
         $this->registerArgument('value', 'array', '');
     }
 
-    public static function renderStatic(array $arguments, \Closure $renderChildrenClosure, RenderingContextInterface $renderingContext): mixed
+    public function render(): mixed
     {
-        $value = $arguments['value'] ?? $renderChildrenClosure();
-
+        $value = $this->arguments['value'] ?? $this->renderChildren();
         if ($value === null || !is_iterable($value)) {
             $givenType = get_debug_type($value);
             throw new \InvalidArgumentException(
-                'The argument "value" was registered with type "array", but is of type "' .
-                $givenType . '" in view helper "' . static::class . '".',
+                'The argument "value" was registered with type "array", but is of type "'
+                . $givenType . '" in view helper "' . static::class . '".',
                 1712221620,
             );
         }
-
-        $value = self::iteratorToArray($value);
-
+        $value = iterator_to_array($value);
         return array_pop($value);
-    }
-
-    /**
-     * This ensures compatibility with PHP 8.1
-     */
-    private static function iteratorToArray(\Traversable|array $iterator): array
-    {
-        return is_array($iterator) ? $iterator : iterator_to_array($iterator);
     }
 }

@@ -22,15 +22,19 @@ use TYPO3\CMS\Backend\Utility\BackendUtility;
 use TYPO3\CMS\Core\Authentication\BackendUserAuthentication;
 use TYPO3\CMS\Core\Core\Environment;
 use TYPO3\CMS\Core\DataHandling\PageDoktypeRegistry;
-use TYPO3\CMS\Core\Imaging\Icon;
+use TYPO3\CMS\Core\DataHandling\TableColumnType;
 use TYPO3\CMS\Core\Imaging\IconFactory;
+use TYPO3\CMS\Core\Imaging\IconSize;
 use TYPO3\CMS\Core\Localization\LanguageService;
+use TYPO3\CMS\Core\Resource\DefaultUploadFolderResolver;
+use TYPO3\CMS\Core\Resource\Exception;
 use TYPO3\CMS\Core\Resource\Exception\InsufficientFolderAccessPermissionsException;
 use TYPO3\CMS\Core\Resource\Folder;
 use TYPO3\CMS\Core\Resource\ResourceFactory;
-use TYPO3\CMS\Core\Resource\ResourceStorage;
 use TYPO3\CMS\Core\Resource\Security\FileNameValidator;
-use TYPO3\CMS\Core\Resource\StorageRepository;
+use TYPO3\CMS\Core\Schema\Capability\RootLevelCapability;
+use TYPO3\CMS\Core\Schema\Capability\TcaSchemaCapability;
+use TYPO3\CMS\Core\Schema\TcaSchemaFactory;
 use TYPO3\CMS\Core\Type\Bitmask\Permission;
 use TYPO3\CMS\Core\Utility\DiffUtility;
 use TYPO3\CMS\Core\Utility\File\ExtendedFileUtility;
@@ -49,21 +53,17 @@ abstract class ImportExport
      *
      * @var string
      */
-    protected $mode = '';
+    protected string $mode = '';
 
     /**
      * A WHERE clause for selection records from the pages table based on read-permissions of the current backend user.
-     *
-     * @var string
      */
-    protected $permsClause;
+    protected string $permsClause;
 
     /**
      * Root page of import or export page tree
-     *
-     * @var int
      */
-    protected $pid = -1;
+    protected int $pid = -1;
 
     /**
      * Root page record of import or of export page tree
@@ -72,158 +72,98 @@ abstract class ImportExport
 
     /**
      * If set, static relations (not exported) will be shown in preview as well
-     *
-     * @var bool
      */
-    protected $showStaticRelations = false;
+    protected bool $showStaticRelations = false;
 
     /**
      * Updates all records that has same UID instead of creating new!
-     *
-     * @var bool
      */
-    protected $update = false;
+    protected bool $update = false;
 
     /**
      * Set by importData() when an import is started.
-     *
-     * @var bool
      */
-    protected $doesImport = false;
+    protected bool $doesImport = false;
 
     /**
      * Setting the import mode for specific import records.
      * Available options are: force_uid, as_new, exclude, ignore_pid, respect_pid
-     *
-     * @var array
      */
-    protected $importMode = [];
+    protected array $importMode = [];
 
     /**
      * If set, PID correct is ignored globally
-     *
-     * @var bool
      */
-    protected $globalIgnorePid = false;
+    protected bool $globalIgnorePid = false;
 
     /**
      * If set, all UID values are forced! (update or import)
-     *
-     * @var bool
      */
-    protected $forceAllUids = false;
+    protected bool $forceAllUids = false;
 
     /**
      * If set, a diff-view column is added to the preview.
-     *
-     * @var bool
      */
-    protected $showDiff = false;
+    protected bool $showDiff = false;
 
     /**
      * Array of values to substitute in editable soft references.
-     *
-     * @var array
      */
-    protected $softrefInputValues = [];
+    protected array $softrefInputValues = [];
 
     /**
      * Mapping between the fileID from import memory and the final filenames they are written to.
-     *
-     * @var array
      */
-    protected $fileIdMap = [];
+    protected array $fileIdMap = [];
 
     /**
      * Add tables names here which should not be exported with the file.
      * (Where relations should be mapped to same UIDs in target system).
-     *
-     * @var array
      */
-    protected $relStaticTables = [];
+    protected array $relStaticTables = [];
 
     /**
      * Exclude map. Keys are table:uid pairs and if set, records are not added to the export.
-     *
-     * @var array
      */
-    protected $excludeMap = [];
+    protected array $excludeMap = [];
 
     /**
      * Soft reference token ID modes.
-     *
-     * @var array
      */
-    protected $softrefCfg = [];
+    protected array $softrefCfg = [];
 
     /**
      * Listing extension dependencies.
-     *
-     * @var array
      */
-    protected $extensionDependencies = [];
+    protected array $extensionDependencies = [];
 
     /**
      * After records are written this array is filled with [table][original_uid] = [new_uid]
-     *
-     * @var array
      */
-    protected $importMapId = [];
+    protected array $importMapId = [];
 
     /**
      * Error log.
-     *
-     * @var array
      */
-    protected $errorLog = [];
+    protected array $errorLog = [];
 
     /**
      * Cache for record paths
-     *
-     * @var array
      */
-    protected $cacheGetRecordPath = [];
+    protected array $cacheGetRecordPath = [];
 
     /**
      * Internal import/export memory
-     *
-     * @var array
      */
-    protected $dat = [];
+    protected array $dat = [];
 
     /**
      * File processing object
-     *
-     * @var ExtendedFileUtility
      */
-    protected $fileProcObj;
-
-    /**
-     * @var DiffUtility
-     */
-    protected $diffUtility;
-
-    /**
-     * @var array
-     */
-    protected $remainHeader = [];
-
-    /**
-     * @var LanguageService
-     */
-    protected $lang;
-
-    /**
-     * @var IconFactory
-     */
-    protected $iconFactory;
-
-    /**
-     * Name of the "fileadmin" folder where files for export/import should be located
-     *
-     * @var string
-     */
-    protected $fileadminFolderName = '';
+    protected ?ExtendedFileUtility $fileProcObj = null;
+    protected array $remainHeader = [];
+    protected LanguageService $lang;
+    protected IconFactory $iconFactory;
 
     protected ?string $temporaryFolderName = null;
     protected ?Folder $defaultImportExportFolder = null;
@@ -231,72 +171,17 @@ abstract class ImportExport
     /**
      * Flag to control whether all disabled records and their children are excluded (true) or included (false). Defaults
      * to the old behaviour of including everything.
-     *
-     * @var bool
      */
-    protected $excludeDisabledRecords = false;
+    protected bool $excludeDisabledRecords = false;
 
-    /**
-     * Array of currently registered storage objects
-     *
-     * @var ResourceStorage[]
-     */
-    protected $storages = [];
+    protected TcaSchemaFactory $tcaSchemaFactory;
 
-    /**
-     * Array of currently registered storage objects available for importing files to
-     *
-     * @var ResourceStorage[]
-     */
-    protected $storagesAvailableForImport = [];
-
-    /**
-     * Currently registered default storage object
-     */
-    protected ?ResourceStorage $defaultStorage = null;
-
-    /**
-     * @var StorageRepository
-     */
-    protected $storageRepository;
-
-    /**
-     * The constructor
-     */
     public function __construct()
     {
         $this->iconFactory = GeneralUtility::makeInstance(IconFactory::class);
+        $this->tcaSchemaFactory = GeneralUtility::makeInstance(TcaSchemaFactory::class);
         $this->lang = $this->getLanguageService();
         $this->permsClause = $this->getBackendUser()->getPagePermsClause(Permission::PAGE_SHOW);
-
-        $this->fetchStorages();
-    }
-
-    /**
-     * Fetch all available file storages and index by storage UID
-     *
-     * Note: It also creates a default storage record if the database table sys_file_storage is empty,
-     * e.g. during tests.
-     */
-    protected function fetchStorages(): void
-    {
-        $this->storages = [];
-        $this->storagesAvailableForImport = [];
-        $this->defaultStorage = null;
-
-        $this->getStorageRepository()->flush();
-
-        $storages = $this->getStorageRepository()->findAll();
-        // @todo: Why by reference here? Test ImagesWithStoragesTest::importMultipleImagesWithMultipleStorages fails otherwise
-        foreach ($storages as &$storage) {
-            $this->storages[$storage->getUid()] = $storage;
-            if ($storage->isOnline() && $storage->isWritable() && $storage->getDriverType() === 'Local') {
-                $this->storagesAvailableForImport[$storage->getUid()] = $storage;
-            }
-            if ($this->defaultStorage === null && $storage->isDefault()) {
-                $this->defaultStorage = $storage;
-            }
-        }
     }
 
     /********************************************************
@@ -332,7 +217,7 @@ abstract class ImportExport
             $this->traversePageTree($this->dat['header']['pagetree'], $previewData['insidePageTree']);
             foreach ($previewData['insidePageTree'] as &$line) {
                 $line['controls'] = $this->renderControls($line);
-                $line['message'] = (($line['msg'] ?? '') && !$this->doesImport ? '<span class="text-danger">' . htmlspecialchars($line['msg']) . '</span>' : '');
+                $line['message'] = (!empty($line['msg']) && !$this->doesImport ? '<span class="text-danger">' . htmlspecialchars($line['msg']) . '</span>' : '');
             }
         }
 
@@ -344,7 +229,7 @@ abstract class ImportExport
             $this->traverseAllRecords($this->remainHeader['records'], $previewData['outsidePageTree']);
             foreach ($previewData['outsidePageTree'] as &$line) {
                 $line['controls'] = $this->renderControls($line);
-                $line['message'] = (($line['msg'] ?? '') && !$this->doesImport ? '<span class="text-danger">' . htmlspecialchars($line['msg']) . '</span>' : '');
+                $line['message'] = (!empty($line['msg']) && !$this->doesImport ? '<span class="text-danger">' . htmlspecialchars($line['msg']) . '</span>' : '');
             }
         }
 
@@ -370,17 +255,15 @@ abstract class ImportExport
             $this->addRecord('pages', $pageUid, $lines, $indent);
 
             // Add records
-            if (is_array($this->dat['header']['pid_lookup'][$pageUid] ?? null)) {
-                foreach ($this->dat['header']['pid_lookup'][$pageUid] as $table => $records) {
-                    $table = (string)$table;
-                    if ($table !== 'pages') {
-                        foreach (array_keys($records) as $uid) {
-                            $this->addRecord($table, (int)$uid, $lines, $indent + 1);
-                        }
+            foreach ($this->dat['header']['pid_lookup'][$pageUid] ?? [] as $table => $records) {
+                $table = (string)$table;
+                if ($table !== 'pages') {
+                    foreach (array_keys($records) as $uid) {
+                        $this->addRecord($table, (int)$uid, $lines, $indent + 1);
                     }
                 }
-                unset($this->remainHeader['pid_lookup'][$pageUid]);
             }
+            unset($this->remainHeader['pid_lookup'][$pageUid]);
 
             // Add subtree
             if (is_array($page['subrow'] ?? null)) {
@@ -398,9 +281,15 @@ abstract class ImportExport
      */
     protected function isRecordDisabled(string $table, int $uid): bool
     {
-        return (bool)($this->dat['records'][$table . ':' . $uid]['data'][
-            $GLOBALS['TCA'][$table]['ctrl']['enablecolumns']['disabled'] ?? ''
-        ] ?? false);
+        if (!$this->tcaSchemaFactory->has($table)) {
+            return false;
+        }
+        $schema = $this->tcaSchemaFactory->get($table);
+        if (!$schema->hasCapability(TcaSchemaCapability::RestrictionDisabledField)) {
+            return false;
+        }
+        $disabledFieldName = $schema->getCapability(TcaSchemaCapability::RestrictionDisabledField)->getFieldName();
+        return (bool)($this->dat['records'][$table . ':' . $uid]['data'][$disabledFieldName] ?? false);
     }
 
     /**
@@ -415,22 +304,18 @@ abstract class ImportExport
         unset($this->remainHeader['records']['pages'][$pageUid]);
 
         // Exclude records
-        if (is_array($this->dat['header']['pid_lookup'][$pageUid] ?? null)) {
-            foreach ($this->dat['header']['pid_lookup'][$pageUid] as $table => $records) {
-                if ($table !== 'pages') {
-                    foreach (array_keys($records) as $uid) {
-                        unset($this->remainHeader['records'][$table][$uid]);
-                    }
+        foreach ($this->dat['header']['pid_lookup'][$pageUid] ?? [] as $table => $records) {
+            if ($table !== 'pages') {
+                foreach (array_keys($records) as $uid) {
+                    unset($this->remainHeader['records'][$table][$uid]);
                 }
             }
-            unset($this->remainHeader['pid_lookup'][$pageUid]);
         }
+        unset($this->remainHeader['pid_lookup'][$pageUid]);
 
         // Exclude subtree
-        if (is_array($page['subrow'] ?? null)) {
-            foreach ($page['subrow'] as $subPageUid => $subPage) {
-                $this->excludePageAndRecords($subPageUid, $subPage);
-            }
+        foreach ($page['subrow'] ?? [] as $subPageUid => $subPage) {
+            $this->excludePageAndRecords($subPageUid, $subPage);
         }
     }
 
@@ -447,16 +332,14 @@ abstract class ImportExport
             $this->addRecord('pages', (int)$pageUid, $lines, 0, true);
 
             // Add records
-            if (is_array($this->dat['header']['pid_lookup'][$pageUid] ?? null)) {
-                foreach ($this->dat['header']['pid_lookup'][$pageUid] as $table => $records) {
-                    if ($table !== 'pages') {
-                        foreach (array_keys($records) as $uid) {
-                            $this->addRecord((string)$table, (int)$uid, $lines, 2);
-                        }
+            foreach ($this->dat['header']['pid_lookup'][$pageUid] ?? [] as $table => $records) {
+                if ($table !== 'pages') {
+                    foreach (array_keys($records) as $uid) {
+                        $this->addRecord((string)$table, (int)$uid, $lines, 2);
                     }
                 }
-                unset($this->remainHeader['pid_lookup'][$pageUid]);
             }
+            unset($this->remainHeader['pid_lookup'][$pageUid]);
         }
     }
 
@@ -519,7 +402,7 @@ abstract class ImportExport
             // Record is a soft reference
             $line['preCode'] = $this->renderIndent($indent);
             $line['title'] = '<em>' . htmlspecialchars($this->lang->sL('LLL:EXT:impexp/Resources/Private/Language/locallang.xlf:impexpcore_singlereco_softReferencesFiles')) . '</em>';
-        } elseif (!isset($GLOBALS['TCA'][$table])) {
+        } elseif (!$this->tcaSchemaFactory->has($table)) {
             // Record is of unknown table
             $line['preCode'] = $this->renderIndent($indent);
             $line['title'] = '<em>' . htmlspecialchars((string)$record['title']) . '</em>';
@@ -532,7 +415,7 @@ abstract class ImportExport
                     ->getIconForRecord(
                         $table,
                         (array)($this->dat['records'][$table . ':' . $uid]['data'] ?? []),
-                        Icon::SIZE_SMALL
+                        IconSize::SMALL
                     )
                     ->setTitle($line['ref'])
                     ->render();
@@ -549,27 +432,29 @@ abstract class ImportExport
             }
             $line['active'] = !$this->isRecordDisabled($table, $uid) ? 'active' : 'hidden';
             if ($this->mode === 'import' && $pidRecord !== null) {
+                $schema = $this->tcaSchemaFactory->get($table);
+                $rootLevelCapability = $schema->getCapability(TcaSchemaCapability::RestrictionRootLevel);
                 if ($checkImportInPidRecord) {
                     if (!$this->getBackendUser()->doesUserHaveAccess($pidRecord, ($table === 'pages' ? 8 : 16))) {
                         $line['msg'] .= '"' . $line['ref'] . '" cannot be INSERTED on this page! ';
                     }
-                    if ($this->pid > 0 && !$this->checkDokType($table, $pidRecord['doktype']) && !($GLOBALS['TCA'][$table]['ctrl']['rootLevel'] ?? 0)) {
+                    if ($this->pid > 0 && !$this->checkDokType($table, $pidRecord['doktype']) && !$rootLevelCapability->getRootLevelType()) {
                         $line['msg'] .= '"' . $table . '" cannot be INSERTED on this page type (change page type to "Folder".) ';
                     }
                 }
                 if (!$this->getBackendUser()->check('tables_modify', $table)) {
                     $line['msg'] .= 'You are not allowed to CREATE "' . $table . '" tables! ';
                 }
-                if ($GLOBALS['TCA'][$table]['ctrl']['readOnly'] ?? false) {
+                if ($schema->hasCapability(TcaSchemaCapability::AccessReadOnly)) {
                     $line['msg'] .= 'TABLE "' . $table . '" is READ ONLY! ';
                 }
-                if (($GLOBALS['TCA'][$table]['ctrl']['adminOnly'] ?? false) && !$this->getBackendUser()->isAdmin()) {
+                if ($schema->hasCapability(TcaSchemaCapability::AccessAdminOnly) && !$this->getBackendUser()->isAdmin()) {
                     $line['msg'] .= 'TABLE "' . $table . '" is ADMIN ONLY! ';
                 }
-                if ($GLOBALS['TCA'][$table]['ctrl']['is_static'] ?? false) {
+                if ($schema->getRawConfiguration()['is_static'] ?? false) {
                     $line['msg'] .= 'TABLE "' . $table . '" is a STATIC TABLE! ';
                 }
-                if ((int)($GLOBALS['TCA'][$table]['ctrl']['rootLevel'] ?? 0) === 1) {
+                if ($rootLevelCapability->getRootLevelType() === RootLevelCapability::TYPE_ONLY_ON_ROOTLEVEL) {
                     $line['msg'] .= 'TABLE "' . $table . '" will be inserted on ROOT LEVEL! ';
                 }
                 $databaseRecord = null;
@@ -592,7 +477,7 @@ abstract class ImportExport
                 }
                 // Diff view
                 if ($this->showDiff) {
-                    $diffInverse = $this->update ? true : false;
+                    $diffInverse = $this->update;
                     // For imports, get new id:
                     if (isset($this->importMapId[$table][$uid]) && $newUid = $this->importMapId[$table][$uid]) {
                         $diffInverse = false;
@@ -689,7 +574,7 @@ abstract class ImportExport
             $line['preCode'] = ''
                 . $this->renderIndent($indent + 1)
                 . $this->iconFactory
-                    ->getIcon($iconName, Icon::SIZE_SMALL)
+                    ->getIcon($iconName, IconSize::SMALL)
                     ->setTitle($line['ref'])
                     ->render();
             if (!$staticFixed || $this->showStaticRelations) {
@@ -718,31 +603,38 @@ abstract class ImportExport
         foreach ($relations as $ID) {
             $line = [];
             $line['msg'] = '';
-            $fileInfo = $this->dat['header']['files'][$ID];
+            $fileInfo = $this->dat['header']['files'][$ID] ?? null;
             if (!is_array($fileInfo)) {
                 if ($tokenID !== '' || $this->isSoftRefIncluded($tokenID)) {
                     $line['msg'] = 'MISSING FILE: ' . $ID;
                     $this->addError('MISSING FILE: ' . $ID);
-                } else {
-                    return;
+
+                    // In case of an error, this relation shall be unset,
+                    // so that no follow-up errors on the missing file
+                    // softref can occur.
+                    unset($this->remainHeader['files'][$ID]);
+                    $line['type'] = '';
+                    $lines[] = $line;
+                    continue;
                 }
+                return;
             }
             $line['ref'] = 'FILE';
             $line['type'] = 'file';
             $line['preCode'] = ''
                 . $this->renderIndent($indent + 1)
                 . $this->iconFactory
-                    ->getIcon('status-reference-hard', Icon::SIZE_SMALL)
+                    ->getIcon('status-reference-hard', IconSize::SMALL)
                     ->setTitle($line['ref'])
                     ->render();
-            $line['title'] = htmlspecialchars($fileInfo['filename']);
+            $line['title'] = htmlspecialchars($fileInfo['filename'] ?? 'Missing filename');
             $line['showDiffContent'] = PathUtility::stripPathSitePrefix((string)($this->fileIdMap[$ID] ?? ''));
-            // If import mode and there is a non-RTE soft reference, check the destination directory.
-            if ($this->mode === 'import' && $tokenID !== '' && !($fileInfo['RTE_ORIG_ID'] ?? false)) {
+            // If import mode and there is a soft reference, check the destination directory.
+            if ($this->mode === 'import' && $tokenID !== '') {
                 // Check folder existence
                 if (isset($fileInfo['parentRelFileName'])) {
                     $line['msg'] = 'Seems like this file is already referenced from within an HTML/CSS file. That takes precedence. ';
-                } else {
+                } elseif (isset($fileInfo['relFileName'])) {
                     $origDirPrefix = PathUtility::dirname($fileInfo['relFileName']) . '/';
                     $dirPrefix = $this->resolveStoragePath($origDirPrefix);
                     if ($dirPrefix === null) {
@@ -773,53 +665,28 @@ abstract class ImportExport
             $lines[] = $line;
             unset($this->remainHeader['files'][$ID]);
 
-            // RTE originals
-            if ($fileInfo['RTE_ORIG_ID'] ?? false) {
-                $ID = $fileInfo['RTE_ORIG_ID'];
+            // External resources
+            foreach ($fileInfo['EXT_RES_ID'] ?? [] as $extID) {
                 $line = [];
-                $fileInfo = $this->dat['header']['files'][$ID];
+                $fileInfo = $this->dat['header']['files'][$extID];
                 if (!is_array($fileInfo)) {
-                    $line['msg'] = 'MISSING RTE original FILE: ' . $ID;
-                    $this->addError('MISSING RTE original FILE: ' . $ID);
+                    $line['msg'] = 'MISSING External Resource FILE: ' . $extID;
+                    $this->addError('MISSING External Resource FILE: ' . $extID);
+                } else {
+                    $line['updatePath'] = $fileInfo['parentRelFileName'];
                 }
                 $line['ref'] = 'FILE';
                 $line['type'] = 'file';
                 $line['preCode'] = ''
                     . $this->renderIndent($indent + 1)
                     . $this->iconFactory
-                        ->getIcon('status-reference-hard', Icon::SIZE_SMALL)
+                        ->getIcon('actions-insert-reference', IconSize::SMALL)
                         ->setTitle($line['ref'])
                         ->render();
-                $line['title'] = htmlspecialchars($fileInfo['filename']) . ' <em>(Original)</em>';
-                $line['showDiffContent'] = PathUtility::stripPathSitePrefix($this->fileIdMap[$ID]);
+                $line['title'] = htmlspecialchars($fileInfo['filename']) . ' <em>(Resource)</em>';
+                $line['showDiffContent'] = PathUtility::stripPathSitePrefix($this->fileIdMap[$extID]);
                 $lines[] = $line;
-                unset($this->remainHeader['files'][$ID]);
-            }
-
-            // External resources
-            if (is_array($fileInfo['EXT_RES_ID'] ?? null)) {
-                foreach ($fileInfo['EXT_RES_ID'] as $extID) {
-                    $line = [];
-                    $fileInfo = $this->dat['header']['files'][$extID];
-                    if (!is_array($fileInfo)) {
-                        $line['msg'] = 'MISSING External Resource FILE: ' . $extID;
-                        $this->addError('MISSING External Resource FILE: ' . $extID);
-                    } else {
-                        $line['updatePath'] = $fileInfo['parentRelFileName'];
-                    }
-                    $line['ref'] = 'FILE';
-                    $line['type'] = 'file';
-                    $line['preCode'] = ''
-                        . $this->renderIndent($indent + 1)
-                        . $this->iconFactory
-                            ->getIcon('actions-insert-reference', Icon::SIZE_SMALL)
-                            ->setTitle($line['ref'])
-                            ->render();
-                    $line['title'] = htmlspecialchars($fileInfo['filename']) . ' <em>(Resource)</em>';
-                    $line['showDiffContent'] = PathUtility::stripPathSitePrefix($this->fileIdMap[$extID]);
-                    $lines[] = $line;
-                    unset($this->remainHeader['files'][$extID]);
-                }
+                unset($this->remainHeader['files'][$extID]);
             }
         }
     }
@@ -843,7 +710,7 @@ abstract class ImportExport
             $line['preCode'] = ''
                 . $this->renderIndent($indent)
                 . $this->iconFactory
-                    ->getIcon('status-reference-soft', Icon::SIZE_SMALL)
+                    ->getIcon('status-reference-soft', IconSize::SMALL)
                     ->setTitle($line['ref'])
                     ->render();
             $line['title'] = sprintf(
@@ -894,7 +761,8 @@ abstract class ImportExport
                 }
             }
             $line['_softRefInfo'] = $softref;
-            $mode = $this->softrefCfg[$softref['subst']['tokenID'] ?? null]['mode'] ?? '';
+            $tokenID = (string)($softref['subst']['tokenID'] ?? '');
+            $mode = $tokenID === '' ? '' : ($this->softrefCfg[$tokenID]['mode'] ?? '');
             if (isset($softref['error']) && $mode !== Import::SOFTREF_IMPORT_MODE_EDITABLE && $mode !== Import::SOFTREF_IMPORT_MODE_EXCLUDE) {
                 $line['msg'] .= $softref['error'];
             }
@@ -903,7 +771,7 @@ abstract class ImportExport
             // Add database relations
             if (($softref['subst']['type'] ?? '') === 'db') {
                 [$referencedTable, $referencedUid] = explode(':', $softref['subst']['recordRef']);
-                $relations = [['table' => $referencedTable, 'id' => $referencedUid, 'tokenID' => $softref['subst']['tokenID']]];
+                $relations = [['table' => $referencedTable, 'id' => $referencedUid, 'tokenID' => $tokenID]];
                 $this->addRelations($relations, $lines, $indent + 1);
             }
             // Add files relations
@@ -1007,9 +875,8 @@ abstract class ImportExport
      */
     protected function renderSoftRefExportSelector(array $softref): string
     {
-        $fileInfo = isset($softref['file_ID']) ? $this->dat['header']['files'][$softref['file_ID']] : [];
-        // Substitution scheme has to be around and RTE images MUST be exported.
-        if (isset($softref['subst']['tokenID']) && !isset($fileInfo['RTE_ORIG_ID'])) {
+        // Substitution scheme has to be around.
+        if (isset($softref['subst']['tokenID'])) {
             $options = [];
             $options[''] = '';
             $options[Import::SOFTREF_IMPORT_MODE_EDITABLE] = $this->lang->sL('LLL:EXT:impexp/Resources/Private/Language/locallang.xlf:impexpcore_softrefsel_editable');
@@ -1134,18 +1001,6 @@ abstract class ImportExport
         return '<select class="form-select form-select-sm" name="' . $name . '" style="width: 100px">' . $optionsHtml . '</select>';
     }
 
-    public function getFileadminFolderName(): string
-    {
-        if (empty($this->fileadminFolderName)) {
-            if (!empty($GLOBALS['TYPO3_CONF_VARS']['BE']['fileadminDir'])) {
-                $this->fileadminFolderName = rtrim($GLOBALS['TYPO3_CONF_VARS']['BE']['fileadminDir'], '/');
-            } else {
-                $this->fileadminFolderName = 'fileadmin';
-            }
-        }
-        return $this->fileadminFolderName;
-    }
-
     public function getOrCreateTemporaryFolderName(): string
     {
         if (empty($this->temporaryFolderName)) {
@@ -1195,10 +1050,10 @@ abstract class ImportExport
      */
     protected function createDefaultImportExportFolder(): void
     {
-        $defaultTemporaryFolder = $this->getBackendUser()->getDefaultUploadTemporaryFolder();
+        $defaultTemporaryFolder = $this->getDefaultUploadTemporaryFolder();
         $defaultImportExportFolder = null;
-        $importExportFolderName = 'importexport';
         if ($defaultTemporaryFolder !== null) {
+            $importExportFolderName = 'importexport';
             if ($defaultTemporaryFolder->hasFolder($importExportFolderName) === false) {
                 $defaultImportExportFolder = $defaultTemporaryFolder->createFolder($importExportFolderName);
             } else {
@@ -1206,6 +1061,30 @@ abstract class ImportExport
             }
         }
         $this->defaultImportExportFolder = $defaultImportExportFolder;
+    }
+
+    /**
+     * Returns a \TYPO3\CMS\Core\Resource\Folder object that could be used for uploading
+     * temporary files in user context. The folder _temp_ below the default upload folder
+     * of the user is used.
+     */
+    protected function getDefaultUploadTemporaryFolder(): ?Folder
+    {
+        $defaultFolder = GeneralUtility::makeInstance(DefaultUploadFolderResolver::class)->resolve($this->getBackendUser());
+
+        if ($defaultFolder !== false) {
+            $tempFolderName = '_temp_';
+            $createFolder = !$defaultFolder->hasFolder($tempFolderName);
+            if ($createFolder === true) {
+                try {
+                    return $defaultFolder->createFolder($tempFolderName);
+                } catch (Exception $folderAccessException) {
+                }
+            } else {
+                return $defaultFolder->getSubfolder($tempFolderName);
+            }
+        }
+        return null;
     }
 
     public function removeDefaultImportExportFolder(): void
@@ -1222,7 +1101,7 @@ abstract class ImportExport
      *
      * @param string $dirPrefix Path relative to public web path.
      * @param bool $checkAlternatives If set to false, do not look for an alternative path.
-     * @return string If a path is available, it will be returned, otherwise NULL.
+     * @return string|null If a path is available, it will be returned, otherwise NULL.
      * @throws \Exception
      */
     protected function resolveStoragePath(string $dirPrefix, bool $checkAlternatives = true): ?string
@@ -1272,12 +1151,13 @@ abstract class ImportExport
      */
     protected function isTableStatic(string $table): bool
     {
-        if (is_array($GLOBALS['TCA'][$table] ?? null)) {
-            return ($GLOBALS['TCA'][$table]['ctrl']['is_static'] ?? false)
-                || in_array($table, $this->relStaticTables, true)
-                || in_array('_ALL', $this->relStaticTables, true);
+        if (!$this->tcaSchemaFactory->has($table)) {
+            return false;
         }
-        return false;
+        $schema = $this->tcaSchemaFactory->get($table);
+        return ($schema->getRawConfiguration()['is_static'] ?? false)
+            || in_array($table, $this->relStaticTables, true)
+            || in_array('_ALL', $this->relStaticTables, true);
     }
 
     /**
@@ -1345,34 +1225,37 @@ abstract class ImportExport
     {
         $diffHtml = '';
 
+        $schema = $this->tcaSchemaFactory->get($table);
         // Updated fields
         foreach ($databaseRecord as $fieldName => $_) {
-            if (is_array($GLOBALS['TCA'][$table]['columns'][$fieldName] ?? null)
-                && $GLOBALS['TCA'][$table]['columns'][$fieldName]['config']['type'] !== 'passthrough'
-            ) {
+            if (!$schema->hasField($fieldName)) {
+                continue;
+            }
+            $fieldInfo = $schema->getField($fieldName);
+            if (!$fieldInfo->isType(TableColumnType::PASSTHROUGH)) {
                 if (isset($importRecord[$fieldName])) {
                     if (trim((string)$databaseRecord[$fieldName]) !== trim((string)$importRecord[$fieldName])) {
-                        $diffFieldHtml = $this->getDiffUtility()->makeDiffDisplay(
-                            (string)BackendUtility::getProcessedValue(
+                        $diffFieldHtml = $this->getDiffUtility()->diff(
+                            strip_tags((string)BackendUtility::getProcessedValue(
                                 $table,
                                 $fieldName,
                                 !$inverse ? $importRecord[$fieldName] : $databaseRecord[$fieldName],
                                 0,
                                 true,
                                 true
-                            ),
-                            (string)BackendUtility::getProcessedValue(
+                            )),
+                            strip_tags((string)BackendUtility::getProcessedValue(
                                 $table,
                                 $fieldName,
                                 !$inverse ? $databaseRecord[$fieldName] : $importRecord[$fieldName],
                                 0,
                                 true,
                                 true
-                            )
+                            ))
                         );
                         $diffHtml .= sprintf(
                             '<tr><td>%s (%s)</td><td>%s</td></tr>' . PHP_EOL,
-                            htmlspecialchars($this->lang->sL($GLOBALS['TCA'][$table]['columns'][$fieldName]['label'])),
+                            htmlspecialchars($this->lang->sL($fieldInfo->getLabel())),
                             htmlspecialchars((string)$fieldName),
                             $diffFieldHtml
                         );
@@ -1384,13 +1267,15 @@ abstract class ImportExport
 
         // New fields
         foreach ($importRecord as $fieldName => $_) {
-            if (is_array($GLOBALS['TCA'][$table]['columns'][$fieldName] ?? null)
-                && $GLOBALS['TCA'][$table]['columns'][$fieldName]['config']['type'] !== 'passthrough'
-            ) {
+            if (!$schema->hasField($fieldName)) {
+                continue;
+            }
+            $fieldInfo = $schema->getField($fieldName);
+            if (!$fieldInfo->isType(TableColumnType::PASSTHROUGH)) {
                 $diffFieldHtml = '<strong>Field missing</strong> in database';
                 $diffHtml .= sprintf(
                     '<tr><td>%s (%s)</td><td>%s</td></tr>' . PHP_EOL,
-                    htmlspecialchars($this->lang->sL($GLOBALS['TCA'][$table]['columns'][$fieldName]['label'])),
+                    htmlspecialchars($this->lang->sL($fieldInfo->getLabel())),
                     htmlspecialchars((string)$fieldName),
                     $diffFieldHtml
                 );
@@ -1410,17 +1295,9 @@ abstract class ImportExport
         );
     }
 
-    /**
-     * Returns string comparing object, initialized only once.
-     *
-     * @return DiffUtility String comparing object
-     */
     protected function getDiffUtility(): DiffUtility
     {
-        if ($this->diffUtility === null) {
-            $this->diffUtility = GeneralUtility::makeInstance(DiffUtility::class);
-        }
-        return $this->diffUtility;
+        return GeneralUtility::makeInstance(DiffUtility::class);
     }
 
     /**
@@ -1435,19 +1312,6 @@ abstract class ImportExport
             $this->fileProcObj->setActionPermissions();
         }
         return $this->fileProcObj;
-    }
-
-    /**
-     * Returns storage repository object, initialized only once.
-     *
-     * @return StorageRepository Storage repository object
-     */
-    protected function getStorageRepository(): StorageRepository
-    {
-        if ($this->storageRepository === null) {
-            $this->storageRepository = GeneralUtility::makeInstance(StorageRepository::class);
-        }
-        return $this->storageRepository;
     }
 
     /*****************************

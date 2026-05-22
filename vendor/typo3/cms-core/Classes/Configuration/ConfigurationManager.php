@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 /*
  * This file is part of the TYPO3 CMS project.
  *
@@ -15,6 +17,7 @@
 
 namespace TYPO3\CMS\Core\Configuration;
 
+use TYPO3\CMS\Core\Configuration\Exception\SettingsWriteException;
 use TYPO3\CMS\Core\Core\Environment;
 use TYPO3\CMS\Core\Crypto\Random;
 use TYPO3\CMS\Core\Service\OpcodeCacheService;
@@ -388,7 +391,7 @@ class ConfigurationManager
     {
         $systemSettingsFile = $this->getSystemConfigurationFileLocation();
         if (!$this->canWriteConfiguration()) {
-            throw new \RuntimeException(
+            throw new SettingsWriteException(
                 $this->getSystemConfigurationFileLocation(true) . ' is not writable.',
                 1346323822
             );
@@ -396,10 +399,10 @@ class ConfigurationManager
         $configuration = ArrayUtility::sortByKeyRecursive($configuration);
         $result = GeneralUtility::writeFile(
             $systemSettingsFile,
-            "<?php\n" .
-                'return ' .
-                    ArrayUtility::arrayExport($configuration) .
-                ";\n",
+            "<?php\n"
+                . 'return '
+                    . ArrayUtility::arrayExport($configuration)
+                . ";\n",
             true
         );
 
@@ -420,7 +423,8 @@ class ConfigurationManager
     {
         return GeneralUtility::writeFile(
             $this->getAdditionalConfigurationFileLocation(),
-            "<?php\n" . implode("\n", $additionalConfigurationLines) . "\n"
+            "<?php\n" . implode("\n", $additionalConfigurationLines) . "\n",
+            true
         );
     }
 

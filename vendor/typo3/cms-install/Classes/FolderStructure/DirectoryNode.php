@@ -130,14 +130,14 @@ class DirectoryNode extends AbstractNode implements NodeInterface
      *
      * @return FlashMessage[]
      */
-    protected function fixSelf()
+    protected function fixSelf(): array
     {
         $result = [];
         if (!$this->exists()) {
             $resultCreateDirectory = $this->createDirectory();
             $result[] = $resultCreateDirectory;
-            if ($resultCreateDirectory->getSeverity() === ContextualFeedbackSeverity::OK &&
-                !$this->isPermissionCorrect()
+            if ($resultCreateDirectory->getSeverity() === ContextualFeedbackSeverity::OK
+                && !$this->isPermissionCorrect()
             ) {
                 $result[] = $this->fixPermission();
             }
@@ -148,14 +148,14 @@ class DirectoryNode extends AbstractNode implements NodeInterface
         } elseif (!$this->isDirectory()) {
             $fileType = @filetype($this->getAbsolutePath());
             if ($fileType) {
-                $messageBody =
-                    'The target ' . $this->getRelativePathBelowSiteRoot() . ' should be a directory,' .
-                    ' but is of type ' . $fileType . '. This cannot be fixed automatically. Please investigate.'
+                $messageBody
+                    = 'The target ' . $this->getRelativePathBelowSiteRoot() . ' should be a directory,'
+                    . ' but is of type ' . $fileType . '. This cannot be fixed automatically. Please investigate.'
                 ;
             } else {
-                $messageBody =
-                    'The target ' . $this->getRelativePathBelowSiteRoot() . ' should be a directory,' .
-                    ' but is of unknown type, probably because an upper level directory does not exist. Please investigate.'
+                $messageBody
+                    = 'The target ' . $this->getRelativePathBelowSiteRoot() . ' should be a directory,'
+                    . ' but is of unknown type, probably because an upper level directory does not exist. Please investigate.'
                 ;
             }
             $result[] = new FlashMessage(

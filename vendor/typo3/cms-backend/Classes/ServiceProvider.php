@@ -32,7 +32,6 @@ use TYPO3\CMS\Backend\Security\SudoMode\Access\AccessFactory;
 use TYPO3\CMS\Backend\Security\SudoMode\Access\AccessStorage;
 use TYPO3\CMS\Core\Cache\Event\CacheWarmupEvent;
 use TYPO3\CMS\Core\Cache\Exception\InvalidDataException;
-use TYPO3\CMS\Core\Configuration\ConfigurationManager;
 use TYPO3\CMS\Core\Context\Context;
 use TYPO3\CMS\Core\EventDispatcher\ListenerProvider;
 use TYPO3\CMS\Core\Exception as CoreException;
@@ -93,12 +92,10 @@ class ServiceProvider extends AbstractServiceProvider
             $container->get('backend.middlewares'),
             $container
         );
-        return new Application(
+        return self::new($container, Application::class, [
             $requestHandler,
-            $container->get(ConfigurationManager::class),
             $container->get(Context::class),
-            $container->get(BackendEntryPointResolver::class)
-        );
+        ]);
     }
 
     public static function getRequestHandler(ContainerInterface $container): RequestHandler
@@ -114,6 +111,7 @@ class ServiceProvider extends AbstractServiceProvider
     {
         return self::new($container, RouteDispatcher::class, [
             $container->get(FormProtectionFactory::class),
+            $container->get(EventDispatcherInterface::class),
             $container->get(AccessFactory::class),
             $container->get(AccessStorage::class),
             $container,
@@ -174,7 +172,10 @@ class ServiceProvider extends AbstractServiceProvider
 
     public static function configureBackendRouter(ContainerInterface $container, ?Router $router = null): Router
     {
-        $router = $router ?? self::new($container, Router::class, [$container->get(RequestContextFactory::class)]);
+        $router = $router ?? self::new($container, Router::class, [
+            $container->get(RequestContextFactory::class),
+            $container->get(BackendEntryPointResolver::class),
+        ]);
         $cache = $container->get('cache.core');
 
         $cacheIdentifier = $container->get(PackageDependentCacheIdentifier::class)->withPrefix('BackendRoutes')->toString();

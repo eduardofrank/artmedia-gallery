@@ -17,15 +17,18 @@ declare(strict_types=1);
 
 namespace TYPO3\CMS\Lowlevel\ConfigurationModuleProvider;
 
+use Symfony\Component\DependencyInjection\Attribute\Autoconfigure;
+
 /**
  * Registry for configuration providers which is called by the ConfigurationProviderPass
  */
+#[Autoconfigure(public: true)]
 final class ProviderRegistry
 {
     /**
      * @var ProviderInterface[]
      */
-    protected array $providers = [];
+    private array $providers = [];
 
     public function registerProvider(ProviderInterface $provider, array $attributes): void
     {

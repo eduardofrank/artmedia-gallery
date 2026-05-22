@@ -3,7 +3,7 @@
 // --------------------------------------------------
 $card-color:            $body-color !default;
 $card-title-size:       1.35rem !default;
-$card-subtitle-size:    1.25rem !default;
+$card-subtitle-size:    1.2rem !default;
 $card-link-color:       $link-color !default;
 $card-link-hover-color: $link-hover-color !default;
 
@@ -38,10 +38,7 @@ $card-link-hover-color: $link-hover-color !default;
 }
 .card-title {
     font-size: $card-title-size;
-    margin-bottom: 1rem;
-    a {
-        text-decoration: none;
-    }
+    margin-bottom: .5rem;
 }
 .card-subtitle {
     font-size: $card-subtitle-size;

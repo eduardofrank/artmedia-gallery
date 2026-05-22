@@ -28,10 +28,7 @@ use TYPO3\CMS\Core\Utility\GeneralUtility;
  */
 class FrontendGroupRestriction implements QueryRestrictionInterface
 {
-    /**
-     * @var array
-     */
-    protected $frontendGroupIds;
+    protected array $frontendGroupIds;
 
     /**
      * @param array|null $frontendGroupIds Normalized array with user groups of currently logged in user (typically found in the Frontend Context)
@@ -63,19 +60,20 @@ class FrontendGroupRestriction implements QueryRestrictionInterface
             if (!empty($groupFieldName)) {
                 $fieldName = $tableAlias . '.' . $groupFieldName;
                 // Allow records where no group access has been configured (field values NULL, 0 or empty string)
-                $constraints = [
+                $tableConstraints = [
                     $expressionBuilder->isNull($fieldName),
                     $expressionBuilder->eq($fieldName, $expressionBuilder->literal('')),
                     $expressionBuilder->eq($fieldName, $expressionBuilder->literal('0')),
                 ];
                 foreach ($this->frontendGroupIds as $frontendGroupId) {
-                    $constraints[] = $expressionBuilder->inSet(
+                    $tableConstraints[] = $expressionBuilder->inSet(
                         $fieldName,
-                        $expressionBuilder->literal((string)$frontendGroupId)
+                        $expressionBuilder->literal((string)($frontendGroupId ?? ''))
                     );
                 }
+                $constraints[] = $expressionBuilder->or(...$tableConstraints);
             }
         }
-        return $expressionBuilder->or(...$constraints);
+        return $expressionBuilder->and(...$constraints);
     }
 }

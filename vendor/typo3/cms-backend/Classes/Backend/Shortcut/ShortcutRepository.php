@@ -17,6 +17,8 @@ declare(strict_types=1);
 
 namespace TYPO3\CMS\Backend\Backend\Shortcut;
 
+use Psr\Log\LoggerInterface;
+use Symfony\Component\DependencyInjection\Attribute\Autoconfigure;
 use TYPO3\CMS\Backend\Module\ModuleProvider;
 use TYPO3\CMS\Backend\Routing\Router;
 use TYPO3\CMS\Backend\Routing\UriBuilder;
@@ -24,8 +26,8 @@ use TYPO3\CMS\Backend\Utility\BackendUtility;
 use TYPO3\CMS\Core\Authentication\BackendUserAuthentication;
 use TYPO3\CMS\Core\Database\Connection;
 use TYPO3\CMS\Core\Database\ConnectionPool;
-use TYPO3\CMS\Core\Imaging\Icon;
 use TYPO3\CMS\Core\Imaging\IconFactory;
+use TYPO3\CMS\Core\Imaging\IconSize;
 use TYPO3\CMS\Core\Localization\LanguageService;
 use TYPO3\CMS\Core\Resource\Exception\FolderDoesNotExistException;
 use TYPO3\CMS\Core\Resource\Exception\InsufficientFolderAccessPermissionsException;
@@ -38,6 +40,7 @@ use TYPO3\CMS\Core\Utility\GeneralUtility;
  *
  * @internal This class is a specific Backend implementation and is not considered part of the Public TYPO3 API.
  */
+#[Autoconfigure(public: true)]
 class ShortcutRepository
 {
     /**
@@ -57,6 +60,7 @@ class ShortcutRepository
         protected readonly ModuleProvider $moduleProvider,
         protected readonly Router $router,
         protected readonly UriBuilder $uriBuilder,
+        protected readonly LoggerInterface $logger,
     ) {
         $this->shortcutGroups = $this->initShortcutGroups();
         $this->shortcuts = $this->initShortcuts();
@@ -442,6 +446,13 @@ class ShortcutRepository
                     } catch (FolderDoesNotExistException $e) {
                         // Folder does not longer exists. However, the shortcut
                         // is still displayed, allowing the user to remove it.
+                    } catch (\Throwable $e) {
+                        // Catch any other error or exception to avoid blocking this component
+                        $this->logger->error('Failed to resolve folder identifier "{folder}" in backend user shortcut: {message}', [
+                            'folder' => $folderIdentifier,
+                            'message' => $e->getMessage(),
+                        ]);
+                        continue;
                     }
                 }
             } else {
@@ -493,7 +504,6 @@ class ShortcutRepository
             $shortcut['href'] = (string)$this->uriBuilder->buildUriFromRoute($routeIdentifier, $arguments);
             $shortcut['route'] = $routeIdentifier;
             $shortcut['module'] = $moduleName;
-            $shortcut['pageId'] = $pageId;
             $shortcuts[] = $shortcut;
         }
 
@@ -544,16 +554,13 @@ class ShortcutRepository
 
                 if ($shortcut['type'] === 'edit') {
                     $row = BackendUtility::getRecordWSOL($table, $recordid) ?? [];
-                    $icon = $this->iconFactory->getIconForRecord($table, $row, Icon::SIZE_SMALL)->render();
+                    $icon = $this->iconFactory->getIconForRecord($table, $row, IconSize::SMALL)->render();
                 } elseif ($shortcut['type'] === 'new') {
-                    $icon = $this->iconFactory->getIconForRecord($table, [], Icon::SIZE_SMALL)->render();
+                    $icon = $this->iconFactory->getIconForRecord($table, [], IconSize::SMALL)->render();
                 }
                 break;
             case 'file_edit':
-                $icon = $this->iconFactory->getIcon('mimetypes-text-html', Icon::SIZE_SMALL)->render();
-                break;
-            case 'wizard_rte':
-                $icon = $this->iconFactory->getIcon('mimetypes-word', Icon::SIZE_SMALL)->render();
+                $icon = $this->iconFactory->getIcon('mimetypes-text-html', IconSize::SMALL)->render();
                 break;
             default:
                 $iconIdentifier = '';
@@ -566,7 +573,7 @@ class ShortcutRepository
                 if ($iconIdentifier === '') {
                     $iconIdentifier = 'empty-empty';
                 }
-                $icon = $this->iconFactory->getIcon($iconIdentifier, Icon::SIZE_SMALL)->render();
+                $icon = $this->iconFactory->getIcon($iconIdentifier, IconSize::SMALL)->render();
         }
 
         return $icon;
@@ -589,7 +596,7 @@ class ShortcutRepository
      */
     protected function isSpecialRoute(string $routeIdentifier): bool
     {
-        return in_array($routeIdentifier, ['record_edit', 'file_edit', 'wizard_rte'], true);
+        return in_array($routeIdentifier, ['record_edit', 'file_edit'], true);
     }
 
     protected function getBackendUser(): BackendUserAuthentication

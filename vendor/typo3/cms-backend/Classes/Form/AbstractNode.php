@@ -30,14 +30,6 @@ abstract class AbstractNode implements NodeInterface, LoggerAwareInterface
     use LoggerAwareTrait;
 
     /**
-     * Instance of the node factory to create sub elements, container and single element expansions.
-     *
-     * @var NodeFactory
-     * @deprecated since TYPO3 v12.4. will be removed in TYPO3 v13.0.
-     */
-    protected $nodeFactory;
-
-    /**
      * Main data array to work on, given from parent to child elements
      */
     protected array $data = [];
@@ -66,34 +58,19 @@ abstract class AbstractNode implements NodeInterface, LoggerAwareInterface
     protected $defaultFieldWizard = [];
 
     /**
-     * Set data to data array and register node factory to render sub elements
-     *
-     * @deprecated since TYPO3 v12.4. Default constructor will be removed in v13.
-     */
-    public function __construct(?NodeFactory $nodeFactory = null, array $data = [])
-    {
-        $this->data = $data;
-        $this->nodeFactory = $nodeFactory;
-    }
-
-    /**
      * Retrieve the current data array from NodeFactory.
-     *
-     * @todo: Enable this method in v13. Enable interface method in NodeInterface.
      */
-    /*
     public function setData(array $data): void
     {
         $this->data = $data;
     }
-    */
 
     /**
      * Handler for single nodes
      *
      * @return array As defined in initializeResultArray() of AbstractNode
      */
-    abstract public function render();
+    abstract public function render(): array;
 
     /**
      * Initialize the array that is returned to parent after calling. This structure
@@ -104,20 +81,14 @@ abstract class AbstractNode implements NodeInterface, LoggerAwareInterface
     {
         /** @var list<\TYPO3\CMS\Core\Page\JavaScriptModuleInstruction> */
         $javaScriptModules = [];
-        /** @deprecated will be removed in TYPO3 v13.0 */
-        /** @var list<\TYPO3\CMS\Core\Page\JavaScriptModuleInstruction> */
-        $requireJsModules = [];
+
         return [
-            // @deprecated since TYPO3 v12.4. will be removed in TYPO3 v13.0.
-            'additionalJavaScriptPost' => [],
             // @todo deprecate additionalHiddenFields in TYPO3 v12.0 - this return key is essentially
             //       useless. Elements can simply submit their hidden HTML fields in the html key.
             'additionalHiddenFields' => [],
             'additionalInlineLanguageLabelFiles' => [],
             'stylesheetFiles' => [],
             'javaScriptModules' => $javaScriptModules,
-            /** @deprecated will be removed in TYPO3 v13.0 */
-            'requireJsModules' => $requireJsModules,
             'inlineData' => [],
             'html' => '',
         ];
@@ -138,10 +109,6 @@ abstract class AbstractNode implements NodeInterface, LoggerAwareInterface
         if ($mergeHtml && !empty($childReturn['html'])) {
             $existing['html'] .= LF . $childReturn['html'];
         }
-        // @deprecated since TYPO3 v12.4. will be removed in TYPO3 v13.0.
-        foreach ($childReturn['additionalJavaScriptPost'] ?? [] as $value) {
-            $existing['additionalJavaScriptPost'][] = $value;
-        }
         foreach ($childReturn['additionalHiddenFields'] ?? [] as $value) {
             $existing['additionalHiddenFields'][] = $value;
         }
@@ -150,10 +117,6 @@ abstract class AbstractNode implements NodeInterface, LoggerAwareInterface
         }
         foreach ($childReturn['javaScriptModules'] ?? [] as $module) {
             $existing['javaScriptModules'][] = $module;
-        }
-        /** @deprecated will be removed in TYPO3 v13.0 */
-        foreach ($childReturn['requireJsModules'] ?? [] as $module) {
-            $existing['requireJsModules'][] = $module;
         }
         foreach ($childReturn['additionalInlineLanguageLabelFiles'] ?? [] as $inlineLanguageLabelFile) {
             $existing['additionalInlineLanguageLabelFiles'][] = $inlineLanguageLabelFile;
@@ -174,7 +137,7 @@ abstract class AbstractNode implements NodeInterface, LoggerAwareInterface
     {
         $validationRules = [];
         if (!empty($config['eval'])) {
-            $evalList = GeneralUtility::trimExplode(',', $config['eval'] ?? '', true);
+            $evalList = GeneralUtility::trimExplode(',', $config['eval'], true);
             foreach ($evalList as $evalType) {
                 $validationRules[] = [
                     'type' => $evalType,

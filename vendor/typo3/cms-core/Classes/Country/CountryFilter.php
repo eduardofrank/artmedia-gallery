@@ -26,14 +26,14 @@ final class CountryFilter
      * @param string[] $excludeCountries
      * @param string[] $onlyCountries
      */
-    public function __construct(protected array $excludeCountries = [], protected array $onlyCountries = []) {}
+    public function __construct(private array $excludeCountries = [], private array $onlyCountries = []) {}
 
     /**
      * @return string[]
      */
     public function getExcludeCountries(): array
     {
-        return array_map('strtoupper', $this->excludeCountries);
+        return array_map(strtoupper(...), $this->excludeCountries);
     }
 
     /**
@@ -51,7 +51,7 @@ final class CountryFilter
      */
     public function getOnlyCountries(): array
     {
-        return array_map('strtoupper', $this->onlyCountries);
+        return array_map(strtoupper(...), $this->onlyCountries);
     }
 
     /**

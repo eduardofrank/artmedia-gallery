@@ -22,6 +22,7 @@ use Psr\Http\Message\ServerRequestInterface;
 use TYPO3\CMS\Core\Http\HtmlResponse;
 use TYPO3\CMS\Core\Http\NormalizedParams;
 use TYPO3\CMS\Core\Security\ContentSecurityPolicy\ConsumableNonce;
+use TYPO3\CMS\Core\Security\ContentSecurityPolicy\Directive;
 use TYPO3\CMS\Core\Utility\GeneralUtility;
 use TYPO3\CMS\Core\Utility\PathUtility;
 
@@ -75,18 +76,18 @@ class ReferrerEnforcer
                 || ($referrerType & self::TYPE_REFERRER_SAME_SITE && in_array('refresh-same-site', $flags, true))
             )
         ) {
-            $refreshParameter = 'referrer-refresh=' . (time() + $expiration);
             $refreshUri = $this->request->getUri();
-            $query = $refreshUri->getQuery();
+            parse_str($refreshUri->getQuery(), $queryParams);
+            $queryParams['referrer-refresh'] = time() + $expiration;
             $refreshUri = $refreshUri->withQuery(
-                $query !== '' ? $query . '&' . $refreshParameter : $refreshParameter
+                http_build_query($queryParams, '', '&', PHP_QUERY_RFC3986)
             );
             $scriptUri = $this->resolveAbsoluteWebPath(
                 'EXT:core/Resources/Public/JavaScript/referrer-refresh.js'
             );
             $attributes = ['src' => $scriptUri];
             if ($nonce instanceof ConsumableNonce) {
-                $attributes['nonce'] = $nonce->consume();
+                $attributes['nonce'] = $nonce->consumeStatic(Directive::ScriptSrcElem);
             }
             // simulating navigate event by clicking anchor link
             // since meta-refresh won't change `document.referrer` in e.g. Firefox

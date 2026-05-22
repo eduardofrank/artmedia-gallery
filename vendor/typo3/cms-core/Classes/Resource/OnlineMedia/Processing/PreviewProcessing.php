@@ -16,6 +16,7 @@
 namespace TYPO3\CMS\Core\Resource\OnlineMedia\Processing;
 
 use Psr\EventDispatcher\EventDispatcherInterface;
+use Symfony\Component\DependencyInjection\Attribute\Autoconfigure;
 use TYPO3\CMS\Core\Resource\File;
 use TYPO3\CMS\Core\Resource\OnlineMedia\Event\AfterVideoPreviewFetchedEvent;
 use TYPO3\CMS\Core\Resource\OnlineMedia\Helpers\OnlineMediaHelperRegistry;
@@ -26,12 +27,13 @@ use TYPO3\CMS\Core\Resource\Processing\TaskInterface;
 /**
  * Preview of Online Media item Processing
  */
+#[Autoconfigure(public: true)]
 final class PreviewProcessing implements ProcessorInterface
 {
     public function __construct(
-        protected readonly OnlineMediaHelperRegistry $onlineMediaHelperRegistry,
-        protected readonly EventDispatcherInterface $eventDispatcher,
-        protected readonly LocalImageProcessor $localImageProcessor,
+        private readonly OnlineMediaHelperRegistry $onlineMediaHelperRegistry,
+        private readonly EventDispatcherInterface $eventDispatcher,
+        private readonly LocalImageProcessor $localImageProcessor,
     ) {}
 
     public function canProcessTask(TaskInterface $task): bool
@@ -58,7 +60,7 @@ final class PreviewProcessing implements ProcessorInterface
         );
     }
 
-    protected function getPreviewImageFromOnlineMedia(File $file): string
+    private function getPreviewImageFromOnlineMedia(File $file): string
     {
         $onlineMediaHelper = $this->onlineMediaHelperRegistry->getOnlineMediaHelper($file);
         $previewImage = $onlineMediaHelper->getPreviewImage($file);

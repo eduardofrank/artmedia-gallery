@@ -27,11 +27,11 @@ use TYPO3\CMS\Core\Security\ContentSecurityPolicy\PolicyRegistry;
  * @internal
  */
 #[Autoconfigure(public: true)]
-final class MetaDataState
+readonly class MetaDataState
 {
     public function __construct(
-        private readonly ModelService $modelService,
-        private readonly PolicyRegistry $policyRegistry,
+        private ModelService $modelService,
+        private PolicyRegistry $policyRegistry,
     ) {}
 
     public function getState(): array

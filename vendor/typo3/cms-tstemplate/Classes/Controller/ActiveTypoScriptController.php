@@ -27,7 +27,7 @@ use TYPO3\CMS\Backend\Template\ModuleTemplateFactory;
 use TYPO3\CMS\Backend\Utility\BackendUtility;
 use TYPO3\CMS\Core\DataHandling\DataHandler;
 use TYPO3\CMS\Core\Http\RedirectResponse;
-use TYPO3\CMS\Core\Imaging\Icon;
+use TYPO3\CMS\Core\Imaging\IconSize;
 use TYPO3\CMS\Core\Messaging\FlashMessage;
 use TYPO3\CMS\Core\Messaging\FlashMessageService;
 use TYPO3\CMS\Core\Type\ContextualFeedbackSeverity;
@@ -94,6 +94,8 @@ final class ActiveTypoScriptController extends AbstractTemplateModuleController
 
         // @todo: Switch to BU::BEgetRootLine($pageUid, '', true) as in PageTsConfig? Similar in other controllers and actions.
         $rootLine = GeneralUtility::makeInstance(RootlineUtility::class, $pageUid)->get();
+        $site = $request->getAttribute('site');
+        $rootLine = $this->getScopedRootline($site, $rootLine);
 
         // Template selection handling for this page
         $allTemplatesOnPage = $this->getAllTemplateRecordsOnPage($pageUid);
@@ -128,10 +130,9 @@ final class ActiveTypoScriptController extends AbstractTemplateModuleController
         }
         $displayComments = $moduleData->get('displayComments');
 
-        $sysTemplateRows = $this->sysTemplateRepository->getSysTemplateRowsByRootlineWithUidOverride($rootLine, $request, $selectedTemplateUid);
+        $sysTemplateRows = $this->sysTemplateRepository->getSysTemplateRowsByRootlineWithUidOverride($rootLine, $request, $selectedTemplateUid, $this->createVisibilityAspect());
 
         // Build the constant include tree
-        $site = $request->getAttribute('site');
         $constantIncludeTree = $this->treeBuilder->getTreeBySysTemplateRowsAndSite('constants', $sysTemplateRows, new LosslessTokenizer(), $site);
         // Set enabled conditions in constant include tree
         $constantConditions = $this->handleToggledConstantConditions($constantIncludeTree, $moduleData, $parsedBody);
@@ -176,7 +177,7 @@ final class ActiveTypoScriptController extends AbstractTemplateModuleController
         $view = $this->moduleTemplateFactory->create($request);
         $view->setTitle($languageService->sL($currentModule->getTitle()), $pageRecord['title']);
         $view->getDocHeaderComponent()->setMetaInformation($pageRecord);
-        $this->addPreviewButtonToDocHeader($view, $pageUid, (int)$pageRecord['doktype']);
+        $this->addPreviewButtonToDocHeader($view, $pageRecord);
         $this->addShortcutButtonToDocHeader($view, $currentModuleIdentifier, $pageRecord, $pageUid);
         $view->makeDocHeaderModuleMenu(['id' => $pageUid]);
         $view->assignMultiple([
@@ -225,6 +226,8 @@ final class ActiveTypoScriptController extends AbstractTemplateModuleController
 
         // @todo: Switch to BU::BEgetRootLine($pageUid, '', true) as in PageTsConfig? Similar in other controllers and actions.
         $rootLine = GeneralUtility::makeInstance(RootlineUtility::class, $pageUid)->get();
+        $site = $request->getAttribute('site');
+        $rootLine = $this->getScopedRootline($site, $rootLine);
 
         // Template selection handling
         $allTemplatesOnPage = $this->getAllTemplateRecordsOnPage($pageUid);
@@ -243,8 +246,7 @@ final class ActiveTypoScriptController extends AbstractTemplateModuleController
             }
         }
 
-        $site = $request->getAttribute('site');
-        $sysTemplateRows = $this->sysTemplateRepository->getSysTemplateRowsByRootlineWithUidOverride($rootLine, $request, $selectedTemplateUid);
+        $sysTemplateRows = $this->sysTemplateRepository->getSysTemplateRowsByRootlineWithUidOverride($rootLine, $request, $selectedTemplateUid, $this->createVisibilityAspect());
 
         // Get current value of to-edit object path
         // Build the constant include tree
@@ -521,7 +523,7 @@ final class ActiveTypoScriptController extends AbstractTemplateModuleController
             ->setHref((string)$this->uriBuilder->buildUriFromRoute('typoscript_active', ['id' => $pageUid]))
             ->setTitle($languageService->sL('LLL:EXT:core/Resources/Private/Language/locallang_core.xlf:labels.goBack'))
             ->setShowLabelText(true)
-            ->setIcon($this->iconFactory->getIcon('actions-view-go-back', Icon::SIZE_SMALL));
+            ->setIcon($this->iconFactory->getIcon('actions-view-go-back', IconSize::SMALL));
         $buttonBar->addButton($backButton);
     }
 }

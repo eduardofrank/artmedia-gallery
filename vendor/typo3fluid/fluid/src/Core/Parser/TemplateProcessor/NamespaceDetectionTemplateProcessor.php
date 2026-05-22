@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 /*
  * This file belongs to the package "TYPO3 Fluid".
  * See LICENSE.txt that was shipped with this package.
@@ -7,6 +9,7 @@
 
 namespace TYPO3Fluid\Fluid\Core\Parser\TemplateProcessor;
 
+use TYPO3Fluid\Fluid\Core\Parser\Exception;
 use TYPO3Fluid\Fluid\Core\Parser\Patterns;
 use TYPO3Fluid\Fluid\Core\Parser\TemplateProcessorInterface;
 use TYPO3Fluid\Fluid\Core\Rendering\RenderingContextInterface;
@@ -22,15 +25,9 @@ class NamespaceDetectionTemplateProcessor implements TemplateProcessorInterface
 {
     public const NAMESPACE_DECLARATION = '/(?<!\\\\){namespace\s*(?P<identifier>[a-zA-Z\*]+[a-zA-Z0-9\.\*]*)\s*(=\s*(?P<phpNamespace>(?:[A-Za-z0-9\.]+|Tx)(?:\\\\\w+)+)\s*)?}/m';
 
-    /**
-     * @var RenderingContextInterface
-     */
-    protected $renderingContext;
+    protected RenderingContextInterface $renderingContext;
 
-    /**
-     * @param RenderingContextInterface $renderingContext
-     */
-    public function setRenderingContext(RenderingContextInterface $renderingContext)
+    public function setRenderingContext(RenderingContextInterface $renderingContext): void
     {
         $this->renderingContext = $renderingContext;
     }
@@ -39,11 +36,8 @@ class NamespaceDetectionTemplateProcessor implements TemplateProcessorInterface
      * Pre-process the template source before it is
      * returned to the TemplateParser or passed to
      * the next TemplateProcessorInterface instance.
-     *
-     * @param string $templateSource
-     * @return string
      */
-    public function preProcessSource($templateSource)
+    public function preProcessSource(string $templateSource): string
     {
         $templateSource = $this->replaceCdataSectionsByEmptyLines($templateSource);
         $templateSource = $this->registerNamespacesFromTemplateSource($templateSource);
@@ -55,11 +49,20 @@ class NamespaceDetectionTemplateProcessor implements TemplateProcessorInterface
      * processing in the templateParser while maintaining the line-count
      * of the template string for the exception handler to reference to.
      *
-     * @param string $templateSource
-     * @return string
+     * @todo It should be evaluated if this is really necessary. If it is, it should
+     *       be moved to a separate TemplateProcessor (which would be a breaking change)
+     *
+     * @deprecated since Fluid v4.5, will be removed in Fluid v5.0.
      */
-    public function replaceCdataSectionsByEmptyLines($templateSource)
+    public function replaceCdataSectionsByEmptyLines(string $templateSource): string
     {
+        if (str_contains($templateSource, '<![CDATA[')) {
+            trigger_error(
+                'Replacing cdata sections by empty lines is deprecated and will be removed in Fluid v5.0.',
+                E_USER_DEPRECATED,
+            );
+        }
+
         $parts = preg_split('/(\<\!\[CDATA\[|\]\]\>)/', $templateSource, -1, PREG_SPLIT_DELIM_CAPTURE);
 
         $balance = 0;
@@ -80,11 +83,8 @@ class NamespaceDetectionTemplateProcessor implements TemplateProcessorInterface
 
     /**
      * Register all namespaces that are declared inside the template string
-     *
-     * @param string $templateSource
-     * @return string
      */
-    public function registerNamespacesFromTemplateSource($templateSource)
+    public function registerNamespacesFromTemplateSource(string $templateSource): string
     {
         $viewHelperResolver = $this->renderingContext->getViewHelperResolver();
         $matches = [];
@@ -96,24 +96,31 @@ class NamespaceDetectionTemplateProcessor implements TemplateProcessorInterface
             preg_match_all('/' . $namespacePattern . '/', $matches[0], $namespaces, PREG_SET_ORDER);
             foreach ($namespaces as $set) {
                 $namespaceUrl = trim($set[2], '"\'');
-                if (strpos($namespaceUrl, Patterns::NAMESPACEPREFIX) === 0) {
+                if (str_starts_with($namespaceUrl, Patterns::NAMESPACEPREFIX)) {
                     $namespaceUri = substr($namespaceUrl, 20);
                     $namespacePhp = str_replace('/', '\\', $namespaceUri);
+                } elseif (str_starts_with($namespaceUrl, Patterns::NAMESPACEPREFIX_INVALID)) {
+                    throw new Exception(
+                        'Invalid Fluid namespace definition detected: ' . $namespaceUrl . '. Namespaces must always start with ' . Patterns::NAMESPACEPREFIX . '.',
+                        1721467847,
+                    );
                 } elseif (!preg_match('/([^a-z0-9_\\\\]+)/i', $namespaceUrl)) {
+                    trigger_error('Using the xmlns namespace syntax with a PHP namespace instead of an url is deprecated and will no longer work in Fluid v5.', E_USER_DEPRECATED);
                     $namespacePhp = $namespaceUrl;
                     $namespacePhp = preg_replace('/\\\\{2,}/', '\\', $namespacePhp);
                 } else {
                     $namespacePhp = null;
                 }
-                $viewHelperResolver->addNamespace($set[1], $namespacePhp);
+                $viewHelperResolver->addLocalNamespace($set[1], $namespacePhp);
             }
             if (strpos($matches[0], 'data-namespace-typo3-fluid="true"')) {
-                $templateSource = str_replace($matches[0], '', $templateSource);
+                $removedNewlines = substr_count($matches[0], "\n");
+                $templateSource = str_replace($matches[0], str_repeat("\n", $removedNewlines), $templateSource);
                 $closingTagName = $matches[1];
                 $closingTag = '</' . $closingTagName . '>';
                 if (strpos($templateSource, $closingTag)) {
-                    $templateSource = substr($templateSource, 0, strrpos($templateSource, $closingTag)) .
-                        substr($templateSource, strrpos($templateSource, $closingTag) + strlen($closingTag));
+                    $templateSource = substr($templateSource, 0, strrpos($templateSource, $closingTag))
+                        . substr($templateSource, strrpos($templateSource, $closingTag) + strlen($closingTag));
                 }
             } else {
                 $namespaceAttributesToRemove = [];
@@ -137,7 +144,7 @@ class NamespaceDetectionTemplateProcessor implements TemplateProcessorInterface
                 if (strlen($namespace) === 0) {
                     $namespace = null;
                 }
-                $viewHelperResolver->addNamespace($identifier, $namespace);
+                $viewHelperResolver->addLocalNamespace($identifier, $namespace);
             }
             foreach ($namespaces[0] as $removal) {
                 $templateSource = str_replace($removal, '', $templateSource);

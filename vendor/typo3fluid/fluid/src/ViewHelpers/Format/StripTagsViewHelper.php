@@ -10,9 +10,7 @@ declare(strict_types=1);
 namespace TYPO3Fluid\Fluid\ViewHelpers\Format;
 
 use Stringable;
-use TYPO3Fluid\Fluid\Core\Rendering\RenderingContextInterface;
 use TYPO3Fluid\Fluid\Core\ViewHelper\AbstractViewHelper;
-use TYPO3Fluid\Fluid\Core\ViewHelper\Traits\CompileWithRenderStatic;
 
 /**
  * Removes tags from the given string (applying PHPs :php:`strip_tags()` function)
@@ -63,11 +61,12 @@ use TYPO3Fluid\Fluid\Core\ViewHelper\Traits\CompileWithRenderStatic;
  *    {text -> f:format.stripTags(allowedTags: "<p><span><div><script>")}
  *
  * Text with p, span, div and script Tags inside, all other tags are removed.
+ *
+ * @api
+ * @see https://docs.typo3.org/permalink/fluid:typo3fluid-fluid-format-striptags
  */
 final class StripTagsViewHelper extends AbstractViewHelper
 {
-    use CompileWithRenderStatic;
-
     /**
      * No output escaping as some tags may be allowed
      *
@@ -94,11 +93,10 @@ final class StripTagsViewHelper extends AbstractViewHelper
      * @see https://www.php.net/manual/function.strip-tags.php
      * @return string
      */
-    public static function renderStatic(array $arguments, \Closure $renderChildrenClosure, RenderingContextInterface $renderingContext): string
+    public function render(): string
     {
-        $value = $renderChildrenClosure();
-        $allowedTags = $arguments['allowedTags'];
-
+        $value = $this->renderChildren();
+        $allowedTags = $this->arguments['allowedTags'];
         if (is_array($value)) {
             throw new \InvalidArgumentException('Specified array cannot be converted to string.', 1700819707);
         }

@@ -18,6 +18,7 @@ declare(strict_types=1);
 namespace TYPO3\CMS\Backend\Form\FormDataProvider;
 
 use TYPO3\CMS\Backend\Form\FormDataProviderInterface;
+use TYPO3\CMS\Core\Resource\Exception\InsufficientFolderAccessPermissionsException;
 use TYPO3\CMS\Core\Resource\Exception\ResourceDoesNotExistException;
 use TYPO3\CMS\Core\Resource\Folder;
 use TYPO3\CMS\Core\Resource\ResourceFactory;
@@ -27,8 +28,12 @@ use TYPO3\CMS\Core\Utility\MathUtility;
 /**
  * Resolve databaseRow field content for type=folder
  */
-class TcaFolder implements FormDataProviderInterface
+readonly class TcaFolder implements FormDataProviderInterface
 {
+    public function __construct(
+        private ResourceFactory $resourceFactory,
+    ) {}
+
     /**
      * Initialize new row with default values from various sources
      *
@@ -64,13 +69,13 @@ class TcaFolder implements FormDataProviderInterface
                     continue;
                 }
                 try {
-                    $folderObject = GeneralUtility::makeInstance(ResourceFactory::class)->retrieveFileOrFolderObject($folder);
+                    $folderObject = $this->resourceFactory->retrieveFileOrFolderObject($folder);
                     if ($folderObject instanceof Folder) {
                         $items[] = [
                             'folder' => $folder,
                         ];
                     }
-                } catch (ResourceDoesNotExistException) {
+                } catch (ResourceDoesNotExistException|InsufficientFolderAccessPermissionsException) {
                     continue;
                 }
             }

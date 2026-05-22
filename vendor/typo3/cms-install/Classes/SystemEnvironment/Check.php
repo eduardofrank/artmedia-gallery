@@ -17,6 +17,7 @@ declare(strict_types=1);
 
 namespace TYPO3\CMS\Install\SystemEnvironment;
 
+use TYPO3\CMS\Core\Core\Environment;
 use TYPO3\CMS\Core\Information\Typo3Information;
 use TYPO3\CMS\Core\Messaging\FlashMessage;
 use TYPO3\CMS\Core\Messaging\FlashMessageQueue;
@@ -72,6 +73,7 @@ class Check implements CheckInterface
      * @var string[]
      */
     protected $suggestedPhpExtensions = [
+        'exif' => 'This extension is used to detect the orientation of uploaded images.',
         'fileinfo' => 'This extension is used for proper file type detection in the File Abstraction Layer.',
         'openssl' => 'This extension is used for sending SMTP mails over an encrypted channel endpoint.',
     ];
@@ -213,6 +215,14 @@ class Check implements CheckInterface
         $recommendedMemoryLimit = 128;
         $memoryLimit = $this->getBytesFromSizeMeasurement((string)ini_get('memory_limit'));
         if ($memoryLimit <= 0) {
+            if (Environment::isCli()) {
+                // "0" memory limit for CLI is usually "just fine". Do not cause a report for this in CLI mode (but in web mode)
+                $this->messageQueue->enqueue(new FlashMessage(
+                    'Maximum PHP memory limit is set to zero; this is commonly set in PHP CLI mode, which is currently active for this check.',
+                    'Unlimited memory limit for PHP (CLI)',
+                ));
+                return;
+            }
             $this->messageQueue->enqueue(new FlashMessage(
                 'PHP is configured not to limit memory usage at all. This is a risk'
                     . ' and should be avoided in production setup. In general it\'s best practice to limit this.'
@@ -257,7 +267,7 @@ class Check implements CheckInterface
      */
     protected function checkPhpVersion()
     {
-        $minimumPhpVersion = '8.1.0';
+        $minimumPhpVersion = '8.2.0';
         $currentPhpVersion = PHP_VERSION;
         if (version_compare($currentPhpVersion, $minimumPhpVersion) < 0) {
             $this->messageQueue->enqueue(new FlashMessage(
@@ -317,6 +327,14 @@ class Check implements CheckInterface
         $recommendedMaximumExecutionTime = 240;
         $currentMaximumExecutionTime = ini_get('max_execution_time');
         if ($currentMaximumExecutionTime == 0) {
+            if (Environment::isCli()) {
+                // "0" execution time for CLI is usually "just fine". Do not cause a report for this in CLI mode (but in web mode)
+                $this->messageQueue->enqueue(new FlashMessage(
+                    'Maximum PHP script execution time is set to zero; this is commonly set in PHP CLI mode, which is currently active for this check.',
+                    'Infinite PHP script execution time',
+                ));
+                return;
+            }
             $this->messageQueue->enqueue(new FlashMessage(
                 'max_execution_time=0' . LF
                     . 'While TYPO3 is fine with this, you risk a denial-of-service for your system if for whatever'
@@ -370,7 +388,30 @@ class Check implements CheckInterface
             // Disabled by default on Ubuntu OS but this is okay since the Core does not use them
             'pcntl_',
         ];
+
+        // List of disable_functions which would not trigger an error, but only a warning
+        $configuredAllowedDisableFunctions = $GLOBALS['TYPO3_CONF_VARS']['SYS']['allowedPhpDisableFunctions'] ?? [];
+        if (!is_array($configuredAllowedDisableFunctions)) {
+            $configuredAllowedDisableFunctions = [];
+        }
+        $foundAllowedDisableFunctions = [];
+
+        // Iterate all functions that are currently disabled by PHP ($disabledFunctionsArray).
+        // Each disabled function ($disabledFunction) is checked whether it may be acceptable
+        // to be disabled (based on $configuredAllowedDisableFunctions).
+        // If good to be disabled: Remove from $disabledFunctionsArray (which is emitted later on),
+        //                         and also add to $foundAllowedDisableFunctions for reporting.
+        // Else: Check if the function is maybe whitelisted because unused by core ($findStrings)
+        //       and if so, also remove from $disabledFunctionsArray
+        // What remains then in $disabledFunctionsArray is the list of disabled functions that
+        // need to be reported.
         foreach ($disabledFunctionsArray as $key => $disabledFunction) {
+            if (in_array($disabledFunction, $configuredAllowedDisableFunctions, true)) {
+                unset($disabledFunctionsArray[$key]);
+                $foundAllowedDisableFunctions[] = $disabledFunction;
+                continue;
+            }
+
             foreach ($findStrings as $findString) {
                 if (str_contains($disabledFunction, $findString)) {
                     unset($disabledFunctionsArray[$key]);
@@ -379,22 +420,41 @@ class Check implements CheckInterface
         }
 
         if ($disabledFunctions !== '') {
-            if (!empty($disabledFunctionsArray)) {
+            // Error for disable_functions which are not explicitly allowed
+            if ($disabledFunctionsArray !== []) {
                 $this->messageQueue->enqueue(new FlashMessage(
-                    'disable_functions=' . implode(' ', explode(',', $disabledFunctions)) . LF
-                        . 'These function(s) are disabled. TYPO3 uses some of those, so there might be trouble.'
-                        . ' TYPO3 is designed to use the default set of PHP functions plus some common extensions.'
-                        . ' Possibly these functions are disabled'
-                        . ' due to security considerations and most likely the list would include a function like'
-                        . ' exec() which is used by TYPO3 at various places. Depending on which exact functions'
-                        . ' are disabled, some parts of the system may just break without further notice.',
+                    'disable_functions=' . implode(' ', $disabledFunctionsArray) . LF
+                    . '- These function(s) are disabled. TYPO3 uses some of those, so there might be trouble.'
+                    . ' TYPO3 is designed to use the default set of PHP functions plus some common extensions.'
+                    . ' Possibly these functions are disabled'
+                    . ' due to security considerations and often the list would include a function like'
+                    . ' exec() which is used by TYPO3 at various places. Depending on which exact functions'
+                    . ' are disabled, some parts of the system may just break without further notice. Known acceptable'
+                    . ' exemptions can be muted by adding those to'
+                    . ' $GLOBALS[\'TYPO3_CONF_VARS\'][\'SYS\'][\'allowedPhpDisableFunctions\'] in your system'
+                    . ' configuration.',
                     'Some PHP functions disabled',
                     ContextualFeedbackSeverity::ERROR
                 ));
-            } else {
+            }
+            // Warning for disable_functions which are explicitly allowed
+            if ($foundAllowedDisableFunctions !== []) {
+                $this->messageQueue->enqueue(new FlashMessage(
+                    'disable_functions=' . implode(' ', $foundAllowedDisableFunctions) . LF
+                    . '- These function(s) are disabled. TYPO3 or installed extensions may use some of those, but the'
+                    . ' error reporting for them is explicitly muted in your installation via configuration variable'
+                    . ' $GLOBALS[\'TYPO3_CONF_VARS\'][\'SYS\'][\'allowedPhpDisableFunctions\'].'
+                    . ' Please ensure by yourself that these functions are not used by TYPO3 or any other installed package.',
+                    'Some PHP functions disabled, but considered irrelevant',
+                    ContextualFeedbackSeverity::WARNING
+                ));
+            }
+            // Notice for known irrelevant functions (e.g. pcntl_*)
+            // Only shown if none of the two FlashMessages above are emitted.
+            if ($disabledFunctionsArray === [] && $foundAllowedDisableFunctions === []) {
                 $this->messageQueue->enqueue(new FlashMessage(
                     'disable_functions=' . implode(' ', explode(',', $disabledFunctions)) . LF
-                        . 'These function(s) are disabled. TYPO3 uses currently none of those, so you are good to go.',
+                        . '- These function(s) are disabled. TYPO3 uses currently none of those, so you are good to go.',
                     'Some PHP functions currently disabled but OK'
                 ));
             }
@@ -560,7 +620,8 @@ class Check implements CheckInterface
                     . '* The PHP extension eaccelerator is known to break this if'
                     . ' it is compiled without --with-eaccelerator-doc-comment-inclusion flag.'
                     . ' This compile flag must be specified, otherwise TYPO3 CMS will not work.' . LF
-                    . 'For more information take a look in our documentation ' . Typo3Information::URL_OPCACHE . '.',
+                    . 'For more information take a look in our documentation '
+                    . (new Typo3Information())->getDocsLink('t3coreapi:troubleshooting-php-troubleshooting-opcode') . '.',
                 'PHP Doc comment reflection broken',
                 ContextualFeedbackSeverity::ERROR
             ));
@@ -577,6 +638,9 @@ class Check implements CheckInterface
      */
     protected function checkWindowsApacheThreadStackSize()
     {
+        if (Environment::isCli()) {
+            return;
+        }
         if ($this->isWindowsOs()
             && str_starts_with($_SERVER['SERVER_SOFTWARE'], 'Apache')
         ) {
@@ -628,7 +692,6 @@ class Check implements CheckInterface
         if (function_exists('imagecreatetruecolor')) {
             $imageResource = @imagecreatetruecolor(50, 100);
             if ($this->checkImageResource($imageResource)) {
-                imagedestroy($imageResource);
                 $this->messageQueue->enqueue(new FlashMessage(
                     '',
                     'PHP GD library true color works'
@@ -662,7 +725,6 @@ class Check implements CheckInterface
             // Do not use data:// wrapper to be independent of allow_url_fopen
             $imageResource = @imagecreatefromgif(__DIR__ . '/../../Resources/Public/Images/TestInput/Test.gif');
             if ($this->checkImageResource($imageResource)) {
-                imagedestroy($imageResource);
                 $this->messageQueue->enqueue(new FlashMessage(
                     '',
                     'PHP GD library has gif support'
@@ -717,7 +779,6 @@ class Check implements CheckInterface
             // Do not use data:// wrapper to be independent of allow_url_fopen
             $imageResource = @imagecreatefrompng(__DIR__ . '/../../Resources/Public/Images/TestInput/Test.png');
             if ($this->checkImageResource($imageResource)) {
-                imagedestroy($imageResource);
                 $this->messageQueue->enqueue(new FlashMessage(
                     '',
                     'PHP GD library has png support'

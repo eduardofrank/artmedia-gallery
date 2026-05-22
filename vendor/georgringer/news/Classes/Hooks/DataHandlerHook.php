@@ -27,8 +27,6 @@ class DataHandlerHook implements SingletonInterface
     /**
      * Flushes the cache if a news record was edited.
      * This happens on two levels: by UID and by PID.
-     *
-     * @param array $params
      */
     public function clearCachePostProc(array $params): void
     {
@@ -44,6 +42,7 @@ class DataHandlerHook implements SingletonInterface
             foreach (array_unique($this->cacheTagsToFlush) as $cacheTag) {
                 $cacheManager->flushCachesInGroupByTag('pages', $cacheTag);
             }
+            $this->cacheTagsToFlush = [];
         }
     }
 
@@ -73,12 +72,11 @@ class DataHandlerHook implements SingletonInterface
     /**
      * Prevent saving of a news record if the editor doesn't have access to all categories of the news record
      *
-     * @param array $fieldArray
      * @param string $table
      * @param int $id
      * @param $parentObject DataHandler
      */
-    public function processDatamap_preProcessFieldArray(&$fieldArray, $table, $id, $parentObject): void
+    public function processDatamap_preProcessFieldArray(array &$fieldArray, $table, $id, $parentObject): void
     {
         if ($table === 'tx_news_domain_model_news') {
             // check permissions of assigned categories
@@ -99,16 +97,14 @@ class DataHandlerHook implements SingletonInterface
                     $fieldArray = [];
                 } else {
                     // If the category relation has been modified, no | is found anymore
-                    if (isset($fieldArray['categories']) && strpos($fieldArray['categories'], '|') === false) {
+                    if (isset($fieldArray['categories']) && !str_contains($fieldArray['categories'], '|')) {
                         $deniedCategories = AccessControlService::getAccessDeniedCategories($newsRecord);
-                        if (is_array($deniedCategories)) {
-                            foreach ($deniedCategories as $deniedCategory) {
-                                $fieldArray['categories'] .= ',' . $deniedCategory['uid'];
-                            }
-                            // Check if the categories are not empty,
-                            if (!empty($fieldArray['categories'])) {
-                                $fieldArray['categories'] = trim($fieldArray['categories'], ',');
-                            }
+                        foreach ($deniedCategories as $deniedCategory) {
+                            $fieldArray['categories'] .= ',' . $deniedCategory['uid'];
+                        }
+                        // Check if the categories are not empty,
+                        if (!empty($fieldArray['categories'])) {
+                            $fieldArray['categories'] = trim($fieldArray['categories'], ',');
                         }
                     }
                 }
@@ -119,13 +115,12 @@ class DataHandlerHook implements SingletonInterface
     /**
      * Prevent deleting/moving of a news record if the editor doesn't have access to all categories of the news record
      *
-     * @param string $command
      * @param string $table
      * @param int $id
      * @param string $value
      * @param $parentObject DataHandler
      */
-    public function processCmdmap_preProcess($command, &$table, $id, $value, $parentObject): void
+    public function processCmdmap_preProcess(string $command, &$table, $id, $value, $parentObject): void
     {
         if ($table === 'tx_news_domain_model_news' && !$this->getBackendUser()->isAdmin() && is_int($id) && $command !== 'undelete') {
             $newsRecord = BackendUtilityCore::getRecord($table, $id);
@@ -153,12 +148,10 @@ class DataHandlerHook implements SingletonInterface
      * @param int $uid
      * @param int $destPid
      * @param array $propArr
-     * @param array $moveRec
      * @param int $resolvedPid
      * @param bool $recordWasMoved
-     * @param DataHandler $dataHandler
      */
-    public function moveRecord($table, $uid, $destPid, $propArr, $moveRec, $resolvedPid, $recordWasMoved, DataHandler $dataHandler)
+    public function moveRecord($table, $uid, $destPid, $propArr, array $moveRec, $resolvedPid, $recordWasMoved, DataHandler $dataHandler): void
     {
         if ($table === 'tx_news_domain_model_news') {
             $this->cacheTagsToFlush[] = 'tx_news_pid_' . $moveRec['pid'];

@@ -7,9 +7,7 @@
 
 namespace TYPO3Fluid\Fluid\ViewHelpers;
 
-use TYPO3Fluid\Fluid\Core\Rendering\RenderingContextInterface;
 use TYPO3Fluid\Fluid\Core\ViewHelper\AbstractViewHelper;
-use TYPO3Fluid\Fluid\Core\ViewHelper\Traits\CompileWithRenderStatic;
 
 /**
  * Wrapper for PHPs :php:`constant` function.
@@ -37,26 +35,26 @@ use TYPO3Fluid\Fluid\Core\ViewHelper\Traits\CompileWithRenderStatic;
  *
  *    {f:constant(name: '\Vendor\Package\Class::CONSTANT')}
  *
- * Get enum value
- * --------------
+ * Get enum case
+ * -------------
  *
  * ::
  *
  *    {f:constant(name: '\Vendor\Package\Enum::CASE')}
+ *
+ * @api
+ * @see https://docs.typo3.org/permalink/fluid:typo3fluid-fluid-constant
  */
 class ConstantViewHelper extends AbstractViewHelper
 {
-    use CompileWithRenderStatic;
-
     public function initializeArguments(): void
     {
-        parent::initializeArguments();
         $this->registerArgument('name', 'string', 'String representation of a PHP constant or enum');
     }
 
-    public static function renderStatic(array $arguments, \Closure $renderChildrenClosure, RenderingContextInterface $renderingContext): mixed
+    public function render(): mixed
     {
-        $name = $arguments['name'] ?? $renderChildrenClosure();
+        $name = $this->arguments['name'] ?? $this->renderChildren();
         return constant($name);
     }
 }

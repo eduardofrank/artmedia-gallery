@@ -126,7 +126,7 @@ abstract class AbstractFinisher implements FinisherInterface
      *
      * Override and fill with your own implementation!
      *
-     * @return string|null
+     * @return string|void|null
      */
     abstract protected function executeInternal();
 
@@ -139,7 +139,7 @@ abstract class AbstractFinisher implements FinisherInterface
      * If $optionName was not found, the corresponding default option is returned (from $this->defaultOptions)
      *
      * @param string $optionName
-     * @return string|array|int|null
+     * @return string|array|int|bool|null
      */
     protected function parseOption(string $optionName)
     {
@@ -174,7 +174,7 @@ abstract class AbstractFinisher implements FinisherInterface
         $optionValue = $this->substituteRuntimeReferences($optionValue, $formRuntime);
 
         if (is_string($optionValue)) {
-            $translationOptions = isset($this->options['translation']) && \is_array($this->options['translation'])
+            $translationOptions = isset($this->options['translation']) && is_array($this->options['translation'])
                                 ? $this->options['translation']
                                 : [];
 
@@ -362,10 +362,7 @@ abstract class AbstractFinisher implements FinisherInterface
         return !isset($this->options['renderingOptions']['enabled']) || (bool)$this->parseOption('renderingOptions.enabled') === true;
     }
 
-    /**
-     * @return TypoScriptFrontendController
-     */
-    protected function getTypoScriptFrontendController()
+    protected function getTypoScriptFrontendController(): TypoScriptFrontendController
     {
         return $GLOBALS['TSFE'];
     }

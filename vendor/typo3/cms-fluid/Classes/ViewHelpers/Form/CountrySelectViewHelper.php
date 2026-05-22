@@ -24,60 +24,19 @@ use TYPO3\CMS\Core\Utility\GeneralUtility;
 use TYPO3\CMS\Extbase\Utility\LocalizationUtility;
 
 /**
- * Renders a :html:`<select>` tag with all available countries as options.
+ * ViewHelper which renders a `<select>` tag with all or specific countries as options.
  *
- * Examples
- * ========
+ * ```
+ *   <f:form.countrySelect name="country" value="AT" />
+ *   <f:form.countrySelect name="country" value="DE"
+ *       optionLabelField="localizedOfficialName"
+ *       prioritizedCountries="{0: 'DE', 1: 'AT', 2: 'CH'}"
+ *       alternativeLanguage="fr"
+ *       sortByOptionLabel="true"
+ *   />
+ * ```
  *
- * Basic usage
- * -----------
- *
- * ::
- *
- *    <f:form.countrySelect name="country" value="{defaultCountry}" />
- *
- * Output::
- *
- *    <select name="country">
- *      <option value="BE">Belgium</option>
- *      <option value="FR">France</option>
- *      ....
- *    </select>
- *
- * Prioritize countries
- * --------------------
- *
- * Define a list of countries which should be listed as first options in the
- * form element::
- *
- *    <f:form.countrySelect
- *      name="country"
- *      value="AT"
- *      prioritizedCountries="{0: 'DE', 1: 'AT', 2: 'CH'}"
- *    />
- *
- *  Additionally, Austria is pre-selected.
- *
- * Display another language
- * ------------------------
- *
- * A combination of optionLabelField and alternativeLanguage is possible. For
- * instance, if you want to show the localized official names but not in your
- * default language but in French. You can achieve this by using the following
- * combination::
- *
- *    <f:form.countrySelect
- *      name="country"
- *      optionLabelField="localizedOfficialName"
- *      alternativeLanguage="fr"
- *      sortByOptionLabel="true"
- *    />
- *
- * Bind an object
- * --------------
- *
- * You can also use the "property" attribute if you have bound an object to the form.
- * See :ref:`<f:form> <typo3-fluid-form>` for more documentation.
+ * @see https://docs.typo3.org/permalink/t3viewhelper:typo3-fluid-form-countryselect
  */
 final class CountrySelectViewHelper extends AbstractFormFieldViewHelper
 {
@@ -89,9 +48,6 @@ final class CountrySelectViewHelper extends AbstractFormFieldViewHelper
     public function initializeArguments(): void
     {
         parent::initializeArguments();
-        $this->registerUniversalTagAttributes();
-        $this->registerTagAttribute('size', 'string', 'Size of select field, a numeric value to show the amount of items to be visible at the same time - equivalent to HTML <select> site attribute');
-        $this->registerTagAttribute('disabled', 'string', 'Specifies that the input element should be disabled when the page loads');
         $this->registerArgument('excludeCountries', 'array', 'Array with country codes that should not be shown.', false, []);
         $this->registerArgument('onlyCountries', 'array', 'If set, only the country codes in the list are rendered.', false, []);
         $this->registerArgument('optionLabelField', 'string', 'If specified, will call the appropriate getter on each object to determine the label. Use "name", "localizedName", "officialName" or "localizedOfficialName"', false, 'localizedName');
@@ -222,6 +178,11 @@ final class CountrySelectViewHelper extends AbstractFormFieldViewHelper
         if ($isSelected) {
             $output .= ' selected="selected"';
         }
+        if (($this->arguments['prioritizedCountries'] ?? []) !== []
+            && in_array($value, $this->arguments['prioritizedCountries'], true)
+        ) {
+            $output .= ' data-prioritized="1"';
+        }
         $output .= '>' . htmlspecialchars($label) . '</option>';
         return $output;
     }
@@ -232,10 +193,8 @@ final class CountrySelectViewHelper extends AbstractFormFieldViewHelper
     protected function getCountryList(): array
     {
         $filter = new CountryFilter();
-        $filter
-            ->setOnlyCountries($this->arguments['onlyCountries'] ?? [])
+        $filter->setOnlyCountries($this->arguments['onlyCountries'] ?? [])
             ->setExcludeCountries($this->arguments['excludeCountries'] ?? []);
-
         return GeneralUtility::makeInstance(CountryProvider::class)->getFiltered($filter);
     }
 }

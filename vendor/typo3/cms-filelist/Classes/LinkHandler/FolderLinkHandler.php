@@ -16,6 +16,7 @@
 namespace TYPO3\CMS\Filelist\LinkHandler;
 
 use Psr\Http\Message\ServerRequestInterface;
+use Symfony\Component\DependencyInjection\Attribute\Autoconfigure;
 use TYPO3\CMS\Backend\View\FolderUtilityRenderer;
 use TYPO3\CMS\Core\LinkHandling\LinkService;
 use TYPO3\CMS\Core\Resource\ResourceInterface;
@@ -30,6 +31,7 @@ use TYPO3\CMS\Filelist\Type\Mode;
 /**
  * @internal
  */
+#[Autoconfigure(public: true, shared: false)]
 class FolderLinkHandler extends AbstractResourceLinkHandler
 {
     protected LinkType $type = LinkType::FOLDER;
@@ -47,24 +49,26 @@ class FolderLinkHandler extends AbstractResourceLinkHandler
     {
         $contentHtml = '';
         if ($this->selectedFolder !== null) {
+            // Create the filelist
+            $this->filelist->start(
+                $this->selectedFolder,
+                MathUtility::forceIntegerInRange($this->currentPage, 1, 100000),
+                $this->sortField,
+                $this->sortDirection,
+                Mode::BROWSE
+            );
+
             $markup = [];
 
             // Create the filelist header bar
             $markup[] = '<div class="row justify-content-between mb-2">';
             $markup[] = '    <div class="col-auto"></div>';
             $markup[] = '    <div class="col-auto">';
+            $markup[] = '        ' . $this->getSortingModeButtons($request, $this->filelist->mode);
             $markup[] = '        ' . $this->getViewModeButton($request);
             $markup[] = '    </div>';
             $markup[] = '</div>';
 
-            // Create the filelist
-            $this->filelist->start(
-                $this->selectedFolder,
-                MathUtility::forceIntegerInRange($this->currentPage, 1, 100000),
-                $request->getQueryParams()['sort'] ?? '',
-                ($request->getQueryParams()['reverse'] ?? '') === '1',
-                Mode::BROWSE
-            );
             $this->filelist->setResourceDisplayMatcher($this->resourceDisplayMatcher);
             $this->filelist->setResourceSelectableMatcher($this->resourceSelectableMatcher);
 
@@ -81,7 +85,7 @@ class FolderLinkHandler extends AbstractResourceLinkHandler
 
             // Build the file upload and folder creation form
             $folderUtilityRenderer = GeneralUtility::makeInstance(FolderUtilityRenderer::class, $this);
-            $markup[] = $folderUtilityRenderer->createFolder($this->selectedFolder);
+            $markup[] = $folderUtilityRenderer->createFolder($request, $this->selectedFolder);
 
             $contentHtml = implode(PHP_EOL, $markup);
         }

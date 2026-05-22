@@ -59,10 +59,9 @@ class SetupCommand extends Command
         private readonly LateBootService $lateBootService,
     ) {
         parent::__construct($name);
-
     }
 
-    protected function configure()
+    protected function configure(): void
     {
         $this->setDescription('Setup TYPO3 via CLI using environment variables, CLI options or interactive')
             // Connection Parameters
@@ -137,8 +136,8 @@ class SetupCommand extends Command
             ->addOption(
                 'create-site',
                 null,
-                InputOption::VALUE_OPTIONAL,
-                'Create a basic site setup (root page and site configuration) with the given domain',
+                InputOption::VALUE_REQUIRED,
+                'Create a basic site setup (root page and site configuration) with the given domain, ex. "https://my.domain.tld/"',
                 false
             )
             ->addOption(
@@ -431,7 +430,6 @@ EOT
                     $default = $this->getDefinition()->getOption($key)->getDefault();
                     $defaultLabel = empty($value) ? '' : ' [default: ' . $default . ']';
                     $question = new Question('Enter the database "' . $key . '"' . $defaultLabel . ' ? ', $default);
-
                     if ($key === 'password') {
                         $question = new Question('Enter the database "' . $key . '" ? ', $default);
                         $question->setHidden(true);
@@ -444,19 +442,18 @@ EOT
                                     1669747572
                                 );
                             }
-
                             return $host;
                         };
                         $question->setValidator($hostValidator);
                     } elseif ($key === 'port') {
                         $portValidator = function ($port) {
-                            if (!$this->setupDatabaseService->isValidDbPort((int)$port)) {
+                            $port = (int)$port;
+                            if (!$this->setupDatabaseService->isValidDbPort($port)) {
                                 throw new \RuntimeException(
                                     'Please use a port in the range between 1 and 65535.',
                                     1669747592,
                                 );
                             }
-
                             return $port;
                         };
                         $question->setValidator($portValidator);
@@ -468,12 +465,10 @@ EOT
                                     1669747601,
                                 );
                             }
-
                             return $value;
                         };
                         $question->setValidator($emptyValidator);
                     }
-
                     if ($envValue === false && $key === 'password') {
                         // Force this question if no `TYPO3_DB_PASSWORD` set via cli.
                         // Thus, the user will always be prompted for a password even --no-interaction is set.
@@ -490,7 +485,6 @@ EOT
                         $envValue = $envValue ?: $default;
                         $value = $validator ? $validator($envValue) : $envValue;
                     }
-
                     $databaseConnectionOptions[$key] = $value;
             }
         }
@@ -500,7 +494,7 @@ EOT
 
     protected function getServerType(QuestionHelper $questionHelper, InputInterface $input, OutputInterface $output): WebserverType
     {
-        $serverTypeValidator = function (string $serverType): WebserverType {
+        $serverTypeValidator = function (?string $serverType): WebserverType {
             if (!array_key_exists($serverType, WebserverType::getDescriptions())) {
                 throw new \RuntimeException(
                     'Webserver must be any of ' . implode(', ', array_keys(WebserverType::getDescriptions())),
@@ -628,9 +622,12 @@ EOT
     protected function getSiteSetup(QuestionHelper $questionHelper, InputInterface $input, OutputInterface $output): string|bool
     {
         $urlValidator = static function ($url) {
-            if ($url && !GeneralUtility::isValidUrl($url)) {
+            if (!is_string($url) || in_array(strtolower($url), ['no', 'n'], true)) {
+                return false;
+            }
+            if (empty($url) || !GeneralUtility::isValidUrl($url)) {
                 throw new \RuntimeException(
-                    'The given url for the site name is not valid! Please try again.',
+                    'Invalid URL provided for the site name. Please provide a valid URL.',
                     1669747625,
                 );
             }
@@ -642,15 +639,6 @@ EOT
 
         if ($createSiteFromCli === false && $input->isInteractive()) {
             $questionCreateSite = new Question('Create a basic site? Please enter a URL [default: no] ', false);
-            $questionCreateSite->setNormalizer(function (string $value): string {
-                if (strtolower($value) === 'no') {
-                    // User provided "no" as an answer. Normalize the given input to an empty input to trigger the same
-                    // behavior as no input was given at all.
-                    return '';
-                }
-
-                return $value;
-            });
             $questionCreateSite->setValidator($urlValidator);
 
             return $questionHelper->ask($input, $output, $questionCreateSite);
@@ -671,11 +659,17 @@ EOT
 
     /**
      * Get a value from
-     * 1. environment variable
-     * 2. cli option
+     *
+     * 1. cli option `$option`
+     * 2. environment variable `$envVar`
+     *
+     * Note that cli option has higher precedences and wins over environment variable.
      */
     protected function getFallbackValueEnvOrOption(InputInterface $input, string $option, string $envVar): string|false
     {
-        return $input->hasParameterOption('--' . $option) ? $input->getOption($option) : getenv($envVar);
+        $value = ($input->hasParameterOption('--' . $option))
+            ? $input->getOption($option)
+            : getenv($envVar);
+        return is_string($value) ? $value : false;
     }
 }

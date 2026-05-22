@@ -156,7 +156,7 @@ class Richtext
     protected function addFlattenedPageTsConfig(array $typoScriptArray): array
     {
         foreach ($typoScriptArray as $key => $data) {
-            if (substr($key, -1) !== '.') {
+            if (!str_ends_with($key, '.')) {
                 continue;
             }
             $typoScriptService = GeneralUtility::makeInstance(TypoScriptService::class);
@@ -195,8 +195,8 @@ class Richtext
             ArrayUtility::mergeRecursiveWithOverrule($rtePageTsConfiguration, $defaultPageTsConfigOverrides);
         }
 
-        $rtePageTsConfiguration['fieldSpecificPreset'] = $fieldSpecificPageTsConfigOverrides['types.'][$recordType . '.']['preset'] ??
-            $fieldSpecificPageTsConfigOverrides['preset'] ?? null;
+        $rtePageTsConfiguration['fieldSpecificPreset'] = $fieldSpecificPageTsConfigOverrides['types.'][$recordType . '.']['preset']
+            ?? $fieldSpecificPageTsConfigOverrides['preset'] ?? null;
 
         // Then overload with RTE.config.tt_content.bodytext
         if (is_array($fieldSpecificPageTsConfigOverrides)) {

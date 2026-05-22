@@ -90,6 +90,9 @@ class VimeoRenderer implements FileRendererInterface
     {
         $options = $this->collectOptions($options, $file);
         $src = $this->createVimeoUrl($options, $file);
+        if ($src === '') {
+            return '';
+        }
         $attributes = $this->collectIframeAttributes($width, $height, $options);
 
         return sprintf(
@@ -122,15 +125,15 @@ class VimeoRenderer implements FileRendererInterface
         return $options;
     }
 
-    /**
-     * @return string
-     */
-    protected function createVimeoUrl(array $options, FileInterface $file)
+    protected function createVimeoUrl(array $options, FileInterface $file): string
     {
         $videoIdRaw = $this->getVideoIdFromFile($file);
         $videoIdRaw = GeneralUtility::trimExplode('/', $videoIdRaw, true);
 
-        $videoId = $videoIdRaw[0];
+        $videoId = $videoIdRaw[0] ?? '';
+        if (empty($videoId)) {
+            return '';
+        }
         $hash = $videoIdRaw[1] ?? null;
 
         $urlParams = [];
@@ -145,7 +148,9 @@ class VimeoRenderer implements FileRendererInterface
         if (!empty($options['loop'])) {
             $urlParams[] = 'loop=1';
         }
-
+        if (!empty($options['background'])) {
+            $urlParams[] = 'background=1';
+        }
         if (isset($options['api']) && (int)$options['api'] === 1) {
             $urlParams[] = 'api=1';
         }
@@ -155,7 +160,6 @@ class VimeoRenderer implements FileRendererInterface
         $urlParams[] = 'title=' . (int)!empty($options['showinfo']);
         $urlParams[] = 'byline=' . (int)!empty($options['showinfo']);
         $urlParams[] = 'portrait=0';
-
         return sprintf('https://player.vimeo.com/video/%s?%s', $videoId, implode('&', $urlParams));
     }
 
@@ -189,7 +193,7 @@ class VimeoRenderer implements FileRendererInterface
         if (isset($options['data']) && is_array($options['data'])) {
             array_walk(
                 $options['data'],
-                static function (&$value, $key) use (&$attributes) {
+                static function (string $value, string|int $key) use (&$attributes): void {
                     $attributes['data-' . $key] = $value;
                 }
             );

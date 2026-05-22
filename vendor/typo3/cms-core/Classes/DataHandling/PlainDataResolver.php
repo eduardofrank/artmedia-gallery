@@ -187,11 +187,11 @@ class PlainDataResolver
             ->executeQuery();
 
         while ($version = $result->fetchAssociative()) {
-            $liveReferenceId = $version['t3ver_oid'];
-            $versionId = $version['uid'];
+            $liveReferenceId = (int)$version['t3ver_oid'];
+            $versionId = (int)$version['uid'];
             if (isset($ids[$liveReferenceId])) {
                 if (!$this->keepDeletePlaceholder
-                    && VersionState::cast($version['t3ver_state'])->equals(VersionState::DELETE_PLACEHOLDER)
+                    && VersionState::tryFrom((int)($version['t3ver_state'] ?? 0)) === VersionState::DELETE_PLACEHOLDER
                 ) {
                     unset($ids[$liveReferenceId]);
                 } else {
@@ -230,7 +230,7 @@ class PlainDataResolver
             ->where(
                 $queryBuilder->expr()->eq(
                     't3ver_state',
-                    $queryBuilder->createNamedParameter(VersionState::MOVE_POINTER, Connection::PARAM_INT)
+                    $queryBuilder->createNamedParameter(VersionState::MOVE_POINTER->value, Connection::PARAM_INT)
                 ),
                 $queryBuilder->expr()->eq(
                     't3ver_wsid',
@@ -276,7 +276,8 @@ class PlainDataResolver
         }
 
         $queryBuilder = GeneralUtility::makeInstance(ConnectionPool::class)->getQueryBuilderForTable($this->tableName);
-        $queryBuilder->getRestrictions()->removeAll()->add(GeneralUtility::makeInstance(DeletedRestriction::class));
+        // Never apply additional restrictions like 'deleted' to the incoming id list
+        $queryBuilder->getRestrictions()->removeAll();
         $queryBuilder
             ->select('uid')
             ->from($this->tableName)
@@ -284,14 +285,12 @@ class PlainDataResolver
                 $queryBuilder->expr()->in(
                     'uid',
                     // do not use named parameter here as the list can get too long
-                    array_map('intval', $ids)
+                    array_map(intval(...), $ids)
                 )
             );
 
-        if (!empty($this->sortingStatement)) {
-            foreach ($this->sortingStatement as $sortingStatement) {
-                $queryBuilder->add('orderBy', $sortingStatement, true);
-            }
+        foreach ($this->sortingStatement as $sortingStatement) {
+            $queryBuilder->getConcreteQueryBuilder()->addOrderBy($sortingStatement);
         }
         // Always add explicit order by uid to have deterministic rows from dbms like postgres.
         // Scenario (see workspace FAL/Modify/ActionTest modifyContentAndDeleteFileReference):
@@ -312,7 +311,7 @@ class PlainDataResolver
 
         $sortedIds = $queryBuilder->executeQuery()->fetchAllAssociative();
 
-        return array_map('intval', array_column($sortedIds, 'uid'));
+        return array_map(intval(...), array_column($sortedIds, 'uid'));
     }
 
     /**
@@ -350,8 +349,8 @@ class PlainDataResolver
 
         $versionIds = [];
         while ($record = $result->fetchAssociative()) {
-            $liveId = $record['uid'];
-            $versionIds[$liveId] = $record['t3ver_oid'];
+            $liveId = (int)$record['uid'];
+            $versionIds[$liveId] = (int)$record['t3ver_oid'];
         }
 
         foreach ($ids as $id) {

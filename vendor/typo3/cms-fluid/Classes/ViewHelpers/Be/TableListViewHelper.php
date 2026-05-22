@@ -26,45 +26,29 @@ use TYPO3\CMS\Core\Localization\LanguageService;
 use TYPO3\CMS\Core\Type\Bitmask\Permission;
 use TYPO3\CMS\Core\Utility\GeneralUtility;
 use TYPO3\CMS\Extbase\Configuration\ConfigurationManagerInterface;
-use TYPO3\CMS\Fluid\Core\Rendering\RenderingContext;
 
 /**
  * ViewHelper which renders a record list as known from the TYPO3 list module.
  *
- * .. note::
- *    This feature is experimental!
+ * ```
+ *   <f:be.tableList tableName="fe_users"
+ *         fieldList="{0: 'name', 1: 'email'}"
+ *         storagePid="1"
+ *         levels="2"
+ *         filter="foo"
+ *         recordsPerPage="10"
+ *         sortField="name"
+ *         sortDescending="true"
+ *         readOnly="true"
+ *         enableClickMenu="false"
+ *         enableControlPanels="true"
+ *         clickTitleMode="info"
+ *   />
+ * ```
  *
- * Examples
- * ========
+ * **Note:** This feature is experimental!
  *
- * Minimal::
- *
- *    <f:be.tableList tableName="fe_users" />
- *
- * List of all "Website user" records stored in the configured storage PID.
- * Records will be editable, if the current backend user has got edit rights for the table ``fe_users``.
- *
- * Only the title column (username) will be shown.
- *
- * Context menu is active.
- *
- * Full::
- *
- *    <f:be.tableList tableName="fe_users" fieldList="{0: 'name', 1: 'email'}"
- *        storagePid="1"
- *        levels="2"
- *        filter="foo"
- *        recordsPerPage="10"
- *        sortField="name"
- *        sortDescending="true"
- *        readOnly="true"
- *        enableClickMenu="false"
- *        enableControlPanels="true"
- *        clickTitleMode="info"
- *        />
- *
- * List of "Website user" records with a text property of ``foo`` stored on PID ``1`` and two levels down.
- * Clicking on a username will open the TYPO3 info popup for the respective record
+ * @see https://docs.typo3.org/permalink/t3viewhelper:typo3-fluid-be-tablelist
  */
 final class TableListViewHelper extends AbstractBackendViewHelper
 {
@@ -103,7 +87,7 @@ final class TableListViewHelper extends AbstractBackendViewHelper
      * Renders a record list as known from the TYPO3 list module
      * Note: This feature is experimental!
      *
-     * @see \TYPO3\CMS\Backend\RecordList\DatabaseRecordList
+     * @see DatabaseRecordList
      */
     public function render(): string
     {
@@ -120,23 +104,21 @@ final class TableListViewHelper extends AbstractBackendViewHelper
         $clickTitleMode = $this->arguments['clickTitleMode'];
         $enableControlPanels = $this->arguments['enableControlPanels'];
 
-        $languageService = $this->getLanguageService();
         $backendUser = $this->getBackendUser();
-        /** @var RenderingContext $renderingContext */
-        $renderingContext = $this->renderingContext;
-        $request = $renderingContext->getRequest();
-        if (!$request instanceof ServerRequestInterface) {
+        if (!$this->renderingContext->hasAttribute(ServerRequestInterface::class)) {
             // All views in backend have at least ServerRequestInterface, no matter if created by
             // old StandaloneView via BackendViewFactory. Should be fine to assume having a request
             // here, the early return is just sanitation.
             return '';
         }
+        $request = $this->renderingContext->getAttribute(ServerRequestInterface::class);
 
         $this->getPageRenderer()->loadJavaScriptModule('@typo3/backend/recordlist.js');
         $this->getPageRenderer()->loadJavaScriptModule('@typo3/backend/record-download-button.js');
         $this->getPageRenderer()->loadJavaScriptModule('@typo3/backend/action-dispatcher.js');
         if ($enableControlPanels === true) {
             $this->getPageRenderer()->loadJavaScriptModule('@typo3/backend/multi-record-selection.js');
+            $this->getPageRenderer()->loadJavaScriptModule('@typo3/backend/multi-record-selection-delete-action.js');
             $this->getPageRenderer()->loadJavaScriptModule('@typo3/backend/context-menu.js');
         }
 

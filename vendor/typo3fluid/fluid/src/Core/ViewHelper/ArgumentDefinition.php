@@ -1,11 +1,15 @@
 <?php
 
+declare(strict_types=1);
+
 /*
  * This file belongs to the package "TYPO3 Fluid".
  * See LICENSE.txt that was shipped with this package.
  */
 
 namespace TYPO3Fluid\Fluid\Core\ViewHelper;
+
+use TYPO3Fluid\Fluid\Core\Definition\Annotation\ArgumentAnnotationInterface;
 
 /**
  * Argument definition of each view helper argument
@@ -14,38 +18,28 @@ class ArgumentDefinition
 {
     /**
      * Name of argument
-     *
-     * @var string
      */
-    protected $name;
+    protected string $name;
 
     /**
      * Type of argument
-     *
-     * @var string
      */
-    protected $type;
+    protected string $type;
 
     /**
      * Description of argument
-     *
-     * @var string
      */
-    protected $description;
+    protected string $description;
 
     /**
      * Is argument required?
-     *
-     * @var bool
      */
-    protected $required = false;
+    protected bool $required = false;
 
     /**
      * Default value for argument
-     *
-     * @var mixed
      */
-    protected $defaultValue;
+    protected mixed $defaultValue;
 
     /**
      * Escaping instruction, in line with $this->escapeOutput / $this->escapeChildren on ViewHelpers.
@@ -57,10 +51,10 @@ class ArgumentDefinition
      *
      * "false" means "never escape argument" (as in behavior of f:format.raw, which supports both passing
      * argument as actual argument or as tag content, but wants neither to be escaped).
-     *
-     * @var bool|null
      */
-    protected $escape;
+    protected ?bool $escape;
+
+    protected array $annotations;
 
     /**
      * Constructor for this argument definition.
@@ -71,8 +65,9 @@ class ArgumentDefinition
      * @param bool $required true if argument is required
      * @param mixed $defaultValue Default value
      * @param bool|null $escape Whether argument is escaped, or uses default escaping behavior (see class var comment)
+     * @param ArgumentAnnotationInterface[] $annotations
      */
-    public function __construct($name, $type, $description, $required, $defaultValue = null, $escape = null)
+    public function __construct(string $name, string $type, string $description, bool $required, mixed $defaultValue = null, ?bool $escape = null, array $annotations = [])
     {
         $this->name = $name;
         $this->type = $type;
@@ -80,6 +75,7 @@ class ArgumentDefinition
         $this->required = $required;
         $this->defaultValue = $defaultValue;
         $this->escape = $escape;
+        $this->annotations = $annotations;
     }
 
     /**
@@ -87,7 +83,7 @@ class ArgumentDefinition
      *
      * @return string Name of argument
      */
-    public function getName()
+    public function getName(): string
     {
         return $this->name;
     }
@@ -97,7 +93,7 @@ class ArgumentDefinition
      *
      * @return string Type of argument
      */
-    public function getType()
+    public function getType(): string
     {
         return $this->type;
     }
@@ -107,7 +103,7 @@ class ArgumentDefinition
      *
      * @return string Description of argument
      */
-    public function getDescription()
+    public function getDescription(): string
     {
         return $this->description;
     }
@@ -117,7 +113,7 @@ class ArgumentDefinition
      *
      * @return bool true if argument is optional
      */
-    public function isRequired()
+    public function isRequired(): bool
     {
         return $this->required;
     }
@@ -127,7 +123,7 @@ class ArgumentDefinition
      *
      * @return mixed Default value
      */
-    public function getDefaultValue()
+    public function getDefaultValue(): mixed
     {
         return $this->defaultValue;
     }
@@ -135,8 +131,41 @@ class ArgumentDefinition
     /**
      * @return bool|null
      */
-    public function getEscape()
+    public function getEscape(): ?bool
     {
         return $this->escape;
+    }
+
+    public function isBooleanType(): bool
+    {
+        return $this->getType() === 'bool' || $this->getType() === 'boolean';
+    }
+
+    /**
+     * @return ArgumentAnnotationInterface[]
+     */
+    public function getAnnotations(): array
+    {
+        return $this->annotations;
+    }
+
+    /**
+     * @internal Only to be used by TemplateCompiler
+     */
+    public function compile(): string
+    {
+        return sprintf(
+            'new ' . static::class . '(%s, %s, %s, %s, %s, %s, [%s])',
+            var_export($this->getName(), true),
+            var_export($this->getType(), true),
+            var_export($this->getDescription(), true),
+            var_export($this->isRequired(), true),
+            var_export($this->getDefaultValue(), true),
+            var_export($this->getEscape(), true),
+            implode(',', array_map(
+                static fn(ArgumentAnnotationInterface $annotation): string => $annotation->compile(),
+                $this->getAnnotations(),
+            )),
+        );
     }
 }

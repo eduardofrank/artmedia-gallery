@@ -31,6 +31,10 @@ use TYPO3\CMS\Core\Utility\GeneralUtility;
  */
 class DefaultLanguageDifferences extends AbstractNode
 {
+    public function __construct(
+        private readonly DiffUtility $diffUtility,
+    ) {}
+
     /**
      * Render the diff view if enabled
      *
@@ -64,9 +68,7 @@ class DefaultLanguageDifferences extends AbstractNode
         $html = [];
         if ((string)$defaultLanguageDiffRow[$fieldName] !== (string)$defaultLanguageRow[$fieldName]) {
             // Create diff-result:
-            $diffUtility = GeneralUtility::makeInstance(DiffUtility::class);
-            $diffUtility->stripTags = false;
-            $diffResult = $diffUtility->makeDiffDisplay(
+            $diffResult = $this->diffUtility->diff(
                 (string)BackendUtility::getProcessedValue($table, $fieldName, $defaultLanguageDiffRow[$fieldName], 0, true, false, 0, true, 0, $defaultLanguageRow),
                 (string)BackendUtility::getProcessedValue($table, $fieldName, $defaultLanguageRow[$fieldName], 0, true, false, 0, true, 0, $defaultLanguageDiffRow)
             );

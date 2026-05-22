@@ -105,26 +105,6 @@ class UserSessionManager implements LoggerAwareInterface
     }
 
     /**
-     * Creates and returns a session from a global cookie (`$_COOKIE`). If
-     * no cookie can be found for the given name, an anonymous session
-     * will be returned. It is recommended to use the
-     * PSR-7-Request based method instead.
-     * @deprecated use createFromRequestOrAnonymous() instead. Will be removed in TYPO3 v13.0.
-     */
-    public function createFromGlobalCookieOrAnonymous(string $cookieName): UserSession
-    {
-        trigger_error('UserSessionManager->createFromGlobalCookieOrAnonymous() will be removed in TYPO3 v13.0. Use UserSessionManager->createFromRequestOrAnonymous() instead.', E_USER_DEPRECATED);
-        try {
-            $cookieValue = isset($_COOKIE[$cookieName]) ? stripslashes((string)$_COOKIE[$cookieName]) : '';
-            $scope = $this->getCookieScope($GLOBALS['TYPO3_REQUEST']->getAttribute('normalizedParams'));
-            $sessionId = UserSession::resolveIdentifierFromJwt($cookieValue, $scope);
-        } catch (\Exception $exception) {
-            $this->logger->debug('Could not resolve session identifier from JWT', ['exception' => $exception]);
-        }
-        return $this->getSessionFromSessionId($sessionId  ?? '') ?? $this->createAnonymousSession();
-    }
-
-    /**
      * Creates and returns an anonymous session object (which is not persisted)
      */
     public function createAnonymousSession(): UserSession
@@ -296,12 +276,11 @@ class UserSessionManager implements LoggerAwareInterface
     }
 
     /**
-     * Calls the session backends `collectGarbage()` method
+     * Calls the session backends `collectGarbage()` method with the given probability in percent.
      */
     public function collectGarbage(int $garbageCollectionProbability = 1): void
     {
-        // If we're lucky we'll get to clean up old sessions
-        if (random_int(0, mt_getrandmax()) % 100 <= $garbageCollectionProbability) {
+        if (rand(0, 99) < $garbageCollectionProbability) {
             $this->sessionBackend->collectGarbage(
                 $this->sessionLifetime > 0 ? $this->sessionLifetime : self::GARBAGE_COLLECTION_LIFETIME,
                 $this->garbageCollectionForAnonymousSessions

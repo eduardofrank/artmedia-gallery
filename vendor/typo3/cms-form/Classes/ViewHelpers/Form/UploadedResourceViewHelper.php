@@ -17,10 +17,11 @@ declare(strict_types=1);
 
 namespace TYPO3\CMS\Form\ViewHelpers\Form;
 
+use TYPO3\CMS\Core\Crypto\HashService;
 use TYPO3\CMS\Extbase\Domain\Model\FileReference;
 use TYPO3\CMS\Extbase\Property\PropertyMapper;
-use TYPO3\CMS\Extbase\Security\Cryptography\HashService;
 use TYPO3\CMS\Fluid\ViewHelpers\Form\AbstractFormFieldViewHelper;
+use TYPO3\CMS\Form\Security\HashScope;
 
 /**
  * This ViewHelper makes the specified Image object available for its
@@ -29,6 +30,8 @@ use TYPO3\CMS\Fluid\ViewHelpers\Form\AbstractFormFieldViewHelper;
  * uploaded image will be correctly used.
  *
  * Scope: frontend
+ *
+ * @see https://docs.typo3.org/permalink/t3viewhelper:typo3-form-form-uploadedresource
  */
 final class UploadedResourceViewHelper extends AbstractFormFieldViewHelper
 {
@@ -56,9 +59,6 @@ final class UploadedResourceViewHelper extends AbstractFormFieldViewHelper
         $this->registerArgument('as', 'string', '');
         $this->registerArgument('accept', 'array', 'Values for the accept attribute', false, []);
         $this->registerArgument('errorClass', 'string', 'CSS class to set if there are errors for this ViewHelper', false, 'f3-form-error');
-        $this->registerTagAttribute('disabled', 'string', 'Specifies that the input element should be disabled when the page loads');
-        $this->registerTagAttribute('multiple', 'string', 'Specifies that the file input element should allow multiple selection of files');
-        $this->registerUniversalTagAttributes();
     }
 
     public function render(): string
@@ -76,8 +76,8 @@ final class UploadedResourceViewHelper extends AbstractFormFieldViewHelper
 
         if ($resource !== null) {
             $resourcePointerIdAttribute = '';
-            if ($this->hasArgument('id')) {
-                $resourcePointerIdAttribute = ' id="' . htmlspecialchars($this->arguments['id']) . '-file-reference"';
+            if (isset($this->additionalArguments['id'])) {
+                $resourcePointerIdAttribute = ' id="' . htmlspecialchars($this->additionalArguments['id']) . '-file-reference"';
             }
             $resourcePointerValue = $resource->getUid();
             if ($resourcePointerValue === null) {
@@ -85,7 +85,7 @@ final class UploadedResourceViewHelper extends AbstractFormFieldViewHelper
                 // Use the file UID instead, but prefix it with "file:" to communicate this to the type converter
                 $resourcePointerValue = 'file:' . $resource->getOriginalResource()->getOriginalFile()->getUid();
             }
-            $output .= '<input type="hidden" name="' . htmlspecialchars($this->getName()) . '[submittedFile][resourcePointer]" value="' . htmlspecialchars($this->hashService->appendHmac((string)$resourcePointerValue)) . '"' . $resourcePointerIdAttribute . ' />';
+            $output .= '<input type="hidden" name="' . htmlspecialchars($this->getName()) . '[submittedFile][resourcePointer]" value="' . htmlspecialchars($this->hashService->appendHmac((string)$resourcePointerValue, HashScope::ResourcePointer->prefix())) . '"' . $resourcePointerIdAttribute . ' />';
 
             $this->templateVariableContainer->add($as, $resource);
             $output .= $this->renderChildren();
@@ -97,7 +97,7 @@ final class UploadedResourceViewHelper extends AbstractFormFieldViewHelper
         }
         $this->tag->addAttribute('type', 'file');
 
-        if (isset($this->arguments['multiple'])) {
+        if (isset($this->additionalArguments['multiple'])) {
             $this->tag->addAttribute('name', $name . '[]');
         } else {
             $this->tag->addAttribute('name', $name);

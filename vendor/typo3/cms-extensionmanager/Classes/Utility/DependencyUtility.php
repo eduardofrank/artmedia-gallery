@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 /*
  * This file is part of the TYPO3 CMS project.
  *
@@ -255,8 +257,8 @@ class DependencyUtility implements SingletonInterface
                 }
             } else {
                 throw new MissingVersionDependencyException(
-                    'The extension ' . $extensionKey . ' is installed in version ' . $loadedVersion .
-                    ' but needed in version ' . $dependency->getLowestVersion() . ' - ' . $dependency->getHighestVersion(),
+                    'The extension ' . $extensionKey . ' is installed in version ' . $loadedVersion
+                    . ' but needed in version ' . $dependency->getLowestVersion() . ' - ' . $dependency->getHighestVersion(),
                     1430561927
                 );
             }

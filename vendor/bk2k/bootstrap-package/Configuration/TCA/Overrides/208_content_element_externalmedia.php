@@ -26,10 +26,11 @@ if (!is_array($GLOBALS['TCA']['tt_content']['types']['external_media'] ?? false)
     'tt_content',
     'CType',
     [
-        'LLL:EXT:bootstrap_package/Resources/Private/Language/Backend.xlf:content_element.external_media',
-        'external_media',
-        'content-bootstrappackage-externalmedia',
-        'bootstrap_package'
+        'label' => 'LLL:EXT:bootstrap_package/Resources/Private/Language/Backend.xlf:content_element.external_media',
+        'description' => 'LLL:EXT:bootstrap_package/Resources/Private/Language/Backend.xlf:content_element.external_media.description',
+        'value' => 'external_media',
+        'icon' => 'content-bootstrappackage-externalmedia',
+        'group' => 'bootstrap_package',
     ],
     'csv',
     'after'
@@ -60,7 +61,7 @@ $GLOBALS['TCA']['tt_content']['types']['external_media'] = array_replace_recursi
             --div--;LLL:EXT:core/Resources/Private/Language/Form/locallang_tabs.xlf:notes,
                 rowDescription,
             --div--;LLL:EXT:core/Resources/Private/Language/Form/locallang_tabs.xlf:extended,
-        '
+        ',
     ]
 );
 
@@ -68,6 +69,14 @@ $GLOBALS['TCA']['tt_content']['types']['external_media'] = array_replace_recursi
 $GLOBALS['TCA']['tt_content']['columns'] = array_replace_recursive(
     $GLOBALS['TCA']['tt_content']['columns'],
     [
+        'external_media_title' => [
+            'label' => 'LLL:EXT:bootstrap_package/Resources/Private/Language/Backend.xlf:field.external_media_title',
+            'config' => [
+                'type' => 'input',
+                'size' => 50,
+                'max' => 255,
+            ],
+        ],
         'external_media_source' => [
             'label' => 'LLL:EXT:bootstrap_package/Resources/Private/Language/Backend.xlf:field.external_media_source',
             'config' => [
@@ -75,7 +84,7 @@ $GLOBALS['TCA']['tt_content']['columns'] = array_replace_recursive(
                 'size' => 50,
                 'eval' => 'trim',
                 'max' => 1024,
-            ]
+            ],
         ],
         'external_media_ratio' => [
             'label' => 'LLL:EXT:bootstrap_package/Resources/Private/Language/Backend.xlf:field.external_media_ratio',
@@ -83,18 +92,25 @@ $GLOBALS['TCA']['tt_content']['columns'] = array_replace_recursive(
                 'type' => 'select',
                 'renderType' => 'selectSingle',
                 'items' => [
-                    ['16:9', '16by9'],
-                    ['4:3', '4by3'],
-                ]
-            ]
-        ]
+                    [
+                        'label' => '16:9',
+                        'value' => '16by9',
+                    ],
+                    [
+                        'label' => '4:3',
+                        'value' => '4by3',
+                    ],
+                ],
+            ],
+        ],
     ]
 );
 
 // Register palettes
 $GLOBALS['TCA']['tt_content']['palettes']['external_media'] = [
     'showitem' => '
+        external_media_title, --linebreak--,
         external_media_source, --linebreak--,
         external_media_ratio
-    '
+    ',
 ];

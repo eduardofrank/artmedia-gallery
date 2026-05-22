@@ -21,13 +21,17 @@ use TYPO3\CMS\Core\Core\Environment;
 use TYPO3Fluid\Fluid\Core\ViewHelper\AbstractViewHelper;
 
 /**
- * Debuggable version of :ref:`f:render <typo3-fluid-render>` - performs the
- * same rendering operation but wraps the output with HTML that can be
- * inspected with the admin panel in frontend.
+ * ViewHelper for a debuggable version of `<f:render>`.
+ * Performs the same rendering operation, but wraps the output with HTML that can be
+ * inspected with the admin panel in the frontend.
  *
- * Replaces ``f:render`` when the admin panel decides (see
- * :php:`ViewHelperResolver` class). Also possible to use explicitly by using
- * ``f:debug.render`` instead of the normal ``f:render`` statement.
+ * ```
+ *   <f:debug.render partial="Partials/SomePartial" arguments="{_all}" />
+ * ```
+ *
+ * @see \TYPO3\CMS\Fluid\Core\ViewHelper\ViewHelperResolver
+ * @see https://docs.typo3.org/permalink/t3viewhelper:typo3-fluid-render
+ * @see https://docs.typo3.org/permalink/t3viewhelper:typo3-fluid-debug-render
  */
 final class RenderViewHelper extends AbstractViewHelper
 {
@@ -40,12 +44,12 @@ final class RenderViewHelper extends AbstractViewHelper
     {
         parent::initializeArguments();
         $this->registerArgument('debug', 'boolean', 'If true, the admin panel shows debug information if activated,', false, true);
-        $this->registerArgument('section', 'string', 'Section to render - combine with partial to render section in partial', false);
-        $this->registerArgument('partial', 'string', 'Partial to render, with or without section', false);
+        $this->registerArgument('section', 'string', 'Section to render - combine with partial to render section in partial');
+        $this->registerArgument('partial', 'string', 'Partial to render, with or without section');
         $this->registerArgument('arguments', 'array', 'Array of variables to be transferred. Use {_all} for all variables', false, []);
         $this->registerArgument('optional', 'boolean', 'If TRUE, considers the *section* optional. Partial never is.', false, false);
-        $this->registerArgument('default', 'mixed', 'Value (usually string) to be displayed if the section or partial does not exist', false);
-        $this->registerArgument('contentAs', 'string', 'If used, renders the child content and adds it as a template variable with this name for use in the partial/section', false);
+        $this->registerArgument('default', 'mixed', 'Value (usually string) to be displayed if the section or partial does not exist');
+        $this->registerArgument('contentAs', 'string', 'If used, renders the child content and adds it as a template variable with this name for use in the partial/section');
     }
 
     public function render(): string

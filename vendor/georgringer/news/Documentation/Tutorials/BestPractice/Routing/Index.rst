@@ -11,6 +11,15 @@ if you are not familiar with the concept yet. You will no
 longer need third party extensions like RealURL or CoolUri to rewrite and
 beautify your URLs.
 
+.. Important::
+   To reduce the possibilities of errors, one of the following configuration options
+   should always be used if no fallback is used.
+
+   - :yaml:`limitToPages`: Limit the routing configuration to specific pages
+   - :yaml:`routePath: '/article/{news-title}'`: Use a prefix for routes
+
+    Read more about it :ref:`here <routing_fallbacks>`!
+
 ..  _routing_quickstart:
 
 Quick start
@@ -36,7 +45,7 @@ At the bottom of the file include the following:
        extension: News
        plugin: Pi1
        routes:
-         - routePath: '/{news-title}'
+         - routePath: '/article/{news-title}'
            _controller: 'News::detail'
            _arguments:
              news-title: news
@@ -126,6 +135,10 @@ This will speed up performance for building page routes of all other pages.
        plugin: Pi1
        # routes and aspects will follow here
 
+.. warning::
+
+   Not setting the `limitToPages` parameter may lead to unwanted side effects, e. g. not working error handling!
+
 Multiple routeEnhancers for news
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -206,7 +219,7 @@ The following example will only provide routing for the detail view:
        extension: News
        plugin: Pi1
        routes:
-         - routePath: '/{news-title}'
+         - routePath: '/article/{news-title}'
            _controller: 'News::detail'
            _arguments:
              news-title: news
@@ -232,20 +245,17 @@ Common routeEnhancer configurations
 Basic setup (including categories, tags and the RSS/Atom feed)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-**Prerequisites:**
-
-The plugins for :guilabel:`List View` and :guilabel:`Detail View` are on
-separate pages.
-
-If you use the :guilabel:`Category Menu` or :guilabel:`Tag List` plugins to
-filter news records, their titles (slugs) are used.
+The order of the config does matter!
+If you want to have  categories+pagination, that configuration has to stand before the part for categories alone
 
 **Result:**
 
 * Detail view: ``https://www.example.com/news/detail/the-news-title``
 * Pagination: ``https://www.example.com/news/page-2``
-* Category filter: ``https://www.example.com/news/my-category``
-* Tag filter: ``https://www.example.com/news/my-tag``
+* Category filter: ``https://www.example.com/news/category/my-category``
+* Category filter + pagination: ``https://www.example.com/news/category/my-category/page-2``
+* Tag filter: ``https://www.example.com/news/tag/my-tag``
+* Tag filter + pagination: ``https://www.example.com/news/tag/my-tag/page-2``
 
 .. code-block:: yaml
    :caption: :file:`/config/sites/<your_identifier>/config.yaml`
@@ -259,22 +269,38 @@ filter news records, their titles (slugs) are used.
        routes:
          - routePath: '/'
            _controller: 'News::list'
+         # Pagination
          - routePath: '/page-{page}'
            _controller: 'News::list'
            _arguments:
              page: 'currentPage'
-         - routePath: '/{news-title}'
-           _controller: 'News::detail'
-           _arguments:
-             news-title: news
-         - routePath: '/{category-name}'
+         # Category + pagination:
+         - routePath: '/category/{category-name}/page-{page}'
            _controller: 'News::list'
            _arguments:
              category-name: overwriteDemand/categories
-         - routePath: '/{tag-name}'
+             page: 'currentPage'
+         # Category
+         - routePath: '/category/{category-name}'
+           _controller: 'News::list'
+           _arguments:
+             category-name: overwriteDemand/categories
+         # Tagname + pagination
+         - routePath: '/tag/{tag-name}/page-{page}'
            _controller: 'News::list'
            _arguments:
              tag-name: overwriteDemand/tags
+             page: 'currentPage'
+         # Tagname
+         - routePath: '/tag/{tag-name}'
+           _controller: 'News::list'
+           _arguments:
+             tag-name: overwriteDemand/tags
+         # Detail
+         - routePath: '/article/{news-title}'
+           _controller: 'News::detail'
+           _arguments:
+             news-title: news
        defaultController: 'News::list'
        defaults:
          page: '0'
@@ -378,19 +404,15 @@ by date. Also includes configuration for the pagination.
        extension: News
        plugin: Pi1
        routes:
-         # Pagination:
-         - routePath: '/'
-           _controller: 'News::list'
-         - routePath: '/page-{page}'
+          # Date year/month + pagination:
+         - routePath: '/{date-year}/{date-month}/page-{page}'
            _controller: 'News::list'
            _arguments:
+             date-month: 'overwriteDemand/month'
+             date-year: 'overwriteDemand/year'
              page: 'currentPage'
-         - routePath: '/{news-title}'
-           _controller: 'News::detail'
-           _arguments:
-             news-title: news
-         # Date year:
-         - routePath: '/{date-year}'
+         # Date year/month:
+         - routePath: '/{date-year}/{date-month}'
            _controller: 'News::list'
            _arguments:
              date-month: 'overwriteDemand/month'
@@ -402,20 +424,24 @@ by date. Also includes configuration for the pagination.
            _arguments:
              date-year: 'overwriteDemand/year'
              page: 'currentPage'
-         # Date year/month:
-         - routePath: '/{date-year}/{date-month}'
+         # Date year:
+         - routePath: '/{date-year}'
            _controller: 'News::list'
            _arguments:
              date-month: 'overwriteDemand/month'
              date-year: 'overwriteDemand/year'
              page: 'currentPage'
-          # Date year/month + pagination:
-         - routePath: '/{date-year}/{date-month}/page-{page}'
+         # Pagination:
+         - routePath: '/'
+           _controller: 'News::list'
+         - routePath: '/page-{page}'
            _controller: 'News::list'
            _arguments:
-             date-month: 'overwriteDemand/month'
-             date-year: 'overwriteDemand/year'
              page: 'currentPage'
+         - routePath: '/article/{news-title}'
+           _controller: 'News::detail'
+           _arguments:
+             news-title: news
        defaultController: 'News::list'
        defaults:
          page: '0'
@@ -500,6 +526,49 @@ configuration of PHP function `date <http://www.php.net/date>`__.
 
    If you exceed this limit, you'll either have to build a custom and more
    specific mapper, or reduce the range in one of your :yaml:`StaticRangeMapper`.
+
+..  _routing_fallbacks:
+
+Fallbacks & Pitfalls
+--------------------
+Understanding routing is sometimes not that easy and straight forward.
+
+The aspect :yaml:`NewsTitle` is not only shorter to use but more important, it
+automatically configures a default value. This is needed to do an error handling
+within the extension instead of showing the general "Page not found error".
+More information can be found in the official manual: `Aspect fallback value handling <https://docs.typo3.org/permalink/t3coreapi:routing-aspect-fallback-handling>`_
+and :ref:`here <tsDetailErrorHandling>` regarding the error handling.
+
+However, defining a fallback value (either manually or using the mentioned aspect)
+can interfere with your general error handling configuration.
+Therefore it is important to configure one of the following options
+
+1. A prefix like :yaml:`/news-detail/`
+
+.. code-block:: yaml
+   :caption: Prefix in path
+   :linenos:
+   :emphasize-lines: 1
+
+    - routePath: '/news-detail/{news-title}'
+      _controller: 'News::detail'
+      _arguments:
+        news-title: news
+
+2. Use :yaml:`limitToPages`
+
+.. code-block:: yaml
+   :caption: Limit to pages
+   :linenos:
+   :emphasize-lines: 4-6
+
+   routeEnhancers:
+     News:
+       type: Extbase
+       limitToPages:
+         - 123
+         - 456
+
 
 How to create URLs in PHP
 -------------------------

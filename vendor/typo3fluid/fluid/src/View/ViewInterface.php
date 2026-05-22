@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 /*
  * This file belongs to the package "TYPO3 Fluid".
  * See LICENSE.txt that was shipped with this package.
@@ -11,6 +13,7 @@ namespace TYPO3Fluid\Fluid\View;
  * Interface of a view
  *
  * @api
+ * @todo add return types with Fluid v5
  */
 interface ViewInterface
 {
@@ -37,7 +40,7 @@ interface ViewInterface
     /**
      * Renders the view
      *
-     * @return string The rendered view
+     * @return mixed The rendered view
      * @api
      */
     public function render();
@@ -48,7 +51,7 @@ interface ViewInterface
      * @param string $sectionName Name of section to render
      * @param array $variables The variables to use
      * @param bool $ignoreUnknown Ignore an unknown section and just return an empty string
-     * @return string rendered template for the section
+     * @return mixed rendered template for the section
      * @throws Exception\InvalidSectionException
      */
     public function renderSection($sectionName, array $variables = [], $ignoreUnknown = false);
@@ -60,7 +63,7 @@ interface ViewInterface
      * @param string $sectionName
      * @param array $variables
      * @param bool $ignoreUnknown Ignore an unknown section and just return an empty string
-     * @return string
+     * @return mixed
      */
     public function renderPartial($partialName, $sectionName, array $variables, $ignoreUnknown = false);
 }

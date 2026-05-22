@@ -1,10 +1,8 @@
 <?php
 
-/**
- * This file is part of the package netresearch/rte-ckeditor-image.
- *
- * For the full copyright and license information, please read the
- * LICENSE file that was distributed with this source code.
+/*
+ * Copyright (c) 2025-2026 Netresearch DTT GmbH
+ * SPDX-License-Identifier: AGPL-3.0-or-later
  */
 
 declare(strict_types=1);
@@ -14,25 +12,37 @@ namespace Netresearch\RteCKEditorImage\Backend\Preview;
 use DOMDocument;
 use DOMNode;
 use DOMText;
+use Netresearch\RteCKEditorImage\Dto\ValidationIssue;
+use Netresearch\RteCKEditorImage\Dto\ValidationIssueType;
+use Netresearch\RteCKEditorImage\Service\RteImageReferenceValidator;
+use TYPO3\CMS\Backend\Preview\StandardContentPreviewRenderer;
 use TYPO3\CMS\Backend\View\BackendLayout\Grid\GridColumnItem;
-use TYPO3\CMS\Frontend\Preview\TextPreviewRenderer;
 
 /**
  * Renders the preview of TCA "text" elements. This class overrides the
  * default \TYPO3\CMS\Frontend\Preview\TextPreviewRenderer and extends its functionality to
  * include images in the preview.
  *
+ * Additionally detects broken image references and shows a warning callout
+ * in the page module preview.
+ *
  * @author  Rico Sonntag <rico.sonntag@netresearch.de>
  * @license https://www.gnu.org/licenses/agpl-3.0.de.html
- * @link    https://www.netresearch.de
+ *
+ * @see    https://www.netresearch.de
  */
-class RteImagePreviewRenderer extends TextPreviewRenderer
+class RteImagePreviewRenderer extends StandardContentPreviewRenderer
 {
     private bool $reachedLimit = false;
+
     private int $totalLength = 0;
 
     /** @var DOMNode[] */
     private array $toRemove = [];
+
+    public function __construct(
+        private readonly ?RteImageReferenceValidator $validator = null,
+    ) {}
 
     /**
      * Dedicated method for rendering preview body HTML for the page module only.
@@ -45,24 +55,33 @@ class RteImagePreviewRenderer extends TextPreviewRenderer
      */
     public function renderPageModulePreviewContent(GridColumnItem $item): string
     {
-        $row  = $item->getRecord();
+        $record = $item->getRecord();
+
+        // TYPO3 v14+ uses getRow() for array access, v13 uses getRecord() which returns array directly
+        /** @var array<string, mixed> $row */
+        $row  = method_exists($item, 'getRow') ? $item->getRow() : $record;
         $html = $row['bodytext'] ?? '';
 
-        // Sanitize HTML (replaces invalid chars with U+FFFD)<.
+        // Sanitize HTML (replaces invalid chars with U+FFFD).
         // - Invalid control chars: [\x00-\x08\x0B\x0C\x0E-\x1F]
-        // - UTF-16 surrogates: \xED[\xA0-\xBF].
+        // - UTF-16 surrogates (UTF-8 encoded): \xED[\xA0-\xBF][\x80-\xBF]
         // - Non-characters U+FFFE and U+FFFF: \xEF\xBF[\xBE\xBF]
-        $html = preg_replace(
-            '/[\x00-\x08\x0B\x0C\x0E-\x1F]|\xED[\xA0-\xBF].|\xEF\xBF[\xBE\xBF]/',
-            "\xEF\xBF\xBD",
-            $html
-        );
+        $html = is_string($html)
+            ? (preg_replace(
+                '/[\x00-\x08\x0B\x0C\x0E-\x1F]|\xED[\xA0-\xBF][\x80-\xBF]|\xEF\xBF[\xBE\xBF]/',
+                "\xEF\xBF\xBD",
+                $html,
+            ) ?? '')
+            : '';
 
-        return $this
-            ->linkEditContent(
-                $this->renderTextWithHtml($html),
-                $row
-            )
+        $warning = $this->detectIssuesAndRenderWarning($html, $row);
+
+        return $warning
+            . $this
+                ->linkEditContent(
+                    $this->renderTextWithHtml($html),
+                    $record,
+                )
             . '<br />';
     }
 
@@ -70,14 +89,90 @@ class RteImagePreviewRenderer extends TextPreviewRenderer
      * Processing of larger amounts of text (usually from RTE/bodytext fields) with word wrapping etc.
      *
      * @param string $input Input string
+     *
      * @return string Output string
      */
     protected function renderTextWithHtml(string $input): string
     {
-        // Allow only <img> and <p>-tags in preview, to prevent possible HTML mismatch
-        $input = strip_tags($input, '<img><p>');
+        // Allow only safe tags in preview, to prevent possible HTML mismatch
+        $input = strip_tags($input, '<img><p><figure><figcaption>');
 
         return $this->truncate($input, 1500);
+    }
+
+    /**
+     * Detect broken image references and render a warning callout if issues exist.
+     *
+     * @param string|null          $html Sanitized HTML from bodytext
+     * @param array<string, mixed> $row  The database row
+     */
+    private function detectIssuesAndRenderWarning(?string $html, array $row): string
+    {
+        if (!$this->validator instanceof RteImageReferenceValidator) {
+            return '';
+        }
+
+        if ($html === null || $html === '' || !str_contains($html, '<img')) {
+            return '';
+        }
+
+        $rawUid = $row['uid'] ?? 0;
+
+        if (is_int($rawUid)) {
+            $uid = $rawUid;
+        } elseif (is_string($rawUid)) {
+            $uid = (int) $rawUid;
+        } else {
+            $uid = 0;
+        }
+
+        $issues = $this->validator->validateHtml($html, 'tt_content', $uid, 'bodytext');
+
+        if ($issues === []) {
+            return '';
+        }
+
+        return $this->renderIssueWarning($issues);
+    }
+
+    /**
+     * Render a warning callout summarizing the detected issues.
+     *
+     * @param list<ValidationIssue> $issues
+     */
+    private function renderIssueWarning(array $issues): string
+    {
+        $counts = [];
+
+        foreach ($issues as $issue) {
+            $label = match ($issue->type) {
+                ValidationIssueType::OrphanedFileUid   => 'orphaned file reference(s)',
+                ValidationIssueType::SrcMismatch       => 'outdated src path(s)',
+                ValidationIssueType::ProcessedImageSrc => 'processed image URL(s)',
+                ValidationIssueType::MissingFileUid    => 'missing file UID(s)',
+                ValidationIssueType::BrokenSrc         => 'broken src attribute(s)',
+                ValidationIssueType::NestedLinkWrapper => 'nested link wrapper(s)',
+            };
+
+            $counts[$label] = ($counts[$label] ?? 0) + 1;
+        }
+
+        $parts = [];
+
+        foreach ($counts as $label => $count) {
+            $parts[] = $count . ' ' . $label;
+        }
+
+        $summary = implode(', ', $parts);
+
+        return '<div class="callout callout-warning">'
+            . '<div class="callout-title">Image reference issues detected</div>'
+            . '<div class="callout-body">'
+            . '<p>' . htmlspecialchars($summary, ENT_QUOTES, 'UTF-8') . '.</p>'
+            . '<p>Run the upgrade wizard <strong>rteImageReferenceValidation</strong> or CLI command '
+            . '<code>bin/typo3 rte_ckeditor_image:validate --fix</code> to repair.</p>'
+            . '</div>'
+            . '</div>';
     }
 
     /**
@@ -92,13 +187,18 @@ class RteImagePreviewRenderer extends TextPreviewRenderer
      */
     private function truncate(string $html, int $length): string
     {
+        // Reset state from previous invocations (instance may be reused by DI)
+        $this->reachedLimit = false;
+        $this->totalLength  = 0;
+        $this->toRemove     = [];
+
         // Set error level
         $internalErrors = libxml_use_internal_errors(true);
 
         $dom = new DOMDocument();
         $dom->loadHTML(
             '<?xml encoding="UTF-8">' . $html,
-            LIBXML_HTML_NOIMPLIED | LIBXML_HTML_NODEFDTD
+            LIBXML_NONET | LIBXML_HTML_NOIMPLIED | LIBXML_HTML_NODEFDTD,
         );
 
         // Restore error level
@@ -137,7 +237,7 @@ class RteImagePreviewRenderer extends TextPreviewRenderer
                     $node->nodeValue = mb_substr(
                         $node->nodeValue,
                         0,
-                        $nodeLen - ($this->totalLength - $maxLength)
+                        $nodeLen - ($this->totalLength - $maxLength),
                     ) . '...';
 
                     $this->reachedLimit = true;

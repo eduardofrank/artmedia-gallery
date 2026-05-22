@@ -1,20 +1,22 @@
+:navigation-title: Introduction
+
 .. include:: /Includes.rst.txt
+.. _known-problems:
+..  _introduction:
 
-.. _introduction:
-
-============
-Introduction
-============
+======================================================
+Introduction into the system extension "Import/Export"
+======================================================
 
 The system extension "Import/Export" (EXT:impexp) allows content to be exported
 from one installation of TYPO3 and then imported into another. Exported data
 includes content from multiple tables including :sql:`tt_content` as well as
-images and other files stored in :file:`fileadmin/`.
+images and other files stored in :directory:`fileadmin/`.
 
-This extension is often used to manage content for :ref:`distributions<t3coreapi:distribution>`
+This extension is often used to manage content for :ref:`distributions <t3coreapi:distribution>`
 and also training and demonstration purposes.
 
-.. _merging_multiple_sets_of_data:
+..  _merging_multiple_sets_of_data:
 
 Merging multiple sets of data
 =============================
@@ -27,7 +29,7 @@ their pages and images to their content elements.
 It is also possible to keep the identifiers (`uids`) to allow the reproduction
 of the exact same page and content tree.
 
-.. _what-doesnt-it-do:
+..  _what-doesnt-it-do:
 
 What doesn't it do?
 ===================
@@ -37,7 +39,7 @@ What doesn't it do?
 *   This extension is not used for the :guilabel:`Download`
     feature in the :guilabel:`List` module.
 
-.. _backward_compatibility:
+..  _backward_compatibility:
 
 Backward compatibility
 ======================
@@ -52,6 +54,17 @@ than it is to attempt to update old installations of TYPO3.
 The following images show the export dialog of a current TYPO3 installation and
 TYPO3 v3.8.0: They correspond pretty much.
 
-.. include:: /Images/AutomaticScreenshots/ImpExp.rst.txt
+However, several details may change due to Deprecations and Breaking Changes,
+which can lead to issues with old import data. In cases where the import fails,
+it is recommended to try to manually export assets/files, and re-create the
+reference Index after import. The older an installation is, the more manual
+rework is expected.
 
-.. include:: /Images/ManualScreenshots/ImpExpV3.8.rst.txt
+Ongoing improvements to the Import/Export code base can only made, when
+legacy considerations are not the first priority. A "guaranteed" fully-working
+export and re-import is only given for T3D structures within the same
+major version.
+
+..  include:: /Images/AutomaticScreenshots/ImpExp.rst.txt
+
+..  include:: /Images/ManualScreenshots/ImpExpV3.8.rst.txt

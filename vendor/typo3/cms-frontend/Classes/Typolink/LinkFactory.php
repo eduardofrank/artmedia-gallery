@@ -20,6 +20,8 @@ namespace TYPO3\CMS\Frontend\Typolink;
 use Psr\EventDispatcher\EventDispatcherInterface;
 use Psr\Log\LoggerAwareInterface;
 use Psr\Log\LoggerAwareTrait;
+use Symfony\Component\DependencyInjection\Attribute\Autoconfigure;
+use Symfony\Component\DependencyInjection\Attribute\Autowire;
 use TYPO3\CMS\Core\Cache\Frontend\FrontendInterface;
 use TYPO3\CMS\Core\LinkHandling\Exception\UnknownLinkHandlerException;
 use TYPO3\CMS\Core\LinkHandling\LinkService;
@@ -36,6 +38,7 @@ use TYPO3\CMS\Frontend\Event\AfterLinkIsGeneratedEvent;
  * Main class for generating any kind of frontend links.
  * Contains all logic for the infamous typolink() functionality.
  */
+#[Autoconfigure(public: true)]
 class LinkFactory implements LoggerAwareInterface
 {
     use DefaultJavaScriptAssetTrait;
@@ -45,6 +48,7 @@ class LinkFactory implements LoggerAwareInterface
         protected readonly LinkService $linkService,
         protected readonly EventDispatcherInterface $eventDispatcher,
         protected readonly TypoLinkCodecService $typoLinkCodecService,
+        #[Autowire(service: 'cache.runtime')]
         protected readonly FrontendInterface $runtimeCache,
         protected readonly SiteFinder $siteFinder,
     ) {}
@@ -57,7 +61,7 @@ class LinkFactory implements LoggerAwareInterface
     {
         if (isset($linkConfiguration['parameter.'])) {
             // Evaluate "parameter." stdWrap but keep additional information (like target, class and title)
-            $linkParameterParts = $this->typoLinkCodecService->decode($linkConfiguration['parameter'] ?? '');
+            $linkParameterParts = $this->typoLinkCodecService->decode((string)($linkConfiguration['parameter'] ?? ''));
             $modifiedLinkParameterString = $contentObjectRenderer->stdWrap($linkParameterParts['url'], $linkConfiguration['parameter.']);
             // As the stdWrap result might contain target etc. as well again (".field = header_link")
             // the result is then taken from the stdWrap and overridden if the value is not empty.
@@ -114,18 +118,12 @@ class LinkFactory implements LoggerAwareInterface
      */
     public function createUri(string $urlParameter, ?ContentObjectRenderer $contentObjectRenderer = null): LinkResultInterface
     {
-        $contentObjectRenderer = $contentObjectRenderer ?? GeneralUtility::makeInstance(ContentObjectRenderer::class);
+        if ($contentObjectRenderer === null) {
+            $contentObjectRenderer = GeneralUtility::makeInstance(ContentObjectRenderer::class);
+            // @todo: LinkFactory needs the request to determine fallback page uid when link config has none.
+            $contentObjectRenderer->setRequest($GLOBALS['TYPO3_REQUEST']);
+        }
         return $this->create('', ['parameter' => $urlParameter], $contentObjectRenderer);
-    }
-
-    /**
-     * Legacy method, use createUri() instead.
-     * @deprecated will be removed in TYPO3 v13.0.
-     */
-    public function createFromUriString(string $urlParameter): LinkResultInterface
-    {
-        trigger_error('LinkFactory->createFromUriString() will be removed in TYPO3 v13.0. Use createUri() instead.', E_USER_DEPRECATED);
-        return $this->createUri($urlParameter);
     }
 
     /**
@@ -211,7 +209,7 @@ class LinkFactory implements LoggerAwareInterface
         [$linkHandlerKeyword] = explode(':', $linkParameterParts['url'], 2);
         if (in_array(strtolower((string)preg_replace('#\s|[[:cntrl:]]#', '', (string)$linkHandlerKeyword)), ['javascript', 'data'], true)) {
             // Disallow insecure scheme's like javascript: or data:
-            throw new UnableToLinkException('Insuecure scheme for linking detected with "' . $mixedLinkParameter . "'", 1641986533);
+            throw new UnableToLinkException('Insecure scheme for linking detected with "' . $mixedLinkParameter . "'", 1641986533);
         }
 
         // additional parameters that need to be set
@@ -257,7 +255,7 @@ class LinkFactory implements LoggerAwareInterface
             ];
             $linkResult = $linkResult->withAttributes($JSwindowAttrs);
             $linkResult = $linkResult->withAttribute('target', $target);
-            $this->addDefaultFrontendJavaScript();
+            $this->addDefaultFrontendJavaScript($contentObjectRenderer->getRequest());
         }
         return $linkResult;
     }
@@ -268,9 +266,11 @@ class LinkFactory implements LoggerAwareInterface
      */
     protected function addAdditionalAnchorTagAttributes(LinkResultInterface $linkResult, array $linkConfiguration, ContentObjectRenderer $contentObjectRenderer): LinkResultInterface
     {
+        $request = $contentObjectRenderer->getRequest();
+        $frontendTypoScriptConfigArray = $request->getAttribute('frontend.typoscript')?->getConfigArray();
         $aTagParams = $contentObjectRenderer->stdWrapValue('ATagParams', $linkConfiguration);
         // Add the global config.ATagParams
-        $globalParams = $contentObjectRenderer->getTypoScriptFrontendController() ? trim($contentObjectRenderer->getTypoScriptFrontendController()->config['config']['ATagParams'] ?? '') : '';
+        $globalParams = $frontendTypoScriptConfigArray['ATagParams'] ?? '';
         $aTagParams = trim($globalParams . ' ' . $aTagParams);
         if (!empty($aTagParams)) {
             // Decode entities here, as they are doubly escaped again when using HTML output

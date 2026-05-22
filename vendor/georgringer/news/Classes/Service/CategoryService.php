@@ -9,10 +9,10 @@
 
 namespace GeorgRinger\News\Service;
 
-use TYPO3\CMS\Backend\Utility\BackendUtility;
 use TYPO3\CMS\Core\Cache\CacheManager;
 use TYPO3\CMS\Core\Database\Connection;
 use TYPO3\CMS\Core\Database\ConnectionPool;
+use TYPO3\CMS\Core\Database\Query\Restriction\HiddenRestriction;
 use TYPO3\CMS\Core\TimeTracker\TimeTracker;
 use TYPO3\CMS\Core\Utility\GeneralUtility;
 
@@ -25,7 +25,7 @@ class CategoryService
      * Get child categories by calling recursive function
      * and using the caching framework to save some queries
      *
-     * @param string $idList list of category ids to start
+     * @param int|string $idList list of category ids to start
      * @param int $counter
      * @param string $additionalWhere additional where clause
      * @param bool $removeGivenIdListFromResult remove the given id list from result
@@ -38,19 +38,19 @@ class CategoryService
         $removeGivenIdListFromResult = false
     ): string {
         if ($additionalWhere !== '') {
-            throw new \UnexpectedValueException('The argument $additionalWhere is not supported anymore');
+            throw new \UnexpectedValueException('The argument $additionalWhere is not supported anymore', 1025758541);
         }
         $cache = GeneralUtility::makeInstance(CacheManager::class)->getCache('news_category');
         $cacheIdentifier = sha1('children' . $idList);
 
         $entry = $cache->get($cacheIdentifier);
         if (!$entry) {
-            $entry = self::getChildrenCategoriesRecursive($idList, $counter, $additionalWhere);
+            $entry = self::getChildrenCategoriesRecursive((string)$idList, $counter);
             $cache->set($cacheIdentifier, $entry);
         }
 
         if ($removeGivenIdListFromResult) {
-            $entry = self::removeValuesFromString($entry, $idList);
+            $entry = self::removeValuesFromString((string)$entry, (string)$idList);
         }
 
         return $entry;
@@ -61,15 +61,12 @@ class CategoryService
      *
      * @param string $result string comma separated list
      * @param $toBeRemoved string comma separated list
-     * @return string
      */
     public static function removeValuesFromString($result, string $toBeRemoved): string
     {
         $resultAsArray = GeneralUtility::trimExplode(',', $result, true);
         $idListAsArray = GeneralUtility::trimExplode(',', $toBeRemoved, true);
-
-        $result = implode(',', array_diff($resultAsArray, $idListAsArray));
-        return $result;
+        return implode(',', array_diff($resultAsArray, $idListAsArray));
     }
 
     /**
@@ -77,10 +74,9 @@ class CategoryService
      *
      * @param string $idList list of category ids to start
      * @param int $counter
-     * @param string $additionalWhere additional where clause
      * @return string comma separated list of category ids
      */
-    private static function getChildrenCategoriesRecursive($idList, $counter = 0, $additionalWhere = ''): string
+    private static function getChildrenCategoriesRecursive($idList, $counter = 0): string
     {
         $result = [];
 
@@ -91,6 +87,7 @@ class CategoryService
 
         $queryBuilder = GeneralUtility::makeInstance(ConnectionPool::class)
             ->getQueryBuilderForTable('sys_category');
+        $queryBuilder->getRestrictions()->removeByType(HiddenRestriction::class);
         $res = $queryBuilder
             ->select('uid')
             ->from('sys_category')
@@ -105,59 +102,16 @@ class CategoryService
                 GeneralUtility::makeInstance(TimeTracker::class)->setTSlogMessage('EXT:news: one or more recursive categories where found');
                 return implode(',', $result);
             }
-            $subcategories = self::getChildrenCategoriesRecursive($row['uid'], $counter);
+            $subcategories = self::getChildrenCategoriesRecursive((string)$row['uid'], $counter);
             $result[] = $row['uid'] . ($subcategories ? ',' . $subcategories : '');
         }
-
-        $result = implode(',', $result);
-        return $result;
-    }
-
-    /**
-     * Translate a category record in the backend
-     *
-     * @param string $default default label
-     * @param array $row category record
-     * @return string
-     */
-    public static function translateCategoryRecord($default, array $row = []): string
-    {
-        $overlayLanguage = (int)($GLOBALS['BE_USER']->uc['newsoverlay'] ?? 0);
-
-        $title = '';
-
-        if ($row['uid'] > 0 && $overlayLanguage > 0 && !isset($row['sys_language_uid'])) {
-            $row = BackendUtility::getRecord('sys_category', $row['uid']);
-        }
-
-        if ($row['uid'] > 0 && $overlayLanguage > 0 && $row['sys_language_uid'] === 0) {
-            $queryBuilder = GeneralUtility::makeInstance(ConnectionPool::class)
-                ->getQueryBuilderForTable('sys_category');
-            $overlayRecord = $queryBuilder
-                ->select('title')
-                ->from('sys_category')
-                ->where(
-                    $queryBuilder->expr()->eq('sys_language_uid', $queryBuilder->createNamedParameter($overlayLanguage, Connection::PARAM_INT)),
-                    $queryBuilder->expr()->eq('l10n_parent', $queryBuilder->createNamedParameter($row['uid'], Connection::PARAM_INT))
-                )
-                ->setMaxResults(1)
-                ->executeQuery()->fetchAssociative();
-
-            if (is_array($overlayRecord) && !empty($overlayRecord)) {
-                $title = $overlayRecord['title'] . ' (' . $row['title'] . ')';
-            }
-        }
-
-        $title = $title ?: $default ?: '';
-
-        return $title;
+        return implode(',', $result);
     }
 
     /**
      * Clean list of integers
      *
      * @param string $list
-     * @return string
      */
     private static function cleanIntList($list): string
     {

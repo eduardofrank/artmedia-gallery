@@ -17,42 +17,30 @@ declare(strict_types=1);
 
 namespace TYPO3\CMS\Fluid\ViewHelpers\Be\Menus;
 
+use Psr\Http\Message\ServerRequestInterface;
 use TYPO3\CMS\Core\Utility\ArrayUtility;
 use TYPO3\CMS\Core\Utility\GeneralUtility;
 use TYPO3\CMS\Extbase\Mvc\RequestInterface;
 use TYPO3\CMS\Extbase\Mvc\Web\Routing\UriBuilder;
-use TYPO3\CMS\Fluid\Core\Rendering\RenderingContext;
 use TYPO3Fluid\Fluid\Core\ViewHelper\AbstractTagBasedViewHelper;
 
 /**
- * ViewHelper which returns an option tag.
- * This ViewHelper only works in conjunction with :php:`\TYPO3\CMS\Fluid\ViewHelpers\Be\Menus\ActionMenuViewHelper`.
- * This ViewHelper is tailored to be used only in extbase context.
+ * ViewHelper which returns an option tag within a `<f:be.menus.actionMenu>` group.
  *
- * .. note::
- *    This ViewHelper is experimental!
+ * ```
+ *  <f:be.menus.actionMenu>
+ *      <f:be.menus.actionMenuItem label="First Menu" controller="Default" action="index" />
+ *      <f:be.menus.actionMenuItemGroup label="Information">
+ *          <f:be.menus.actionMenuItem label="PHP Information" controller="Information" action="listPhpInfo" />
+ *          <f:be.menus.actionMenuItem label="{f:translate(key:'documentation')}" controller="Information" action="documentation" />
+ *          ...
+ *      </f:be.menus.actionMenuItemGroup>
+ *  </f:be.menus.actionMenu>
+ * ```
  *
- * Examples
- * ========
+ * **Note:** This ViewHelper is experimental and tailored to be used only in extbase context.
  *
- * Simple::
- *
- *    <f:be.menus.actionMenu>
- *       <f:be.menus.actionMenuItem label="Overview" controller="Blog" action="index" />
- *       <f:be.menus.actionMenuItem label="Create new Blog" controller="Blog" action="new" />
- *       <f:be.menus.actionMenuItem label="List Posts" controller="Post" action="index" arguments="{blog: blog}" />
- *    </f:be.menus.actionMenu>
- *
- * Select box with the options "Overview", "Create new Blog" and "List Posts".
- *
- * Localized::
- *
- *    <f:be.menus.actionMenu>
- *       <f:be.menus.actionMenuItem label="{f:translate(key='overview')}" controller="Blog" action="index" />
- *       <f:be.menus.actionMenuItem label="{f:translate(key='create_blog')}" controller="Blog" action="new" />
- *    </f:be.menus.actionMenu>
- *
- * Localized select box.
+ * @see https://docs.typo3.org/permalink/t3viewhelper:typo3-fluid-be-menus-actionmenuitem
  */
 final class ActionMenuItemViewHelper extends AbstractTagBasedViewHelper
 {
@@ -78,16 +66,16 @@ final class ActionMenuItemViewHelper extends AbstractTagBasedViewHelper
         $arguments = $this->arguments['arguments'];
 
         $uriBuilder = GeneralUtility::makeInstance(UriBuilder::class);
-        /** @var RenderingContext $renderingContext */
-        $renderingContext = $this->renderingContext;
-        $request = $renderingContext->getRequest();
-        if (!$request instanceof RequestInterface) {
+        if (!$this->renderingContext->hasAttribute(ServerRequestInterface::class)
+            || !$this->renderingContext->getAttribute(ServerRequestInterface::class) instanceof RequestInterface) {
             // Throw if not an extbase request
             throw new \RuntimeException(
                 'ViewHelper f:be.menus.actionMenuItem needs an extbase Request object to create URIs.',
                 1639741792
             );
         }
+        /** @var RequestInterface $request */
+        $request = $this->renderingContext->getAttribute(ServerRequestInterface::class);
         $uriBuilder->setRequest($request);
 
         $uri = $uriBuilder->reset()->uriFor($action, $arguments, $controller);
@@ -103,10 +91,8 @@ final class ActionMenuItemViewHelper extends AbstractTagBasedViewHelper
 
     protected function evaluateSelectItemState(string $controller, string $action, array $arguments): void
     {
-        /** @var RenderingContext $renderingContext */
-        $renderingContext = $this->renderingContext;
         /** @var RequestInterface $request */
-        $request = $renderingContext->getRequest();
+        $request = $this->renderingContext->getAttribute(ServerRequestInterface::class);
         $flatRequestArguments = ArrayUtility::flattenPlain(
             array_merge([
                 'controller' => $request->getControllerName(),
@@ -117,8 +103,8 @@ final class ActionMenuItemViewHelper extends AbstractTagBasedViewHelper
             array_merge(['controller' => $controller, 'action' => $action], $arguments)
         );
         if (
-            ($this->arguments['selected'] ?? false) ||
-            array_diff($flatRequestArguments, $flatViewHelperArguments) === []
+            ($this->arguments['selected'] ?? false)
+            || array_diff($flatRequestArguments, $flatViewHelperArguments) === []
         ) {
             $this->tag->addAttribute('selected', 'selected');
         }

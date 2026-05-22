@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 /*
  * This file is part of the TYPO3 CMS project.
  *
@@ -23,7 +25,7 @@ use TYPO3\CMS\Core\Database\ConnectionPool;
 use TYPO3\CMS\Core\Database\Query\Restriction\DeletedRestriction;
 use TYPO3\CMS\Core\Database\Query\Restriction\WorkspaceRestriction;
 use TYPO3\CMS\Core\Domain\Repository\PageRepository;
-use TYPO3\CMS\Core\Imaging\Icon;
+use TYPO3\CMS\Core\Imaging\IconSize;
 use TYPO3\CMS\Core\LinkHandling\LinkService;
 use TYPO3\CMS\Core\Type\Bitmask\Permission;
 use TYPO3\CMS\Core\Utility\GeneralUtility;
@@ -63,13 +65,21 @@ class PageLinkHandler extends AbstractLinkHandler implements LinkHandlerInterfac
             return false;
         }
         $data = $linkParts['url'];
+        // Resolve "current" to the actual page ID from the link browser context
+        if (($data['pageuid'] ?? '') === 'current') {
+            $currentPageId = (int)($this->linkBrowser->getParameters()['pid'] ?? 0);
+            if ($currentPageId > 0) {
+                $linkParts['url']['pageuid'] = $currentPageId;
+                $data = $linkParts['url'];
+            }
+        }
         // Check if the page still exists
         if ((int)($data['pageuid'] ?? 0) > 0) {
             $pageRow = BackendUtility::getRecordWSOL('pages', $data['pageuid']);
             if (!$pageRow) {
                 return false;
             }
-        } elseif ($data['pageuid'] ?? '' !== 'current') {
+        } else {
             return false;
         }
 
@@ -145,12 +155,13 @@ class PageLinkHandler extends AbstractLinkHandler implements LinkHandlerInterfac
             // Create header for listing, showing the page title/icon
             $this->view->assign('activePage', $activePageRecord);
             $this->view->assign('activePageTitle', BackendUtility::getRecordTitle('pages', $activePageRecord, true));
-            $this->view->assign('activePageIcon', $this->iconFactory->getIconForRecord('pages', $activePageRecord, Icon::SIZE_SMALL)->render());
+            $this->view->assign('activePageIcon', $this->iconFactory->getIconForRecord('pages', $activePageRecord, IconSize::SMALL)->render());
             if ($this->isPageLinkable($activePageRecord)) {
                 $this->view->assign('activePageLink', $linkService->asString(['type' => LinkService::TYPE_PAGE, 'pageuid' => $pageId]));
             }
 
             // Look up tt_content elements from the expanded page
+            // @todo: this should be grouped by colPos and use the layout from the page module
             $queryBuilder = GeneralUtility::makeInstance(ConnectionPool::class)
                 ->getQueryBuilderForTable('tt_content');
 
@@ -180,14 +191,24 @@ class PageLinkHandler extends AbstractLinkHandler implements LinkHandlerInterfac
                 ->fetchAllAssociative();
 
             // Enrich list of records
-            foreach ($contentElements as &$contentElement) {
-                BackendUtility::workspaceOL('tt_content', $contentElement);
-                $contentElement['url'] = $linkService->asString(['type' => LinkService::TYPE_PAGE, 'pageuid' => $pageId, 'fragment' => $contentElement['uid']]);
-                $contentElement['isSelected'] = (int)($this->linkParts['url']['fragment'] ?? 0) === (int)$contentElement['uid'];
-                $contentElement['icon'] = $this->iconFactory->getIconForRecord('tt_content', $contentElement, Icon::SIZE_SMALL)->render();
-                $contentElement['title'] = BackendUtility::getRecordTitle('tt_content', $contentElement, true);
+            $items = [];
+            foreach ($contentElements as $contentElement) {
+                BackendUtility::workspaceOL('tt_content', $contentElement, $this->getBackendUser()->workspace, true);
+                if (is_array($contentElement)) {
+                    // Ensure to always link to the live version of the record
+                    if ((int)$contentElement['t3ver_oid'] > 0) {
+                        $contentElementId = (int)$contentElement['t3ver_oid'];
+                    } else {
+                        $contentElementId = (int)$contentElement['uid'];
+                    }
+                    $contentElement['url'] = $linkService->asString(['type' => LinkService::TYPE_PAGE, 'pageuid' => $pageId, 'fragment' => $contentElementId]);
+                    $contentElement['isSelected'] = (int)($this->linkParts['url']['fragment'] ?? 0) === $contentElementId;
+                    $contentElement['icon'] = $this->iconFactory->getIconForRecord('tt_content', $contentElement, IconSize::SMALL)->render();
+                    $contentElement['title'] = BackendUtility::getRecordTitle('tt_content', $contentElement, true);
+                    $items[] = $contentElement;
+                }
             }
-            $this->view->assign('contentElements', $contentElements);
+            $this->view->assign('contentElements', $items);
         }
     }
 
@@ -210,35 +231,14 @@ class PageLinkHandler extends AbstractLinkHandler implements LinkHandlerInterfac
 
     /**
      * @param array $values Array of values to include into the parameters or which might influence the parameters
-     *
      * @return string[] Array of parameters which have to be added to URLs
      */
-    public function getUrlParameters(array $values)
+    public function getUrlParameters(array $values): array
     {
         $parameters = [
             'expandPage' => isset($values['pid']) ? (int)$values['pid'] : $this->expandPage,
         ];
         return array_merge($this->linkBrowser->getUrlParameters($values), $parameters);
-    }
-
-    /**
-     * @param array $values Values to be checked
-     *
-     * @return bool Returns TRUE if the given values match the currently selected item
-     */
-    public function isCurrentlySelectedItem(array $values)
-    {
-        return !empty($this->linkParts) && (int)$this->linkParts['url']['pageuid'] === (int)$values['pid'];
-    }
-
-    /**
-     * Returns the URL of the current script
-     *
-     * @return string
-     */
-    public function getScriptUrl()
-    {
-        return $this->linkBrowser->getScriptUrl();
     }
 
     /**
@@ -269,6 +269,6 @@ class PageLinkHandler extends AbstractLinkHandler implements LinkHandlerInterfac
 
     protected function isPageLinkable(array $page): bool
     {
-        return !in_array((int)$page['doktype'], [PageRepository::DOKTYPE_RECYCLER, PageRepository::DOKTYPE_SYSFOLDER, PageRepository::DOKTYPE_SPACER]);
+        return !in_array((int)$page['doktype'], [PageRepository::DOKTYPE_SYSFOLDER, PageRepository::DOKTYPE_SPACER]);
     }
 }

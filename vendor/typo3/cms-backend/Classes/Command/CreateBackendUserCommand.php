@@ -49,7 +49,7 @@ class CreateBackendUserCommand extends Command
         parent::__construct();
     }
 
-    protected function configure()
+    protected function configure(): void
     {
         $this
             ->addOption(
@@ -270,7 +270,7 @@ EOT
                 return [];
             }
 
-            $questionGroups = new ChoiceQuestion('Select groups the newly created backend user should be assigned to (use comma seperated list for multiple groups): ', $groupChoices);
+            $questionGroups = new ChoiceQuestion('Select groups the newly created backend user should be assigned to (use comma-separated list for multiple groups): ', $groupChoices);
             $questionGroups->setMultiselect(true);
             $questionGroups->setValidator($groupValidator);
             // Ensure keys are selected and not the values

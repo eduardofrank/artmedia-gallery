@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 /*
  * This file belongs to the package "TYPO3 Fluid".
  * See LICENSE.txt that was shipped with this package.
@@ -33,14 +35,8 @@ class ViewHelperInvoker
     /**
      * Invoke the ViewHelper described by the ViewHelperNode, the properties
      * of which will already have been filled by the ViewHelperResolver.
-     *
-     * @param string|ViewHelperInterface $viewHelperClassNameOrInstance
-     * @param array<string, mixed> $arguments
-     * @param RenderingContextInterface $renderingContext
-     * @param \Closure|null $renderChildrenClosure
-     * @return string
      */
-    public function invoke($viewHelperClassNameOrInstance, array $arguments, RenderingContextInterface $renderingContext, ?\Closure $renderChildrenClosure = null)
+    public function invoke(string|ViewHelperInterface $viewHelperClassNameOrInstance, array $arguments, RenderingContextInterface $renderingContext, ?\Closure $renderChildrenClosure = null): mixed
     {
         $viewHelperResolver = $renderingContext->getViewHelperResolver();
         if ($viewHelperClassNameOrInstance instanceof ViewHelperInterface) {
@@ -48,34 +44,33 @@ class ViewHelperInvoker
         } else {
             $viewHelper = $viewHelperResolver->createViewHelperInstanceFromClassName($viewHelperClassNameOrInstance);
         }
-        $expectedViewHelperArguments = $viewHelperResolver->getArgumentDefinitionsForViewHelper($viewHelper);
+        $argumentDefinitions = $viewHelperResolver->getArgumentDefinitionsForViewHelper($viewHelper);
 
-        // Rendering process
-        $evaluatedArguments = [];
-        $undeclaredArguments = [];
-
+        // @todo make configurable with Fluid v5
+        $argumentProcessor = new LenientArgumentProcessor();
         try {
-            foreach ($expectedViewHelperArguments as $argumentName => $argumentDefinition) {
-                if (isset($arguments[$argumentName])) {
-                    /** @var NodeInterface|mixed $argumentValue */
-                    $argumentValue = $arguments[$argumentName];
-                    $evaluatedArguments[$argumentName] = $argumentValue instanceof NodeInterface ? $argumentValue->evaluate($renderingContext) : $argumentValue;
-                } else {
-                    $evaluatedArguments[$argumentName] = $argumentDefinition->getDefaultValue();
-                }
-            }
-            foreach ($arguments as $argumentName => $argumentValue) {
-                if (!array_key_exists($argumentName, $evaluatedArguments)) {
-                    $undeclaredArguments[$argumentName] = $argumentValue instanceof NodeInterface ? $argumentValue->evaluate($renderingContext) : $argumentValue;
-                }
+            // Convert nodes to actual values (in uncached context)
+            $arguments = array_map(
+                fn($value) => $value instanceof NodeInterface ? $value->evaluate($renderingContext) : $value,
+                $arguments,
+            );
+
+            // Determine arguments defined by the ViewHelper API
+            $registeredArguments = [];
+            foreach ($argumentDefinitions as $argumentName => $argumentDefinition) {
+                // @todo also perform argument validation here with Fluid v5, including check for required arguments
+                $registeredArguments[$argumentName] = isset($arguments[$argumentName])
+                    ? $argumentProcessor->process($arguments[$argumentName], $argumentDefinition)
+                    : $argumentDefinition->getDefaultValue();
+                unset($arguments[$argumentName]);
             }
 
             if ($renderChildrenClosure) {
                 $viewHelper->setRenderChildrenClosure($renderChildrenClosure);
             }
             $viewHelper->setRenderingContext($renderingContext);
-            $viewHelper->setArguments($evaluatedArguments);
-            $viewHelper->handleAdditionalArguments($undeclaredArguments);
+            $viewHelper->setArguments($registeredArguments);
+            $viewHelper->handleAdditionalArguments($arguments);
             return $viewHelper->initializeArgumentsAndRender();
         } catch (Exception $error) {
             return $renderingContext->getErrorHandler()->handleViewHelperError($error);

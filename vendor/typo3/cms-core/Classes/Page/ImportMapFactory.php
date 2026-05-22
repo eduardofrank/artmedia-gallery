@@ -18,17 +18,26 @@ declare(strict_types=1);
 namespace TYPO3\CMS\Core\Page;
 
 use Psr\EventDispatcher\EventDispatcherInterface;
+use Symfony\Component\DependencyInjection\Attribute\Autoconfigure;
+use Symfony\Component\DependencyInjection\Attribute\Autowire;
 use TYPO3\CMS\Core\Cache\Frontend\FrontendInterface;
+use TYPO3\CMS\Core\Crypto\HashService;
 use TYPO3\CMS\Core\Package\PackageManager;
+use TYPO3\CMS\Core\Security\ContentSecurityPolicy\PolicyRegistry;
 use TYPO3\CMS\Core\SingletonInterface;
 
-class ImportMapFactory implements SingletonInterface
+#[Autoconfigure(public: true)]
+readonly class ImportMapFactory implements SingletonInterface
 {
     public function __construct(
-        private readonly PackageManager $packageManager,
-        private readonly FrontendInterface $assetsCache,
-        private readonly EventDispatcherInterface $eventDispatcher,
-        private readonly string $cacheIdentifier,
+        private HashService $hashService,
+        private PackageManager $packageManager,
+        private PolicyRegistry $policyRegistry,
+        #[Autowire(service: 'cache.assets')]
+        private FrontendInterface $assetsCache,
+        private EventDispatcherInterface $eventDispatcher,
+        #[Autowire(expression: 'service("package-dependent-cache-identifier").withPrefix("ImportMap").toString()')]
+        private string $cacheIdentifier,
     ) {}
 
     public function create(bool $bustSuffix = true): ImportMap
@@ -37,7 +46,9 @@ class ImportMapFactory implements SingletonInterface
             $this->packageManager->getActivePackages()
         );
         return new ImportMap(
+            $this->hashService,
             $activePackages,
+            $this->policyRegistry,
             $this->assetsCache,
             $this->cacheIdentifier,
             $this->eventDispatcher,

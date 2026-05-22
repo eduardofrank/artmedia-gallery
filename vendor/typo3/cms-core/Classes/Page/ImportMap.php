@@ -20,9 +20,16 @@ namespace TYPO3\CMS\Core\Page;
 use Psr\EventDispatcher\EventDispatcherInterface;
 use TYPO3\CMS\Core\Cache\Frontend\FrontendInterface;
 use TYPO3\CMS\Core\Core\Environment;
+use TYPO3\CMS\Core\Crypto\HashService;
 use TYPO3\CMS\Core\Package\PackageInterface;
 use TYPO3\CMS\Core\Page\Event\ResolveJavaScriptImportEvent;
 use TYPO3\CMS\Core\Security\ContentSecurityPolicy\ConsumableNonce;
+use TYPO3\CMS\Core\Security\ContentSecurityPolicy\Directive;
+use TYPO3\CMS\Core\Security\ContentSecurityPolicy\HashValue;
+use TYPO3\CMS\Core\Security\ContentSecurityPolicy\Mutation;
+use TYPO3\CMS\Core\Security\ContentSecurityPolicy\MutationCollection;
+use TYPO3\CMS\Core\Security\ContentSecurityPolicy\MutationMode;
+use TYPO3\CMS\Core\Security\ContentSecurityPolicy\PolicyRegistry;
 use TYPO3\CMS\Core\Utility\ArrayUtility;
 use TYPO3\CMS\Core\Utility\GeneralUtility;
 use TYPO3\CMS\Core\Utility\PathUtility;
@@ -40,7 +47,9 @@ class ImportMap
      * @param list<PackageInterface> $packages
      */
     public function __construct(
+        protected readonly HashService $hashService,
         protected readonly array $packages,
+        protected readonly ?PolicyRegistry $policyRegistry = null,
         protected readonly ?FrontendInterface $cache = null,
         protected readonly string $cacheIdentifier = '',
         protected readonly ?EventDispatcherInterface $eventDispatcher = null,
@@ -78,6 +87,9 @@ class ImportMap
         }
     }
 
+    /**
+     * @return ?non-empty-string
+     */
     public function resolveImport(
         string $specifier,
         bool $loadImportConfiguration = true
@@ -104,7 +116,7 @@ class ImportMap
                     if ($loadImportConfiguration) {
                         $this->loadDependency($package);
                     }
-                    return $imports[$prefix] . implode(array_slice($specifierParts, $i));
+                    return $imports[$prefix] . implode('/', array_slice($specifierParts, $i));
                 }
             }
         }
@@ -114,8 +126,7 @@ class ImportMap
 
     public function render(
         string $urlPrefix,
-        null|string|ConsumableNonce $nonce,
-        bool $includePolyfill = true
+        string|ConsumableNonce|null $nonce
     ): string {
         if (count($this->extensionsToLoad) === 0 || count($this->getImportMaps()) === 0) {
             return '';
@@ -128,21 +139,23 @@ class ImportMap
             $importMap,
             JSON_FORCE_OBJECT | JSON_UNESCAPED_SLASHES | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_TAG | JSON_THROW_ON_ERROR
         );
-        $nonceAttr = $nonce !== null ? ' nonce="' . htmlspecialchars((string)$nonce) . '"' : '';
-        $html[] = sprintf('<script type="importmap"%s>%s</script>', $nonceAttr, $json);
-
-        if ($includePolyfill) {
-            $importmapPolyfill = $urlPrefix . PathUtility::getPublicResourceWebPath(
-                'EXT:core/Resources/Public/JavaScript/Contrib/es-module-shims.js',
-                false
-            );
-
-            $html[] = sprintf(
-                '<script src="%s"%s></script>',
-                htmlspecialchars($importmapPolyfill),
-                $nonceAttr
+        $attributes = [
+            'type' => 'importmap',
+        ];
+        if ($nonce !== null) {
+            $attributes['nonce'] = $nonce instanceof ConsumableNonce ? $nonce->consumeInline(Directive::ScriptSrcElem) : $nonce;
+        } else {
+            $this->policyRegistry?->appendMutationCollection(
+                new MutationCollection(
+                    new Mutation(MutationMode::Extend, Directive::ScriptSrcElem, HashValue::hash($json))
+                )
             );
         }
+        $html[] = sprintf(
+            '<script %s>%s</script>',
+            GeneralUtility::implodeAttributes($attributes, true),
+            $json
+        );
 
         return implode(PHP_EOL, $html) . PHP_EOL;
     }
@@ -199,8 +212,9 @@ class ImportMap
         if ($isDevelopment) {
             $bust = (string)$GLOBALS['EXEC_TIME'];
         } else {
-            $bust = GeneralUtility::hmac(
-                Environment::getProjectPath() . implode('|', $extensionVersions)
+            $bust = $this->hashService->hmac(
+                Environment::getProjectPath() . implode('|', $extensionVersions),
+                self::class
             );
         }
 
@@ -326,6 +340,9 @@ class ImportMap
         return $importMap;
     }
 
+    /**
+     * @return ?non-empty-string
+     */
     protected function dispatchResolveJavaScriptImportEvent(
         string $specifier,
         bool $loadImportConfiguration = true

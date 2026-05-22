@@ -32,38 +32,26 @@ class Totp
     private const MIN_LENGTH = 6;
     private const MAX_LENGTH = 8;
 
-    protected string $secret;
-    protected string $algo;
-    protected int $length;
-    protected int $step;
-    protected int $epoch;
-
     public function __construct(
-        string $secret,
-        string $algo = 'sha1',
-        int $length = 6,
-        int $step = 30,
-        int $epoch = 0
+        protected readonly string $secret,
+        protected readonly string $algo = 'sha1',
+        protected readonly int $length = 6,
+        protected readonly int $step = 30,
+        protected readonly int $epoch = 0
     ) {
-        $this->secret = $secret;
-        $this->step = $step;
-        $this->epoch = $epoch;
-
-        if (!in_array($algo, self::ALLOWED_ALGOS, true)) {
+        if (!in_array($this->algo, self::ALLOWED_ALGOS, true)) {
             throw new \InvalidArgumentException(
-                $algo . ' is not allowed. Allowed algos are: ' . implode(',', self::ALLOWED_ALGOS),
+                $this->algo . ' is not allowed. Allowed algos are: ' . implode(',', self::ALLOWED_ALGOS),
                 1611748791
             );
         }
-        $this->algo = $algo;
 
-        if ($length < self::MIN_LENGTH || $length > self::MAX_LENGTH) {
+        if ($this->length < self::MIN_LENGTH || $this->length > self::MAX_LENGTH) {
             throw new \InvalidArgumentException(
-                $length . ' is not allowed as TOTP length. Must be between ' . self::MIN_LENGTH . ' and ' . self::MAX_LENGTH,
+                $this->length . ' is not allowed as TOTP length. Must be between ' . self::MIN_LENGTH . ' and ' . self::MAX_LENGTH,
                 1611748792
             );
         }
-        $this->length = $length;
     }
 
     /**
@@ -90,7 +78,7 @@ class Totp
             $hmac[] = hexdec($hex);
         }
         // Generate a 4-byte string with dynamic truncation (DT)
-        $offset = $hmac[\count($hmac) - 1] & 0xf;
+        $offset = $hmac[count($hmac) - 1] & 0xf;
         $bits = ((($hmac[$offset + 0] & 0x7f) << 24) | (($hmac[$offset + 1] & 0xff) << 16) | (($hmac[$offset + 2] & 0xff) << 8) | ($hmac[$offset + 3] & 0xff));
         // Compute the TOTP value by reducing the bits modulo 10^Digits and filling it with zeros '0'
         return str_pad((string)($bits % (10 ** $this->length)), $this->length, '0', STR_PAD_LEFT);

@@ -20,8 +20,7 @@ namespace TYPO3\CMS\Backend\ContextMenu\ItemProviders;
 use TYPO3\CMS\Backend\Routing\PreviewUriBuilder;
 use TYPO3\CMS\Backend\Routing\UriBuilder;
 use TYPO3\CMS\Backend\Utility\BackendUtility;
-use TYPO3\CMS\Core\Domain\Repository\PageRepository;
-use TYPO3\CMS\Core\Type\Bitmask\JsConfirmation;
+use TYPO3\CMS\Core\Authentication\JsConfirmation;
 use TYPO3\CMS\Core\Type\Bitmask\Permission;
 use TYPO3\CMS\Core\Utility\GeneralUtility;
 use TYPO3\CMS\Core\Versioning\VersionState;
@@ -407,17 +406,11 @@ class RecordProvider extends AbstractProvider
      */
     protected function getViewLink(): string
     {
-        $anchorSection = '';
-        $language = 0;
-        if ($this->table === 'tt_content') {
-            $anchorSection = '#c' . $this->record['uid'];
-            $language = (int)($this->record[$GLOBALS['TCA']['tt_content']['ctrl']['languageField'] ?? null] ?? 0);
-        }
-
-        return (string)PreviewUriBuilder::create($this->getPreviewPid())
-            ->withSection($anchorSection)
-            ->withLanguage($language)
-            ->buildUri();
+        return (string)PreviewUriBuilder::createForRecordPreview(
+            $this->table,
+            $this->record,
+            $this->pageRecord['uid'] ?? 0
+        )->buildUri();
     }
 
     /**
@@ -442,9 +435,7 @@ class RecordProvider extends AbstractProvider
      */
     protected function canBeViewed(): bool
     {
-        return $this->table === 'tt_content'
-            && $this->parentPageCanBeViewed()
-            && $this->previewLinkCanBeBuild();
+        return $this->previewLinkCanBeBuild();
     }
 
     /**
@@ -482,7 +473,7 @@ class RecordProvider extends AbstractProvider
      */
     protected function isDeletionDisabledInTS(): bool
     {
-        return (bool)\trim(
+        return (bool)trim(
             $this->backendUser->getTSConfig()['options.']['disableDelete.'][$this->table]
             ?? $this->backendUser->getTSConfig()['options.']['disableDelete']
             ?? ''
@@ -586,10 +577,7 @@ class RecordProvider extends AbstractProvider
      */
     protected function isDeletePlaceholder(): bool
     {
-        if (!isset($this->record['t3ver_state'])) {
-            return false;
-        }
-        return VersionState::cast($this->record['t3ver_state'])->equals(VersionState::DELETE_PLACEHOLDER);
+        return VersionState::tryFrom($this->record['t3ver_state'] ?? 0) === VersionState::DELETE_PLACEHOLDER;
     }
 
     /**
@@ -620,24 +608,6 @@ class RecordProvider extends AbstractProvider
     protected function isRecordCurrentBackendUser(): bool
     {
         return $this->table === 'be_users' && (int)($this->record['uid'] ?? 0) === $this->backendUser->getUserId();
-    }
-
-    /**
-     * Check whether the elements' parent page can be viewed
-     */
-    protected function parentPageCanBeViewed(): bool
-    {
-        if (!isset($this->pageRecord['uid']) || !($this->pageRecord['doktype'] ?? false)) {
-            // In case parent page record is invalid, the element can not be viewed
-            return false;
-        }
-
-        // Finally, we check whether the parent page has a "no view doktype" assigned
-        return !in_array((int)$this->pageRecord['doktype'], [
-            PageRepository::DOKTYPE_SPACER,
-            PageRepository::DOKTYPE_SYSFOLDER,
-            PageRepository::DOKTYPE_RECYCLER,
-        ], true);
     }
 
     protected function getIdentifier(): string

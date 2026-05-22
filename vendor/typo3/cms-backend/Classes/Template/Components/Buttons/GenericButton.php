@@ -16,11 +16,15 @@
 namespace TYPO3\CMS\Backend\Template\Components\Buttons;
 
 use TYPO3\CMS\Core\Imaging\Icon;
+use TYPO3\CMS\Core\Imaging\IconSize;
 use TYPO3\CMS\Core\Utility\GeneralUtility;
 
 /**
  * GenericButton
  *
+ * Example:
+ *
+ * ```
  * $button = GeneralUtility::makeInstance(GenericButton::class)
  *     ->setTag('a')
  *     ->setHref('#')
@@ -28,6 +32,7 @@ use TYPO3\CMS\Core\Utility\GeneralUtility;
  *     ->setTitle('Title')
  *     ->setIcon($this->iconFactory->getIcon('actions-heart'))
  *     ->setAttributes(['data-value' => '123']);
+ * ```
  */
 class GenericButton implements ButtonInterface
 {
@@ -58,7 +63,7 @@ class GenericButton implements ButtonInterface
 
     public function setIcon(?Icon $icon): self
     {
-        $icon?->setSize(Icon::SIZE_SMALL);
+        $icon?->setSize(IconSize::SMALL);
         $this->icon = $icon;
         return $this;
     }

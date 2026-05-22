@@ -1,7 +1,24 @@
 .. _configuration:
 
+=============
 Configuration
 =============
+
+Site Sets
+=========
+
+..  versionadded:: TYPO3 v13.4.15 / news v13.0
+    If you are working with TYPO3 v12.4, use :ref:`configuration-typoscript-record`.
+
+Using Site Sets is the new way how to configure your site and extensions.
+Read more about it in the TYPO3 documentation at :ref:`Site sets <t3coreapi/13:site-sets>`.
+
+Follow :ref:`configuration-site-set` how to use EXT:news in combination with Site Sets.
+
+.. _configuration-typoscript-record:
+
+TypoScript Records
+==================
 
 The extension ships some TypoScript code which needs to be included.
 

@@ -34,21 +34,15 @@ use TYPO3\CMS\Core\Package\PackageManager;
  */
 class ExtensionListCommand extends Command
 {
-    /**
-     * @var PackageManager
-     */
-    private $packageManager;
-
-    public function __construct(PackageManager $packageManager)
+    public function __construct(private readonly PackageManager $packageManager)
     {
-        $this->packageManager = $packageManager;
         parent::__construct();
     }
 
     /**
      * Defines the allowed options for this command
      */
-    protected function configure()
+    protected function configure(): void
     {
         $this
             ->addOption(

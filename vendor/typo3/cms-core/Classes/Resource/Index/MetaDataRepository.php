@@ -16,15 +16,19 @@
 namespace TYPO3\CMS\Core\Resource\Index;
 
 use Psr\EventDispatcher\EventDispatcherInterface;
+use TYPO3\CMS\Core\Context\Context;
 use TYPO3\CMS\Core\Database\Connection;
 use TYPO3\CMS\Core\Database\ConnectionPool;
 use TYPO3\CMS\Core\Database\Query\Restriction\RootLevelRestriction;
+use TYPO3\CMS\Core\Database\Query\Restriction\WorkspaceRestriction;
+use TYPO3\CMS\Core\Database\Schema\Information\ColumnInfo;
 use TYPO3\CMS\Core\Resource\Event\AfterFileMetaDataCreatedEvent;
 use TYPO3\CMS\Core\Resource\Event\AfterFileMetaDataDeletedEvent;
 use TYPO3\CMS\Core\Resource\Event\AfterFileMetaDataUpdatedEvent;
 use TYPO3\CMS\Core\Resource\Event\EnrichFileMetaDataEvent;
 use TYPO3\CMS\Core\Resource\Exception\InvalidUidException;
 use TYPO3\CMS\Core\Resource\File;
+use TYPO3\CMS\Core\Resource\FileType;
 use TYPO3\CMS\Core\SingletonInterface;
 use TYPO3\CMS\Core\Type\File\ImageInfo;
 use TYPO3\CMS\Core\Utility\GeneralUtility;
@@ -42,22 +46,9 @@ class MetaDataRepository implements SingletonInterface
      */
     protected $tableName = 'sys_file_metadata';
 
-    /**
-     * Internal storage for database table fields
-     *
-     * @var array
-     */
-    protected $tableFields = [];
-
-    /**
-     * @var EventDispatcherInterface
-     */
-    protected $eventDispatcher;
-
-    public function __construct(EventDispatcherInterface $eventDispatcher)
-    {
-        $this->eventDispatcher = $eventDispatcher;
-    }
+    public function __construct(
+        protected readonly EventDispatcherInterface $eventDispatcher,
+    ) {}
 
     /**
      * Returns array of meta-data properties
@@ -75,7 +66,7 @@ class MetaDataRepository implements SingletonInterface
         // This logic can be transferred into a custom PSR-14 event listener in the future by just using
         // the AfterMetaDataCreated event.
         if (!empty($record['crdate']) && (int)$record['crdate'] === $GLOBALS['EXEC_TIME']) {
-            if ($file->getType() === File::FILETYPE_IMAGE && $file->getStorage()->getDriverType() === 'Local') {
+            if ($file->isType(FileType::IMAGE) && $file->getStorage()->getDriverType() === 'Local') {
                 $fileNameAndPath = $file->getForLocalProcessing(false);
 
                 $imageInfo = GeneralUtility::makeInstance(ImageInfo::class, $fileNameAndPath);
@@ -97,7 +88,7 @@ class MetaDataRepository implements SingletonInterface
      * Retrieves metadata for file
      *
      * @param int $uid
-     * @return array
+     * @return array<string, string> $metaData
      * @throws InvalidUidException
      */
     public function findByFileUid($uid)
@@ -107,9 +98,11 @@ class MetaDataRepository implements SingletonInterface
             throw new InvalidUidException('Metadata can only be retrieved for indexed files. UID: "' . $uid . '"', 1381590731);
         }
 
+        $context = GeneralUtility::makeInstance(Context::class);
         $queryBuilder = GeneralUtility::makeInstance(ConnectionPool::class)->getQueryBuilderForTable($this->tableName);
-
-        $queryBuilder->getRestrictions()->add(GeneralUtility::makeInstance(RootLevelRestriction::class));
+        $queryBuilder->getRestrictions()
+            ->add(GeneralUtility::makeInstance(RootLevelRestriction::class))
+            ->add(GeneralUtility::makeInstance(WorkspaceRestriction::class, $context->getAspect('workspace')->getId()));
 
         $record = $queryBuilder
             ->select('*')
@@ -118,6 +111,9 @@ class MetaDataRepository implements SingletonInterface
                 $queryBuilder->expr()->eq('file', $queryBuilder->createNamedParameter($uid, Connection::PARAM_INT)),
                 $queryBuilder->expr()->in('sys_language_uid', $queryBuilder->createNamedParameter([0, -1], Connection::PARAM_INT_ARRAY))
             )
+            // assure deterministic sorting across all databases
+            ->orderBy('uid', 'ASC')
+            ->setMaxResults(1)
             ->executeQuery()
             ->fetchAssociative();
 
@@ -154,7 +150,7 @@ class MetaDataRepository implements SingletonInterface
         );
 
         $record = $emptyRecord;
-        $record['uid'] = $connection->lastInsertId($this->tableName);
+        $record['uid'] = $connection->lastInsertId();
 
         return $this->eventDispatcher->dispatch(new AfterFileMetaDataCreatedEvent($fileUid, (int)$record['uid'], $record))->getRecord();
     }
@@ -223,16 +219,14 @@ class MetaDataRepository implements SingletonInterface
 
     /**
      * Gets the fields that are available in the table
+     *
+     * @return array<string, ColumnInfo>
      */
     protected function getTableFields(): array
     {
-        if (empty($this->tableFields)) {
-            $this->tableFields = GeneralUtility::makeInstance(ConnectionPool::class)
-                ->getConnectionForTable($this->tableName)
-                ->createSchemaManager()
-                ->listTableColumns($this->tableName);
-        }
-
-        return $this->tableFields;
+        return GeneralUtility::makeInstance(ConnectionPool::class)
+            ->getConnectionForTable($this->tableName)
+            ->getSchemaInformation()
+            ->listTableColumnInfos($this->tableName);
     }
 }

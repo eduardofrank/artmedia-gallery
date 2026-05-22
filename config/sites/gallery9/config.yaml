@@ -1,4 +1,12 @@
 base: 'https://artmedia-gallery.ddev.site'
+dependencies:
+  - bootstrap-package/full
+  - georgringer/news
+  - georgringer/news-twb5
+  - netresearch/rte-ckeditor-image
+  - typo3/form
+  - typo3/seo-sitemap
+  - eduardo-frank/artmediagallery13
 errorHandling:
   -
     errorCode: 404
@@ -75,21 +83,16 @@ routes:
   -
     route: sitemap.xml
     type: uri
-    source: 'https://artmedia.gallery/?type=1533906435'
+    source: 'https://artmedia-gallery.ddev.site/?type=1533906435'
   -
     route: robots.txt
     type: staticText
     content: "User-agent:*\r\nDisallow:/typo3/\r\n"
-  -
-    route: sitemap.xml
-    type: uri
-    source: 'https://www.artmedia.gallery/?type=1533906435'
 websiteTitle: 'Artmedia Gallery'
 webmanifest:
   full_name: 'artmedia.gallery'
   short_name: 'artmedia.gallery'
   theme_color: '#ffffff'
-  favicon_path: 'EXT:artmediagallery12/Resources/Public/Icons/'
+  favicon_path: 'EXT:artmediagallery13/Resources/Public/Icons/'
   favicon_192: android-chrome-192x192.png
   favicon_512: android-chrome-512x512.png
-

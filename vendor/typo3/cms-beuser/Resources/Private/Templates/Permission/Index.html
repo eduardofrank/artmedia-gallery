@@ -9,11 +9,7 @@
 <f:layout name="Module" />
 <f:section name="Content">
 
-    <f:be.pageRenderer
-        includeJavaScriptModules="{
-            0: '@typo3/beuser/permissions.js'
-        }"
-    />
+    <f:asset.module identifier="@typo3/beuser/permissions.js"/>
 
     <h1><f:translate key="LLL:EXT:beuser/Resources/Private/Language/locallang_mod_permission.xlf:permissions" /></h1>
 
@@ -85,32 +81,30 @@
 
                             <td class="col-control">
                                 <span class="btn-group">
-                                    <span id="el_{data.row.uid}">
-                                        <f:if condition="{data.row.editlock}">
-                                            <f:then>
-                                                <button
-                                                    type="button"
-                                                    class="editlock btn btn-sm btn-default"
-                                                    data-page="{data.row.uid}"
-                                                    data-lockstate="1"
-                                                    title="{f:translate(key: 'LLL:EXT:beuser/Resources/Private/Language/locallang_mod_permission.xlf:EditLock_descr')}"
-                                                >
-                                                    <core:icon identifier="actions-lock" />
-                                                </button>
-                                            </f:then>
-                                            <f:else>
-                                                <button
-                                                    type="button"
-                                                    class="editlock btn btn-sm btn-default"
-                                                    data-page="{data.row.uid}"
-                                                    data-lockstate="0"
-                                                    title="{f:translate(key: 'LLL:EXT:beuser/Resources/Private/Language/locallang_mod_permission.xlf:EditLock_descr2')}"
-                                                >
-                                                    <core:icon identifier="actions-unlock" />
-                                                </button>
-                                            </f:else>
-                                        </f:if>
-                                    </span>
+                                    <f:if condition="{data.row.editlock}">
+                                        <f:then>
+                                            <button
+                                                type="button"
+                                                class="editlock btn btn-sm btn-default"
+                                                data-page="{data.row.uid}"
+                                                data-lockstate="1"
+                                                title="{f:translate(key: 'LLL:EXT:beuser/Resources/Private/Language/locallang_mod_permission.xlf:EditLock_descr')}"
+                                            >
+                                                <core:icon identifier="actions-lock" />
+                                            </button>
+                                        </f:then>
+                                        <f:else>
+                                            <button
+                                                type="button"
+                                                class="editlock btn btn-sm btn-default"
+                                                data-page="{data.row.uid}"
+                                                data-lockstate="0"
+                                                title="{f:translate(key: 'LLL:EXT:beuser/Resources/Private/Language/locallang_mod_permission.xlf:EditLock_descr2')}"
+                                            >
+                                                <core:icon identifier="actions-unlock" />
+                                            </button>
+                                        </f:else>
+                                    </f:if>
                                     <f:comment>
                                         Edit link is workspace aware: If in ws, link to edit the ws overlay record is rendered
                                     </f:comment>

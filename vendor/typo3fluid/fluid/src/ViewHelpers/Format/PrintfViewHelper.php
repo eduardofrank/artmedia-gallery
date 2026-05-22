@@ -7,9 +7,7 @@
 
 namespace TYPO3Fluid\Fluid\ViewHelpers\Format;
 
-use TYPO3Fluid\Fluid\Core\Rendering\RenderingContextInterface;
 use TYPO3Fluid\Fluid\Core\ViewHelper\AbstractViewHelper;
-use TYPO3Fluid\Fluid\Core\ViewHelper\Traits\CompileWithRenderStatic;
 
 /**
  * A ViewHelper for formatting values with printf. Either supply an array for
@@ -67,29 +65,23 @@ use TYPO3Fluid\Fluid\Core\ViewHelper\Traits\CompileWithRenderStatic;
  *     We love TYPO3
  *
  * @api
+ * @see https://docs.typo3.org/permalink/fluid:typo3fluid-fluid-format-printf
  */
 class PrintfViewHelper extends AbstractViewHelper
 {
-    use CompileWithRenderStatic;
-
     public function initializeArguments()
     {
-        parent::initializeArguments();
         $this->registerArgument('value', 'string', 'String to format');
         $this->registerArgument('arguments', 'array', 'The arguments for vsprintf', false, []);
     }
 
     /**
      * Applies vsprintf() on the specified value.
-     *
-     * @param array $arguments
-     * @param \Closure $renderChildrenClosure
-     * @param \TYPO3Fluid\Fluid\Core\Rendering\RenderingContextInterface $renderingContext
      * @return string
      */
-    public static function renderStatic(array $arguments, \Closure $renderChildrenClosure, RenderingContextInterface $renderingContext)
+    public function render()
     {
-        return vsprintf($renderChildrenClosure(), $arguments['arguments']);
+        return vsprintf($this->renderChildren(), $this->arguments['arguments']);
     }
 
     /**

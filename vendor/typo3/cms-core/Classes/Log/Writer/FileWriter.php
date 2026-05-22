@@ -16,6 +16,7 @@
 namespace TYPO3\CMS\Core\Log\Writer;
 
 use TYPO3\CMS\Core\Core\Environment;
+use TYPO3\CMS\Core\Crypto\HashService;
 use TYPO3\CMS\Core\Log\Exception\InvalidLogWriterConfigurationException;
 use TYPO3\CMS\Core\Log\LogRecord;
 use TYPO3\CMS\Core\Utility\GeneralUtility;
@@ -66,9 +67,9 @@ class FileWriter extends AbstractWriter
     {
         // the parent constructor reads $options and sets them
         parent::__construct($options);
-        if (empty($options['logFile']) &&
+        if (empty($options['logFile'])
             // omit logging if TYPO3 has not been configured (avoid creating a guessable filename)
-            ($GLOBALS['TYPO3_CONF_VARS']['SYS']['encryptionKey'] ?? '') !== ''
+            && ($GLOBALS['TYPO3_CONF_VARS']['SYS']['encryptionKey'] ?? '') !== ''
         ) {
             $this->setLogFile($this->getDefaultLogFileName());
         }
@@ -228,7 +229,7 @@ class FileWriter extends AbstractWriter
             }
         }
         // create the log file
-        GeneralUtility::writeFile($this->logFile, '');
+        GeneralUtility::writeFile($this->logFile, '', true);
     }
 
     /**
@@ -253,7 +254,7 @@ class FileWriter extends AbstractWriter
 	Require all denied
 </IfModule>
 END;
-            GeneralUtility::writeFile($htaccessFile, $htaccessContent);
+            GeneralUtility::writeFile($htaccessFile, $htaccessContent, true);
         }
     }
 
@@ -266,7 +267,8 @@ END;
      */
     protected function getDefaultLogFileName()
     {
-        $namePart = substr(GeneralUtility::hmac($this->defaultLogFileTemplate, 'defaultLogFile'), 0, 10);
+        $hashService = GeneralUtility::makeInstance(HashService::class);
+        $namePart = substr($hashService->hmac($this->defaultLogFileTemplate, 'defaultLogFile'), 0, 10);
         if ($this->logFileInfix !== '') {
             $namePart = $this->logFileInfix . '_' . $namePart;
         }

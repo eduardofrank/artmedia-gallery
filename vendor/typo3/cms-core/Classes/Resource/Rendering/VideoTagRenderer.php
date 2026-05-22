@@ -19,9 +19,6 @@ use TYPO3\CMS\Core\Resource\FileInterface;
 use TYPO3\CMS\Core\Resource\FileReference;
 use TYPO3\CMS\Core\Utility\GeneralUtility;
 
-/**
- * Class VideoTagRenderer
- */
 class VideoTagRenderer implements FileRendererInterface
 {
     /**
@@ -30,6 +27,13 @@ class VideoTagRenderer implements FileRendererInterface
      * @var array
      */
     protected $possibleMimeTypes = ['video/mp4', 'video/webm', 'video/ogg', 'video/x-m4v', 'application/ogg'];
+
+    /**
+     * Special attributes which do not exist on <video> tags and therefore should be omitted.
+     *
+     * @var string[]
+     */
+    protected array $excludeAttributes = ['api', 'no-cookie'];
 
     /**
      * Returns the priority of the renderer
@@ -79,7 +83,7 @@ class VideoTagRenderer implements FileRendererInterface
             $attributes[] = GeneralUtility::implodeAttributes($options['additionalAttributes'], true, true);
         }
         if (isset($options['data']) && is_array($options['data'])) {
-            array_walk($options['data'], static function (&$value, $key) {
+            array_walk($options['data'], static function (string &$value, string $key): void {
                 $value = 'data-' . htmlspecialchars($key) . '="' . htmlspecialchars($value) . '"';
             });
             $attributes[] = implode(' ', $options['data']);
@@ -106,7 +110,7 @@ class VideoTagRenderer implements FileRendererInterface
         }
         if (isset($options['additionalConfig']) && is_array($options['additionalConfig'])) {
             foreach ($options['additionalConfig'] as $key => $value) {
-                if ($value) {
+                if ($value && !in_array($key, $this->excludeAttributes, true)) {
                     if ((int)$value !== 1) {
                         $attributes[] = htmlspecialchars($key) . '="' . htmlspecialchars($value) . '"';
                     } else {

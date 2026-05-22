@@ -20,18 +20,25 @@ namespace TYPO3\CMS\Core\EventDispatcher;
 use Psr\EventDispatcher\EventDispatcherInterface;
 use Psr\EventDispatcher\ListenerProviderInterface;
 use Psr\EventDispatcher\StoppableEventInterface;
+use Symfony\Component\DependencyInjection\Attribute\AsAlias;
 use TYPO3\CMS\Core\SingletonInterface;
 
 /**
  * Base PSR-14 event dispatcher which has only one listener provider, given at runtime
  * Is a singleton instance in order to be published once.
  */
+#[AsAlias(EventDispatcherInterface::class, public: true)]
 class EventDispatcher implements EventDispatcherInterface, SingletonInterface
 {
     public function __construct(
         protected readonly ListenerProviderInterface $listenerProvider
     ) {}
 
+    /**
+     * @template T of object
+     * @param T $event
+     * @return T
+     */
     public function dispatch(object $event): object
     {
         // If the event is already stopped, nothing to do here.

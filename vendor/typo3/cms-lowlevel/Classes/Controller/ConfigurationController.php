@@ -19,6 +19,7 @@ namespace TYPO3\CMS\Lowlevel\Controller;
 
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
+use TYPO3\CMS\Backend\Attribute\AsController;
 use TYPO3\CMS\Backend\Routing\UriBuilder;
 use TYPO3\CMS\Backend\Template\ModuleTemplate;
 use TYPO3\CMS\Backend\Template\ModuleTemplateFactory;
@@ -31,6 +32,7 @@ use TYPO3\CMS\Lowlevel\ConfigurationModuleProvider\ProviderRegistry;
  *
  * @internal This class is a specific Backend controller implementation and is not part of the TYPO3's Core API.
  */
+#[AsController]
 final class ConfigurationController
 {
     public function __construct(
@@ -75,13 +77,13 @@ final class ConfigurationController
     {
         $html = '';
         if (!empty($incomingIdentifier)) {
-            $html .= '<div' .
-                ' class="treelist-collapse collapse"' .
-                ' data-persist-collapse-state="true"' .
-                ' data-persist-collapse-state-suffix="lowlevel-configuration-' . $labelHash . '"' .
-                ' data-persist-collapse-state-if-state="shown"' .
-                ' data-persist-collapse-state-not-if-search="true"' .
-                ' id="collapse-list-' . $incomingIdentifier . '">';
+            $html .= '<div'
+                . ' class="treelist-collapse collapse"'
+                . ' data-persist-collapse-state="true"'
+                . ' data-persist-collapse-state-suffix="lowlevel-configuration-' . $labelHash . '"'
+                . ' data-persist-collapse-state-if-state="shown"'
+                . ' data-persist-collapse-state-not-if-search="true"'
+                . ' id="collapse-list-' . $incomingIdentifier . '">';
         }
 
         $html .= '<ul class="treelist">';

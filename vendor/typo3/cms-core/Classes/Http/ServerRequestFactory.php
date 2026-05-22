@@ -21,16 +21,18 @@ use Psr\Http\Message\ServerRequestFactoryInterface;
 use Psr\Http\Message\ServerRequestInterface;
 use Psr\Http\Message\UploadedFileInterface;
 use Psr\Http\Message\UriInterface;
+use Symfony\Component\DependencyInjection\Attribute\AsAlias;
 use TYPO3\CMS\Core\Core\Environment;
 use TYPO3\CMS\Core\Utility\GeneralUtility;
 
 /**
- * Class ServerRequestFactory to create ServerRequest objects
+ * Class to create ServerRequest objects
  *
  * Highly inspired by https://github.com/phly/http/
  *
  * @internal Note that this is not public API yet.
  */
+#[AsAlias(ServerRequestFactoryInterface::class, public: true)]
 class ServerRequestFactory implements ServerRequestFactoryInterface
 {
     /**
@@ -115,7 +117,7 @@ class ServerRequestFactory implements ServerRequestFactoryInterface
                 // Cookies are handled using the $_COOKIE superglobal
                 continue;
             }
-            if (!empty($value)) {
+            if ($value !== '') {
                 if (str_starts_with($key, 'HTTP_')) {
                     $name = str_replace('_', ' ', substr($key, 5));
                     $name = str_replace(' ', '-', ucwords(strtolower($name)));

@@ -1,7 +1,6 @@
 <?php
 
 use TYPO3\CMS\Filelist\Controller\FileListController;
-use TYPO3\CMS\Filelist\Type\ViewMode;
 
 /**
  * Definitions for modules provided by EXT:filelist
@@ -22,9 +21,9 @@ return [
         'moduleData' => [
             'displayThumbs' => true,
             'clipBoard' => true,
-            'sort' => 'file',
-            'reverse' => false,
-            'viewMode' => ViewMode::TILES->value,
+            'sortField' => 'name',
+            'sortDirection' => \TYPO3\CMS\Filelist\Type\SortDirection::ASCENDING->value,
+            'viewMode' => null,
         ],
     ],
 ];

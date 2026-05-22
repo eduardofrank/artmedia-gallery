@@ -10,12 +10,11 @@ declare(strict_types=1);
 
 namespace BK2K\BootstrapPackage\Updates;
 
+use TYPO3\CMS\Install\Attribute\UpgradeWizard;
 use TYPO3\CMS\Install\Updates\RepeatableInterface;
 use TYPO3\CMS\Install\Updates\UpgradeWizardInterface;
 
-/**
- * TexticonIconUpdate
- */
+#[UpgradeWizard(TexticonIconUpdate::class)]
 class TexticonIconUpdate extends AbstractUpdate implements UpgradeWizardInterface, RepeatableInterface
 {
     /**
@@ -33,7 +32,7 @@ class TexticonIconUpdate extends AbstractUpdate implements UpgradeWizardInterfac
         $queryBuilder = $this->createQueryBuilder();
         $criteria = [
             $this->createLikeCriteria($queryBuilder, 'icon', 'Glyphicons%'),
-            $this->createLikeCriteria($queryBuilder, 'icon', 'Ionicons%')
+            $this->createLikeCriteria($queryBuilder, 'icon', 'Ionicons%'),
         ];
         $records = $this->getRecordsByCriteria($queryBuilder, $criteria, AbstractUpdate::CONDITION_OR);
 
@@ -45,12 +44,12 @@ class TexticonIconUpdate extends AbstractUpdate implements UpgradeWizardInterfac
         $queryBuilder = $this->createQueryBuilder();
         $criteria = [
             $this->createLikeCriteria($queryBuilder, 'icon', 'Glyphicons%'),
-            $this->createLikeCriteria($queryBuilder, 'icon', 'Ionicons%')
+            $this->createLikeCriteria($queryBuilder, 'icon', 'Ionicons%'),
         ];
         $records = $this->getRecordsByCriteria($queryBuilder, $criteria, AbstractUpdate::CONDITION_OR);
 
         foreach ($records as $record) {
-            $icon = explode('__', strval($record['icon']));
+            $icon = explode('__', (string)($record['icon']));
             $this->updateRecord(
                 (int) $record['uid'],
                 [

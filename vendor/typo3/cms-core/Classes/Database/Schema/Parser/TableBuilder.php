@@ -56,12 +56,12 @@ use TYPO3\CMS\Core\Database\Schema\Parser\AST\DataType\TimestampDataType;
 use TYPO3\CMS\Core\Database\Schema\Parser\AST\DataType\TinyBlobDataType;
 use TYPO3\CMS\Core\Database\Schema\Parser\AST\DataType\TinyIntDataType;
 use TYPO3\CMS\Core\Database\Schema\Parser\AST\DataType\TinyTextDataType;
+use TYPO3\CMS\Core\Database\Schema\Parser\AST\DataType\UuidDataType;
 use TYPO3\CMS\Core\Database\Schema\Parser\AST\DataType\VarBinaryDataType;
 use TYPO3\CMS\Core\Database\Schema\Parser\AST\DataType\VarCharDataType;
 use TYPO3\CMS\Core\Database\Schema\Parser\AST\DataType\YearDataType;
 use TYPO3\CMS\Core\Database\Schema\Parser\AST\IndexColumnName;
 use TYPO3\CMS\Core\Database\Schema\Parser\AST\ReferenceDefinition;
-use TYPO3\CMS\Core\Database\Schema\Types\EnumType;
 use TYPO3\CMS\Core\Database\Schema\Types\SetType;
 use TYPO3\CMS\Core\Utility\GeneralUtility;
 
@@ -149,9 +149,9 @@ class TableBuilder
             $this->getDoctrineColumnTypeName($item->dataType)
         );
 
-        $column->setNotnull(!$item->allowNull);
-        $column->setAutoincrement((bool)$item->autoIncrement);
-        $column->setComment($item->comment);
+        $column->setNotnull($item->allowNull === false);
+        $column->setAutoincrement($item->autoIncrement);
+        $column->setComment((string)$item->comment);
 
         // Set default value (unless it's an auto increment column)
         if ($item->hasDefaultValue && !$column->getAutoincrement()) {
@@ -179,10 +179,24 @@ class TableBuilder
             $column->setFixed(true);
         }
 
-        if ($item->dataType instanceof EnumDataType
-            || $item->dataType instanceof SetDataType
-        ) {
-            $column->setPlatformOption('unquotedValues', $item->dataType->getValues());
+        if ($item->dataType instanceof SetDataType) {
+            $column->setValues($item->dataType->getValues());
+        }
+        if ($item->dataType instanceof EnumDataType) {
+            $column->setValues($item->dataType->getValues());
+        }
+
+        $dataTypeSupportsCharsetAndCollation = (
+            $item->dataType instanceof CharDataType
+            || $item->dataType instanceof VarCharDataType
+            || $item->dataType instanceof TextDataType
+        );
+        $options = $item->dataType->getOptions();
+        if ($dataTypeSupportsCharsetAndCollation && ($options['charset'] ?? null)) {
+            $column->setPlatformOption('charset', $options['charset']);
+        }
+        if ($dataTypeSupportsCharsetAndCollation && ($options['charset'] ?? null)) {
+            $column->setPlatformOption('collation', $options['collation']);
         }
 
         if ($item->index) {
@@ -216,7 +230,7 @@ class TableBuilder
         $indexName = $item->indexName->getQuotedName();
 
         $columnNames = array_map(
-            static function (IndexColumnName $columnName) {
+            static function (IndexColumnName $columnName): string {
                 if ($columnName->length) {
                     return $columnName->columnName->getQuotedName() . '(' . $columnName->length . ')';
                 }
@@ -263,7 +277,7 @@ class TableBuilder
     {
         $indexName = $item->indexName->getQuotedName() ?: null;
         $localColumnNames = array_map(
-            static function (IndexColumnName $columnName) {
+            static function (IndexColumnName $columnName): string {
                 return $columnName->columnName->getQuotedName();
             },
             $item->columnNames
@@ -283,7 +297,7 @@ class TableBuilder
     ) {
         $foreignTableName = $referenceDefinition->tableName->getQuotedName();
         $foreignColumnNames = array_map(
-            static function (IndexColumnName $columnName) {
+            static function (IndexColumnName $columnName): string {
                 return $columnName->columnName->getQuotedName();
             },
             $referenceDefinition->columnNames
@@ -365,7 +379,7 @@ class TableBuilder
                 $doctrineType = Types::STRING;
                 break;
             case EnumDataType::class:
-                $doctrineType = EnumType::TYPE;
+                $doctrineType = Types::ENUM;
                 break;
             case SetDataType::class:
                 $doctrineType = SetType::TYPE;
@@ -381,6 +395,12 @@ class TableBuilder
                 // range of 1901 to 2155.
                 // Using a SMALLINT covers the value range and ensures database compatibility.
                 $doctrineType = Types::SMALLINT;
+                break;
+            case UuidDataType::class:
+                // UUID/GUID is only supported by PostgreSQL for now, but Doctrine DBAL implemented a fallback
+                // for other platforms and we can safely use `Types::GUID` here in case `UUID` has been set in
+                // `ext_tables.sql` for a table column.
+                $doctrineType = Types::GUID;
                 break;
             default:
                 throw new \RuntimeException(

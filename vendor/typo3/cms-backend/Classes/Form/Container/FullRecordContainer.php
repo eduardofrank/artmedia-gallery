@@ -34,9 +34,8 @@ class FullRecordContainer extends AbstractContainer
      *
      * @return array As defined in initializeResultArray() of AbstractNode
      */
-    public function render()
+    public function render(): array
     {
-        $table = $this->data['tableName'];
         $recordTypeValue = $this->data['recordTypeValue'];
 
         // List of items to be rendered
@@ -51,12 +50,12 @@ class FullRecordContainer extends AbstractContainer
         // Streamline the fields array
         // First, make sure there is always a --div-- definition for the first element
         if (!str_starts_with($fieldsArray[0], '--div--')) {
-            array_unshift($fieldsArray, '--div--;LLL:EXT:core/Resources/Private/Language/locallang_core.xlf:labels.generalTab');
+            array_unshift($fieldsArray, '--div--;LLL:EXT:core/Resources/Private/Language/Form/locallang_tabs.xlf:general');
         }
         // If first tab has no label definition, add "general" label
         $firstTabHasLabel = count(GeneralUtility::trimExplode(';', $fieldsArray[0])) > 1;
         if (!$firstTabHasLabel) {
-            $fieldsArray[0] = '--div--;LLL:EXT:core/Resources/Private/Language/locallang_core.xlf:labels.generalTab';
+            $fieldsArray[0] = '--div--;LLL:EXT:core/Resources/Private/Language/Form/locallang_tabs.xlf:general';
         }
         // If there are at least two --div-- definitions, inner container will be a TabContainer, else a NoTabContainer
         $tabCount = 0;

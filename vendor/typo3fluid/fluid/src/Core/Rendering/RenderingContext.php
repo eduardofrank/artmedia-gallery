@@ -20,6 +20,7 @@ use TYPO3Fluid\Fluid\Core\Parser\TemplateParser;
 use TYPO3Fluid\Fluid\Core\Parser\TemplateProcessor\EscapingModifierTemplateProcessor;
 use TYPO3Fluid\Fluid\Core\Parser\TemplateProcessor\NamespaceDetectionTemplateProcessor;
 use TYPO3Fluid\Fluid\Core\Parser\TemplateProcessor\PassthroughSourceModifierTemplateProcessor;
+use TYPO3Fluid\Fluid\Core\Parser\TemplateProcessor\RemoveCommentsTemplateProcessor;
 use TYPO3Fluid\Fluid\Core\Parser\TemplateProcessorInterface;
 use TYPO3Fluid\Fluid\Core\Variables\StandardVariableProvider;
 use TYPO3Fluid\Fluid\Core\Variables\VariableProviderInterface;
@@ -30,11 +31,12 @@ use TYPO3Fluid\Fluid\View\TemplatePaths;
 
 /**
  * The rendering context that contains useful information during rendering time of a Fluid template
+ * @todo add missing types with Fluid v5
  */
 class RenderingContext implements RenderingContextInterface
 {
     /**
-     * @var ErrorHandlerInterface
+     * @var ErrorHandlerInterface|null
      */
     protected $errorHandler;
 
@@ -88,7 +90,7 @@ class RenderingContext implements RenderingContextInterface
     protected $templateCompiler;
 
     /**
-     * @var FluidCacheInterface
+     * @var FluidCacheInterface|null
      */
     protected $cache;
 
@@ -139,6 +141,7 @@ class RenderingContext implements RenderingContextInterface
                 new EscapingModifierTemplateProcessor(),
                 new PassthroughSourceModifierTemplateProcessor(),
                 new NamespaceDetectionTemplateProcessor(),
+                new RemoveCommentsTemplateProcessor(),
             ],
         );
         $this->setViewHelperResolver(new ViewHelperResolver());
@@ -416,5 +419,16 @@ class RenderingContext implements RenderingContextInterface
     public function setControllerAction($action)
     {
         $this->controllerAction = $action;
+    }
+
+    public function __clone(): void
+    {
+        // Clone all properties that have references to rendering context
+        $this->setTemplateCompiler(clone $this->getTemplateCompiler());
+        $this->setTemplateParser(clone $this->getTemplateParser());
+        $this->setTemplateProcessors(array_map(
+            static fn(TemplateProcessorInterface $processor): TemplateProcessorInterface => clone $processor,
+            $this->getTemplateProcessors(),
+        ));
     }
 }

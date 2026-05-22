@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 /*
  * This file belongs to the package "TYPO3 Fluid".
  * See LICENSE.txt that was shipped with this package.
@@ -45,6 +47,8 @@ use TYPO3Fluid\Fluid\View\TemplatePaths;
  * them to be specific to the framework in which Fluid is used.
  * The default set of mitigation suggestions are based on the
  * standard errors which can be thrown by the Fluid engine.
+ *
+ * @deprecated Will be removed in Fluid v5
  */
 class StandardCacheWarmer implements FluidCacheWarmerInterface
 {
@@ -54,7 +58,7 @@ class StandardCacheWarmer implements FluidCacheWarmerInterface
      *
      * @var array
      */
-    protected $formats = ['html', 'xml', 'txt', 'json', 'rtf', 'atom', 'rss'];
+    protected array $formats = ['html', 'xml', 'txt', 'json', 'rtf', 'atom', 'rss'];
 
     /**
      * Warm up an entire collection of templates based on the
@@ -65,11 +69,8 @@ class StandardCacheWarmer implements FluidCacheWarmerInterface
      * about all detected template files and the compiling of
      * those files. If a template fails to compile or throws an
      * error, a mitigation suggestion is included for that file.
-     *
-     * @param RenderingContextInterface $renderingContext
-     * @return FluidCacheWarmupResult
      */
-    public function warm(RenderingContextInterface $renderingContext)
+    public function warm(RenderingContextInterface $renderingContext): FluidCacheWarmupResult
     {
         $renderingContext->getTemplateCompiler()->enterWarmupMode();
         $result = new FluidCacheWarmupResult();
@@ -102,11 +103,8 @@ class StandardCacheWarmer implements FluidCacheWarmerInterface
      *
      * Like other methods, returns a FluidCacheWarmupResult instance
      * which can be merged with other result instances.
-     *
-     * @param RenderingContextInterface $renderingContext
-     * @return FluidCacheWarmupResult
      */
-    protected function warmupTemplateRootPaths(RenderingContextInterface $renderingContext)
+    protected function warmupTemplateRootPaths(RenderingContextInterface $renderingContext): FluidCacheWarmupResult
     {
         $result = new FluidCacheWarmupResult();
         $paths = $renderingContext->getTemplatePaths();
@@ -155,11 +153,8 @@ class StandardCacheWarmer implements FluidCacheWarmerInterface
      *
      * Like other methods, returns a FluidCacheWarmupResult instance
      * which can be merged with other result instances.
-     *
-     * @param RenderingContextInterface $renderingContext
-     * @return FluidCacheWarmupResult
      */
-    protected function warmupPartialRootPaths(RenderingContextInterface $renderingContext)
+    protected function warmupPartialRootPaths(RenderingContextInterface $renderingContext): FluidCacheWarmupResult
     {
         $result = new FluidCacheWarmupResult();
         $paths = $renderingContext->getTemplatePaths();
@@ -192,11 +187,8 @@ class StandardCacheWarmer implements FluidCacheWarmerInterface
      *
      * Like other methods, returns a FluidCacheWarmupResult instance
      * which can be merged with other result instances.
-     *
-     * @param RenderingContextInterface $renderingContext
-     * @return FluidCacheWarmupResult
      */
-    protected function warmupLayoutRootPaths(RenderingContextInterface $renderingContext)
+    protected function warmupLayoutRootPaths(RenderingContextInterface $renderingContext): FluidCacheWarmupResult
     {
         $result = new FluidCacheWarmupResult();
         $paths = $renderingContext->getTemplatePaths();
@@ -224,11 +216,8 @@ class StandardCacheWarmer implements FluidCacheWarmerInterface
      * Detect all available controller names in provided TemplateRootPaths
      * array, returning the "basename" components of controller-template
      * directories encountered, as an array.
-     *
-     * @param array $templateRootPaths
-     * @return \Generator
      */
-    protected function detectControllerNamesInTemplateRootPaths(array $templateRootPaths)
+    protected function detectControllerNamesInTemplateRootPaths(array $templateRootPaths): \Generator
     {
         foreach ($templateRootPaths as $templateRootPath) {
             foreach ((array)glob(rtrim($templateRootPath, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR . '*') as $pathName) {
@@ -249,13 +238,8 @@ class StandardCacheWarmer implements FluidCacheWarmerInterface
      *
      * Adds basic mitigation suggestions for each specific type of error,
      * giving hints to developers if a certain template fails to compile.
-     *
-     * @param string $templatePathAndFilename
-     * @param string $identifier
-     * @param RenderingContextInterface $renderingContext
-     * @return ParsedTemplateInterface
      */
-    protected function warmSingleFile($templatePathAndFilename, $identifier, RenderingContextInterface $renderingContext)
+    protected function warmSingleFile(string $templatePathAndFilename, string $identifier, RenderingContextInterface $renderingContext): ParsedTemplateInterface
     {
         $parsedTemplate = new FailedCompilingState();
         $parsedTemplate->setVariableProvider($renderingContext->getVariableProvider());
@@ -320,11 +304,7 @@ class StandardCacheWarmer implements FluidCacheWarmerInterface
         return $parsedTemplate;
     }
 
-    /**
-     * @param string $templatePathAndFilename
-     * @return \Closure
-     */
-    protected function createClosure($templatePathAndFilename)
+    protected function createClosure(string $templatePathAndFilename): \Closure
     {
         return function (TemplateParser $parser, TemplatePaths $templatePaths) use ($templatePathAndFilename) {
             return file_get_contents($templatePathAndFilename);

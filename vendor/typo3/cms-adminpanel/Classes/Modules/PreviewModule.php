@@ -18,14 +18,15 @@ declare(strict_types=1);
 namespace TYPO3\CMS\Adminpanel\Modules;
 
 use Psr\Http\Message\ServerRequestInterface;
-use Psr\Log\LoggerAwareInterface;
-use Psr\Log\LoggerAwareTrait;
+use Psr\Log\LoggerInterface;
+use Symfony\Component\DependencyInjection\Attribute\Autoconfigure;
 use TYPO3\CMS\Adminpanel\ModuleApi\AbstractModule;
 use TYPO3\CMS\Adminpanel\ModuleApi\OnSubmitActorInterface;
 use TYPO3\CMS\Adminpanel\ModuleApi\PageSettingsProviderInterface;
 use TYPO3\CMS\Adminpanel\ModuleApi\RequestEnricherInterface;
 use TYPO3\CMS\Adminpanel\ModuleApi\ResourceProviderInterface;
 use TYPO3\CMS\Adminpanel\Repositories\FrontendGroupsRepository;
+use TYPO3\CMS\Core\Authentication\GroupResolver;
 use TYPO3\CMS\Core\Cache\CacheManager;
 use TYPO3\CMS\Core\Cache\Exception\NoSuchCacheException;
 use TYPO3\CMS\Core\Cache\Exception\NoSuchCacheGroupException;
@@ -33,20 +34,20 @@ use TYPO3\CMS\Core\Context\Context;
 use TYPO3\CMS\Core\Context\DateTimeAspect;
 use TYPO3\CMS\Core\Context\UserAspect;
 use TYPO3\CMS\Core\Context\VisibilityAspect;
+use TYPO3\CMS\Core\Domain\DateTimeFactory;
 use TYPO3\CMS\Core\Routing\PageArguments;
 use TYPO3\CMS\Core\Utility\GeneralUtility;
-use TYPO3\CMS\Fluid\View\StandaloneView;
+use TYPO3\CMS\Core\View\ViewFactoryData;
+use TYPO3\CMS\Core\View\ViewFactoryInterface;
 use TYPO3\CMS\Frontend\Aspect\PreviewAspect;
+use TYPO3\CMS\Frontend\Cache\CacheInstruction;
 
 /**
  * Admin Panel Preview Module
  */
-class PreviewModule extends AbstractModule implements RequestEnricherInterface, PageSettingsProviderInterface, ResourceProviderInterface, OnSubmitActorInterface, LoggerAwareInterface
+#[Autoconfigure(public: true)]
+class PreviewModule extends AbstractModule implements RequestEnricherInterface, PageSettingsProviderInterface, ResourceProviderInterface, OnSubmitActorInterface
 {
-    use LoggerAwareTrait;
-
-    protected CacheManager $cacheManager;
-
     /**
      * module configuration, set on initialize
      *
@@ -61,10 +62,12 @@ class PreviewModule extends AbstractModule implements RequestEnricherInterface, 
      */
     protected array $config;
 
-    public function injectCacheManager(CacheManager $cacheManager): void
-    {
-        $this->cacheManager = $cacheManager;
-    }
+    public function __construct(
+        protected readonly CacheManager $cacheManager,
+        private readonly ViewFactoryInterface $viewFactory,
+        private readonly LoggerInterface $logger,
+        private readonly GroupResolver $groupResolver,
+    ) {}
 
     public function getIconIdentifier(): string
     {
@@ -98,8 +101,11 @@ class PreviewModule extends AbstractModule implements RequestEnricherInterface, 
         ];
         if ($this->config['showFluidDebug']) {
             // forcibly unset fluid caching as it does not care about the tsfe based caching settings
+            // @todo: Useless?! CacheManager is initialized via bootstrap already, TYPO3_CONF_VARS is not read again?
             unset($GLOBALS['TYPO3_CONF_VARS']['SYS']['caching']['cacheConfigurations']['fluid_template']['frontend']);
-            $request = $request->withAttribute('noCache', true);
+            $cacheInstruction = $request->getAttribute('frontend.cache.instruction', new CacheInstruction());
+            $cacheInstruction->disableCache('EXT:adminpanel: "Show fluid debug output" disables cache.');
+            $request = $request->withAttribute('frontend.cache.instruction', $cacheInstruction);
         }
         $this->initializeFrontendPreview(
             $this->config['showHiddenPages'],
@@ -115,10 +121,12 @@ class PreviewModule extends AbstractModule implements RequestEnricherInterface, 
 
     public function getPageSettings(): string
     {
-        $view = GeneralUtility::makeInstance(StandaloneView::class);
-        $templateNameAndPath = 'EXT:adminpanel/Resources/Private/Templates/Modules/Settings/Preview.html';
-        $view->setTemplatePathAndFilename(GeneralUtility::getFileAbsFileName($templateNameAndPath));
-        $view->setPartialRootPaths(['EXT:adminpanel/Resources/Private/Partials']);
+        $viewFactoryData = new ViewFactoryData(
+            templateRootPaths: ['EXT:adminpanel/Resources/Private/Templates'],
+            partialRootPaths: ['EXT:adminpanel/Resources/Private/Partials'],
+            layoutRootPaths: ['EXT:adminpanel/Resources/Private/Layouts'],
+        );
+        $view = $this->viewFactory->create($viewFactoryData);
 
         $frontendGroupsRepository = GeneralUtility::makeInstance(FrontendGroupsRepository::class);
 
@@ -145,7 +153,7 @@ class PreviewModule extends AbstractModule implements RequestEnricherInterface, 
                 'languageKey' => $this->getBackendUser()->user['lang'] ?? null,
             ]
         );
-        return $view->render();
+        return $view->render('Modules/Settings/Preview');
     }
 
     protected function getConfigOptionForModule(string $option): string
@@ -174,10 +182,7 @@ class PreviewModule extends AbstractModule implements RequestEnricherInterface, 
         $this->clearPreviewSettings($context);
 
         // Modify visibility settings (hidden pages + hidden content)
-        $context->setAspect(
-            'visibility',
-            GeneralUtility::makeInstance(VisibilityAspect::class, $showHiddenPages, $showHiddenRecords, false, $showScheduledRecords)
-        );
+        $context->setAspect('visibility', new VisibilityAspect($showHiddenPages, $showHiddenRecords, false, $showScheduledRecords));
 
         // Simulate date
         $simTime = null;
@@ -185,33 +190,18 @@ class PreviewModule extends AbstractModule implements RequestEnricherInterface, 
             $simTime = max($simulateDate, 60);
             $GLOBALS['SIM_EXEC_TIME'] = $simTime;
             $GLOBALS['SIM_ACCESS_TIME'] = $simTime - $simTime % 60;
-            $context->setAspect(
-                'date',
-                GeneralUtility::makeInstance(
-                    DateTimeAspect::class,
-                    (new \DateTimeImmutable())->setTimestamp($simTime)
-                )
-            );
+            $context->setAspect('date', new DateTimeAspect(DateTimeFactory::createFromTimestamp($simTime)));
         }
         // simulate usergroup
         if ($simulateUserGroup) {
             $frontendUser = $request->getAttribute('frontend.user');
-            $frontendUser->user[$frontendUser->usergroup_column] = $simulateUserGroup;
-            $frontendUser->userGroups[$simulateUserGroup] = [
-                'uid' => $simulateUserGroup,
-                'title' => '_PREVIEW_',
-            ];
-            // let's fake having a user with that group, too
+            $frontendUser->user[$frontendUser->usergroup_column] = (string)$simulateUserGroup;
+            $frontendUser->userGroups = $this->groupResolver->resolveGroupsForUser($frontendUser->user, 'fe_groups');
+            // let's fake having a user with that groups, too
             // This can be removed once #90989 is fixed
             $frontendUser->user['uid'] = PHP_INT_MAX;
-            $context->setAspect(
-                'frontend.user',
-                GeneralUtility::makeInstance(
-                    UserAspect::class,
-                    $frontendUser,
-                    [$simulateUserGroup, -2]
-                )
-            );
+            $groupUids = array_column($frontendUser->userGroups, 'uid');
+            $context->setAspect('frontend.user', new UserAspect($frontendUser, array_merge([-2], $groupUids)));
         }
         $isPreview = $simulateUserGroup || $simTime || $showHiddenPages || $showHiddenRecords || $showScheduledRecords;
         if ($context->hasAspect('frontend.preview')) {
@@ -219,8 +209,7 @@ class PreviewModule extends AbstractModule implements RequestEnricherInterface, 
             $existingPreviewAspect = $context->getAspect('frontend.preview');
             $isPreview = $existingPreviewAspect->isPreview() || $isPreview;
         }
-        $previewAspect = GeneralUtility::makeInstance(PreviewAspect::class, $isPreview);
-        $context->setAspect('frontend.preview', $previewAspect);
+        $context->setAspect('frontend.preview', new PreviewAspect($isPreview));
     }
 
     public function getJavaScriptFiles(): array
@@ -232,14 +221,8 @@ class PreviewModule extends AbstractModule implements RequestEnricherInterface, 
     {
         $GLOBALS['SIM_EXEC_TIME'] = $GLOBALS['EXEC_TIME'];
         $GLOBALS['SIM_ACCESS_TIME'] = $GLOBALS['ACCESS_TIME'];
-        $context->setAspect(
-            'date',
-            GeneralUtility::makeInstance(
-                DateTimeAspect::class,
-                (new \DateTimeImmutable())->setTimestamp($GLOBALS['SIM_EXEC_TIME'])
-            )
-        );
-        $context->setAspect('visibility', GeneralUtility::makeInstance(VisibilityAspect::class));
+        $context->setAspect('date', new DateTimeAspect(DateTimeFactory::createFromTimestamp($GLOBALS['SIM_EXEC_TIME'])));
+        $context->setAspect('visibility', new VisibilityAspect());
     }
 
     /**

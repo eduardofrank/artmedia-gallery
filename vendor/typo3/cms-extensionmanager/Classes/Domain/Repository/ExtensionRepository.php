@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 /*
  * This file is part of the TYPO3 CMS project.
  *
@@ -25,6 +27,7 @@ use TYPO3\CMS\Extbase\Persistence\QueryInterface;
 use TYPO3\CMS\Extbase\Persistence\QueryResultInterface;
 use TYPO3\CMS\Extbase\Persistence\Repository;
 use TYPO3\CMS\Extensionmanager\Domain\Model\Extension;
+use TYPO3\CMS\Extensionmanager\Enum\ExtensionCategory;
 
 /**
  * A repository for extensions
@@ -179,13 +182,13 @@ class ExtensionRepository extends Repository
             ),
         ];
 
-        $caseStatement = 'CASE ' .
-            'WHEN ' . $searchConstraints['extension_key'] . ' THEN 16 ' .
-            'WHEN ' . $searchConstraints['extension_key_like'] . ' THEN 8 ' .
-            'WHEN ' . $searchConstraints['title'] . ' THEN 4 ' .
-            'WHEN ' . $searchConstraints['description'] . ' THEN 2 ' .
-            'WHEN ' . $searchConstraints['author_name'] . ' THEN 1 ' .
-            'END AS ' . $queryBuilder->quoteIdentifier('position');
+        $caseStatement = 'CASE '
+            . 'WHEN ' . $searchConstraints['extension_key'] . ' THEN 16 '
+            . 'WHEN ' . $searchConstraints['extension_key_like'] . ' THEN 8 '
+            . 'WHEN ' . $searchConstraints['title'] . ' THEN 4 '
+            . 'WHEN ' . $searchConstraints['description'] . ' THEN 2 '
+            . 'WHEN ' . $searchConstraints['author_name'] . ' THEN 1 '
+            . 'END AS ' . $queryBuilder->quoteIdentifier('position');
 
         $result = $queryBuilder
             ->select('*')
@@ -257,7 +260,7 @@ class ExtensionRepository extends Repository
         $query = $this->createQuery();
         $query->matching(
             $query->logicalAnd(
-                $query->equals('category', Extension::DISTRIBUTION_CATEGORY),
+                $query->equals('category', ExtensionCategory::Distribution->value),
                 $query->logicalNot($query->equals('ownerusername', 'typo3v4'))
             )
         );
@@ -279,7 +282,7 @@ class ExtensionRepository extends Repository
         $query = $this->createQuery();
         $query->matching(
             $query->logicalAnd(
-                $query->equals('category', Extension::DISTRIBUTION_CATEGORY),
+                $query->equals('category', ExtensionCategory::Distribution->value),
                 $query->equals('ownerusername', 'typo3v4')
             )
         );

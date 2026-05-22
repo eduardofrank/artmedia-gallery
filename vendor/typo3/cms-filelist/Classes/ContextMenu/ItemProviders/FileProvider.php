@@ -20,12 +20,13 @@ namespace TYPO3\CMS\Filelist\ContextMenu\ItemProviders;
 use TYPO3\CMS\Backend\ContextMenu\ItemProviders\AbstractProvider;
 use TYPO3\CMS\Backend\Routing\UriBuilder;
 use TYPO3\CMS\Backend\Utility\BackendUtility;
+use TYPO3\CMS\Core\Authentication\JsConfirmation;
 use TYPO3\CMS\Core\Resource\Exception\ResourceDoesNotExistException;
 use TYPO3\CMS\Core\Resource\File;
 use TYPO3\CMS\Core\Resource\Filter\FileExtensionFilter;
 use TYPO3\CMS\Core\Resource\Folder;
+use TYPO3\CMS\Core\Resource\OnlineMedia\Helpers\OnlineMediaHelperRegistry;
 use TYPO3\CMS\Core\Resource\ResourceFactory;
-use TYPO3\CMS\Core\Type\Bitmask\JsConfirmation;
 use TYPO3\CMS\Core\Utility\GeneralUtility;
 use TYPO3\CMS\Filelist\ElementBrowser\CreateFolderBrowser;
 
@@ -52,6 +53,11 @@ class FileProvider extends AbstractProvider
             'label' => 'LLL:EXT:core/Resources/Private/Language/locallang_core.xlf:cm.editMetadata',
             'iconIdentifier' => 'actions-open',
             'callbackAction' => 'editMetadata',
+        ],
+        'replaceFile' => [
+            'label' => 'LLL:EXT:core/Resources/Private/Language/locallang_core.xlf:cm.replace',
+            'iconIdentifier' => 'actions-edit-replace',
+            'callbackAction' => 'replaceFile',
         ],
         'rename' => [
             'label' => 'LLL:EXT:core/Resources/Private/Language/locallang_core.xlf:cm.rename',
@@ -92,6 +98,11 @@ class FileProvider extends AbstractProvider
             'label' => 'LLL:EXT:core/Resources/Private/Language/locallang_core.xlf:cm.info',
             'iconIdentifier' => 'actions-document-info',
             'callbackAction' => 'openInfoPopUp',
+        ],
+        'updateOnlineMedia' => [
+            'label' => 'LLL:EXT:filelist/Resources/Private/Language/locallang_mod_file_list.xlf:reloadMetadata',
+            'iconIdentifier' => 'actions-refresh',
+            'callbackAction' => 'updateOnlineMedia',
         ],
         'divider' => [
             'type' => 'divider',
@@ -166,11 +177,14 @@ class FileProvider extends AbstractProvider
             case 'edit':
                 $canRender = $this->canBeEdited();
                 break;
+            case 'replaceFile':
+                $canRender = $this->canBeReplaced();
+                break;
             case 'editMetadata':
                 $canRender = $this->canEditMetadata();
                 break;
-            case 'info':
-                $canRender = $this->canShowInfo();
+            case 'updateOnlineMedia':
+                $canRender = $this->isOnlineMedia() && $this->canEditMetadata();
                 break;
 
                 // just for folders
@@ -187,6 +201,9 @@ class FileProvider extends AbstractProvider
                 break;
 
                 //for both files and folders
+            case 'info':
+                $canRender = $this->canShowInfo();
+                break;
             case 'rename':
                 $canRender = $this->canBeRenamed();
                 break;
@@ -213,6 +230,12 @@ class FileProvider extends AbstractProvider
                 break;
         }
         return $canRender;
+    }
+
+    protected function canBeReplaced(): bool
+    {
+        return $this->isFile()
+            && $this->record->checkActionPermission('replace');
     }
 
     protected function canBeEdited(): bool
@@ -244,7 +267,7 @@ class FileProvider extends AbstractProvider
 
     protected function canShowInfo(): bool
     {
-        return $this->isFile();
+        return $this->record !== null;
     }
 
     protected function canCreateNew(): bool
@@ -253,7 +276,7 @@ class FileProvider extends AbstractProvider
     }
 
     /**
-     * New filemounts can only be created for readable folders by admins
+     * New file mounts can only be created for readable folders by admins
      */
     protected function canCreateNewFilemount(): bool
     {
@@ -317,9 +340,15 @@ class FileProvider extends AbstractProvider
         return $filter->isAllowed($this->record->getExtension());
     }
 
+    protected function isOnlineMedia(): bool
+    {
+        return $this->isFile()
+            && GeneralUtility::makeInstance(OnlineMediaHelperRegistry::class)->hasOnlineMediaHelper($this->record->getExtension());
+    }
+
     /**
-     * Checks if folder and record are in the same filemount
-     * Cannot copy folders between filemounts
+     * Checks if folder and record are in the same file mount
+     * Cannot copy folders between file mounts
      *
      * @param File|Folder|null $fileOrFolderInClipBoard
      */
@@ -394,10 +423,6 @@ class FileProvider extends AbstractProvider
                 $confirmMessage = sprintf(
                     $this->languageService->sL('LLL:EXT:core/Resources/Private/Language/locallang_core.xlf:mess.delete'),
                     trim($recordInfo)
-                ) . BackendUtility::referenceCount(
-                    '_FILE',
-                    $this->record->getIdentifier(),
-                    LF . $this->languageService->sL('LLL:EXT:core/Resources/Private/Language/locallang_core.xlf:labels.referencesToFolder')
                 );
             } else {
                 if ($this->backendUser->shallDisplayDebugInformation()) {
@@ -408,7 +433,7 @@ class FileProvider extends AbstractProvider
                     trim($recordInfo)
                 ) . BackendUtility::referenceCount(
                     'sys_file',
-                    (string)$this->record->getUid(),
+                    (int)$this->record->getUid(),
                     LF . $this->languageService->sL('LLL:EXT:core/Resources/Private/Language/locallang_core.xlf:labels.referencesToFile')
                 );
             }
@@ -456,7 +481,6 @@ class FileProvider extends AbstractProvider
         // Resource Settings
         $attributes['data-filecontext-type'] = $this->record instanceof File ? 'file' : 'folder';
         $attributes['data-filecontext-identifier'] = $this->getIdentifier();
-        $attributes['data-filecontext-stateIdentifier'] = $this->record->getStorage()->getUid() . '_' . GeneralUtility::md5int($this->record->getIdentifier());
         $attributes['data-filecontext-name'] = $this->record->getName();
         $attributes['data-filecontext-uid'] = $this->record instanceof File ? $this->record->getUid() : '';
         $attributes['data-filecontext-meta-uid'] = $this->record instanceof File ? $this->record->getMetaData()->offsetGet('uid') : '';
@@ -478,6 +502,12 @@ class FileProvider extends AbstractProvider
                 break;
             case 'newFile':
                 $attributes['data-action-url'] = (string)$uriBuilder->buildUriFromRoute('file_create');
+                break;
+            case 'replaceFile':
+                $attributes['data-action-url'] = (string)$uriBuilder->buildUriFromRoute('file_replace');
+                break;
+            case 'updateOnlineMedia':
+                $attributes['data-action-url'] = (string)$uriBuilder->buildUriFromRoute('file_update_online_media');
                 break;
         }
 

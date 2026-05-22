@@ -16,7 +16,6 @@
 namespace TYPO3\CMS\Backend\Template\Components;
 
 use Psr\EventDispatcher\EventDispatcherInterface;
-use TYPO3\CMS\Backend\Template\Components\Buttons\Action\HelpButton;
 use TYPO3\CMS\Backend\Template\Components\Buttons\Action\ShortcutButton;
 use TYPO3\CMS\Backend\Template\Components\Buttons\ButtonInterface;
 use TYPO3\CMS\Backend\Template\Components\Buttons\DropDownButton;
@@ -29,6 +28,8 @@ use TYPO3\CMS\Core\Utility\GeneralUtility;
 
 /**
  * Bar holding the buttons
+ *
+ * @phpstan-type Buttons array<self::BUTTON_POSITION_*, array<int, list<ButtonInterface>>>
  */
 class ButtonBar
 {
@@ -45,15 +46,15 @@ class ButtonBar
     /**
      * Internal array of all registered buttons
      *
-     * @var array
+     * @var Buttons
      */
-    protected $buttons = [];
+    protected array $buttons = [];
 
     /**
      * Add button
      *
      * @param ButtonInterface $button The Button Object to add
-     * @param string $buttonPosition Position of the button (left/right)
+     * @param self::BUTTON_POSITION_* $buttonPosition Position of the button (left/right)
      * @param int $buttonGroup Buttongroup of the button
      *
      * @throws \InvalidArgumentException In case a button is not valid
@@ -154,23 +155,6 @@ class ButtonBar
     public function makeShortcutButton()
     {
         return GeneralUtility::makeInstance(ShortcutButton::class);
-    }
-
-    /**
-     * Creates a new HelpButton
-     *
-     * @return HelpButton
-     *
-     * @deprecated The functionality has been removed in v12. The method will be removed in TYPO3 v13.
-     */
-    public function makeHelpButton()
-    {
-        trigger_error(
-            'Method ' . __METHOD__ . ' has been deprecated in v12 and will be removed with v13.'
-            . ' Context Sensitive Help has been removed in v12.',
-            E_USER_DEPRECATED
-        );
-        return GeneralUtility::makeInstance(HelpButton::class);
     }
 
     /**

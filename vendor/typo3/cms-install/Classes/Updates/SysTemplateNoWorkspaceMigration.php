@@ -25,6 +25,7 @@ use TYPO3\CMS\Core\Utility\GeneralUtility;
 use TYPO3\CMS\Install\Attribute\UpgradeWizard;
 
 /**
+ * @since 12.1
  * @internal This class is only meant to be used within EXT:install and is not part of the TYPO3 Core API.
  */
 #[UpgradeWizard('sysTemplateNoWorkspaceMigration')]
@@ -39,9 +40,9 @@ final class SysTemplateNoWorkspaceMigration implements UpgradeWizardInterface
 
     public function getDescription(): string
     {
-        return 'Table "sys_template" is no longer workspace aware.' .
-            ' Existing database rows having field "t3ver_wsid" > 0 are set to "deleted" = 1 to not' .
-            ' leak into live when the workspace related columns are deleted.';
+        return 'Table "sys_template" is no longer workspace aware.'
+            . ' Existing database rows having field "t3ver_wsid" > 0 are set to "deleted" = 1 to not'
+            . ' leak into live when the workspace related columns are deleted.';
     }
 
     public function getPrerequisites(): array
@@ -88,7 +89,7 @@ final class SysTemplateNoWorkspaceMigration implements UpgradeWizardInterface
     private function sysTemplateTableExists(): bool
     {
         $schemaManager = $this->getConnectionPool()->getConnectionForTable(self::TABLE_NAME)->createSchemaManager();
-        return $schemaManager->tablesExist(self::TABLE_NAME);
+        return $schemaManager->tablesExist([self::TABLE_NAME]);
     }
 
     private function sysTemplateT3verWsidFieldExists(): bool

@@ -17,7 +17,8 @@ declare(strict_types=1);
 
 namespace TYPO3\CMS\Core\Messenger;
 
-use Symfony\Component\DependencyInjection\ServiceLocator;
+use Psr\Container\ContainerInterface;
+use Symfony\Component\DependencyInjection\Attribute\AutowireLocator;
 use Symfony\Component\Messenger\Envelope;
 use Symfony\Component\Messenger\Exception\RuntimeException;
 use Symfony\Component\Messenger\Handler\HandlersLocator;
@@ -31,7 +32,10 @@ use Symfony\Component\Messenger\Transport\Sender\SendersLocatorInterface;
  */
 class TransportLocator implements SendersLocatorInterface
 {
-    public function __construct(private readonly ServiceLocator $sendersLocator) {}
+    public function __construct(
+        #[AutowireLocator('messenger.sender', indexAttribute: 'identifier')]
+        private readonly ContainerInterface $sendersLocator,
+    ) {}
 
     public function getSenders(Envelope $envelope): iterable
     {
@@ -52,7 +56,7 @@ class TransportLocator implements SendersLocatorInterface
                 $transportForMessage = [$transportForMessage];
             }
             foreach ($transportForMessage as $senderAlias) {
-                if (!\in_array($senderAlias, $seen, true)) {
+                if (!in_array($senderAlias, $seen, true)) {
                     $seen[] = $senderAlias;
 
                     yield from $this->getSenderFromConfiguration($senderAlias);

@@ -18,32 +18,24 @@ declare(strict_types=1);
 namespace TYPO3\CMS\Core\Page;
 
 use Psr\EventDispatcher\EventDispatcherInterface;
+use Symfony\Component\DependencyInjection\Attribute\Autoconfigure;
 use TYPO3\CMS\Core\Page\Event\BeforeJavaScriptsRenderingEvent;
 use TYPO3\CMS\Core\Page\Event\BeforeStylesheetsRenderingEvent;
 use TYPO3\CMS\Core\Security\ContentSecurityPolicy\ConsumableNonce;
+use TYPO3\CMS\Core\Security\ContentSecurityPolicy\Directive;
 use TYPO3\CMS\Core\Utility\GeneralUtility;
 use TYPO3\CMS\Core\Utility\PathUtility;
 
 /**
  * @internal The AssetRenderer is used for the asset rendering and is not public API
  */
-class AssetRenderer
+#[Autoconfigure(public: true)]
+readonly class AssetRenderer
 {
-    /**
-     * @var AssetCollector
-     */
-    protected $assetCollector;
-
-    /**
-     * @var EventDispatcherInterface
-     */
-    protected $eventDispatcher;
-
-    public function __construct(?AssetCollector $assetCollector = null, ?EventDispatcherInterface $eventDispatcher = null)
-    {
-        $this->assetCollector = $assetCollector ?? GeneralUtility::makeInstance(AssetCollector::class);
-        $this->eventDispatcher = $eventDispatcher ?? GeneralUtility::makeInstance(EventDispatcherInterface::class);
-    }
+    public function __construct(
+        protected AssetCollector $assetCollector,
+        protected EventDispatcherInterface $eventDispatcher,
+    ) {}
 
     public function renderInlineJavaScript($priority = false, ?ConsumableNonce $nonce = null): string
     {
@@ -53,7 +45,7 @@ class AssetRenderer
 
         $template = '<script%attributes%>%source%</script>';
         $assets = $this->assetCollector->getInlineJavaScripts($priority);
-        return $this->render($assets, $template, $nonce);
+        return $this->render($assets, $template, true, Directive::ScriptSrcElem, $nonce);
     }
 
     public function renderJavaScript($priority = false, ?ConsumableNonce $nonce = null): string
@@ -65,9 +57,12 @@ class AssetRenderer
         $template = '<script%attributes%></script>';
         $assets = $this->assetCollector->getJavaScripts($priority);
         foreach ($assets as &$assetData) {
-            $assetData['attributes']['src'] = $this->getAbsoluteWebPath($assetData['source']);
+            if (!($assetData['options']['external'] ?? false)) {
+                $assetData['source'] = $this->getAbsoluteWebPath($assetData['source']);
+            }
+            $assetData['attributes']['src'] = $assetData['source'];
         }
-        return $this->render($assets, $template, $nonce);
+        return $this->render($assets, $template, false, Directive::ScriptSrcElem, $nonce);
     }
 
     public function renderInlineStyleSheets($priority = false, ?ConsumableNonce $nonce = null): string
@@ -78,7 +73,7 @@ class AssetRenderer
 
         $template = '<style%attributes%>%source%</style>';
         $assets = $this->assetCollector->getInlineStyleSheets($priority);
-        return $this->render($assets, $template, $nonce);
+        return $this->render($assets, $template, true, Directive::StyleSrcElem, $nonce);
     }
 
     public function renderStyleSheets(bool $priority = false, string $endingSlash = '', ?ConsumableNonce $nonce = null): string
@@ -90,19 +85,27 @@ class AssetRenderer
         $template = '<link%attributes% ' . $endingSlash . '>';
         $assets = $this->assetCollector->getStyleSheets($priority);
         foreach ($assets as &$assetData) {
-            $assetData['attributes']['href'] = $this->getAbsoluteWebPath($assetData['source']);
+            if (!($assetData['options']['external'] ?? false)) {
+                $assetData['source'] = $this->getAbsoluteWebPath($assetData['source']);
+            }
+            $assetData['attributes']['href'] = $assetData['source'];
             $assetData['attributes']['rel'] = $assetData['attributes']['rel'] ?? 'stylesheet';
         }
-        return $this->render($assets, $template, $nonce);
+        return $this->render($assets, $template, false, Directive::StyleSrcElem, $nonce);
     }
 
-    protected function render(array $assets, string $template, ?ConsumableNonce $nonce = null): string
-    {
+    protected function render(
+        array $assets,
+        string $template,
+        bool $isInline,
+        Directive $directive,
+        ?ConsumableNonce $nonce = null
+    ): string {
         $results = [];
         foreach ($assets as $assetData) {
             $attributes = $assetData['attributes'];
             if ($nonce !== null && !empty($assetData['options']['useNonce'])) {
-                $attributes['nonce'] = $nonce->consume();
+                $attributes['nonce'] = $isInline ? $nonce->consumeInline($directive) : $nonce->consumeStatic($directive);
             }
             $attributesString = count($attributes) ? ' ' . GeneralUtility::implodeAttributes($attributes, true) : '';
             $results[] = str_replace(
@@ -119,7 +122,8 @@ class AssetRenderer
         if (PathUtility::hasProtocolAndScheme($file)) {
             return $file;
         }
-        $file = PathUtility::getAbsoluteWebPath(GeneralUtility::getFileAbsFileName($file));
-        return GeneralUtility::createVersionNumberedFilename($file);
+        $file = GeneralUtility::getFileAbsFileName($file);
+        $file = GeneralUtility::createVersionNumberedFilename($file);
+        return PathUtility::getAbsoluteWebPath($file);
     }
 }

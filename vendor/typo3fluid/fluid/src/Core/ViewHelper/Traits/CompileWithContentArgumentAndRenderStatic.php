@@ -72,6 +72,7 @@ trait CompileWithContentArgumentAndRenderStatic
      */
     public function render()
     {
+        trigger_error('CompileWithContentArgumentAndRenderStatic has been deprecated and will be removed in Fluid v5.', E_USER_DEPRECATED);
         return static::renderStatic(
             $this->arguments,
             $this->buildRenderChildrenClosure(),
@@ -84,6 +85,7 @@ trait CompileWithContentArgumentAndRenderStatic
      */
     public function resolveContentArgumentName()
     {
+        trigger_error('CompileWithContentArgumentAndRenderStatic has been deprecated and will be removed in Fluid v5.', E_USER_DEPRECATED);
         if (empty($this->contentArgumentName)) {
             $registeredArguments = $this->prepareArguments();
             foreach ($registeredArguments as $registeredArgument) {
@@ -93,8 +95,8 @@ trait CompileWithContentArgumentAndRenderStatic
                 }
             }
             throw new Exception(
-                sprintf('Attempting to compile %s failed. Chosen compile method requires that ViewHelper has ' .
-                    'at least one registered and optional argument', __CLASS__),
+                sprintf('Attempting to compile %s failed. Chosen compile method requires that ViewHelper has '
+                    . 'at least one registered and optional argument', __CLASS__),
             );
         }
         return $this->contentArgumentName;

@@ -21,7 +21,7 @@ use TYPO3\CMS\Backend\Form\Behavior\UpdateBitmaskOnFieldChange;
 use TYPO3\CMS\Backend\Form\NodeFactory;
 use TYPO3\CMS\Backend\Utility\BackendUtility;
 use TYPO3\CMS\Core\Authentication\BackendUserAuthentication;
-use TYPO3\CMS\Core\Imaging\IconFactory;
+use TYPO3\CMS\Core\Domain\DateTimeFactory;
 use TYPO3\CMS\Core\Localization\DateFormatter;
 use TYPO3\CMS\Core\Localization\LanguageService;
 use TYPO3\CMS\Core\Localization\Locale;
@@ -59,21 +59,15 @@ abstract class AbstractFormElement extends AbstractNode
      */
     protected $maxInputWidth = 50;
 
-    /**
-     * @var IconFactory
-     * @deprecated since TYPO3 v12.4. will be removed in TYPO3 v13.0.
-     */
-    protected $iconFactory;
+    protected NodeFactory $nodeFactory;
 
     /**
-     * Container objects give $nodeFactory down to other containers.
-     *
-     * @deprecated since TYPO3 v12.4. Default constructor will be removed in v13.
+     * Injection of NodeFactory, which is used in this abstract already.
+     * Using inject* method to not pollute __construct() for inheriting classes.
      */
-    public function __construct(?NodeFactory $nodeFactory = null, array $data = [])
+    public function injectNodeFactory(NodeFactory $nodeFactory): void
     {
-        parent::__construct($nodeFactory, $data);
-        $this->iconFactory = GeneralUtility::makeInstance(IconFactory::class);
+        $this->nodeFactory = $nodeFactory;
     }
 
     /**
@@ -150,7 +144,7 @@ abstract class AbstractFormElement extends AbstractNode
         }
         $html = [];
         $html[] = '<fieldset>';
-        $html[] =     '<legend class="form-legend t3js-formengine-legend">' . $legend . '</legend>';
+        $html[] =     '<legend class="form-label t3js-formengine-label">' . $legend . '</legend>';
         $html[] =     $innerHTML;
         $html[] = '</fieldset>';
         return implode(LF, $html);
@@ -246,15 +240,17 @@ abstract class AbstractFormElement extends AbstractNode
                     } else {
                         $value = BackendUtility::date((int)$itemValue);
                     }
+                    if (isset($formatOptions['appendAge']) && $formatOptions['appendAge']) {
+                        $now = DateTimeFactory::createFromTimestamp($GLOBALS['EXEC_TIME']);
+                        $then = DateTimeFactory::createFromTimestamp((int)$itemValue);
+                        $age = (new DateFormatter())->formatDateInterval(
+                            $now->diff($then),
+                            $this->getLanguageService()->sL('LLL:EXT:core/Resources/Private/Language/locallang_core.xlf:labels.minutesHoursDaysYears')
+                        );
+                        $value .= ' (' . $age . ')';
+                    }
                 } else {
                     $value = '';
-                }
-                if (isset($formatOptions['appendAge']) && $formatOptions['appendAge']) {
-                    $age = BackendUtility::calcAge(
-                        $GLOBALS['EXEC_TIME'] - $itemValue,
-                        $this->getLanguageService()->sL('LLL:EXT:core/Resources/Private/Language/locallang_core.xlf:labels.minutesHoursDaysYears')
-                    );
-                    $value .= ' (' . $age . ')';
                 }
                 $itemValue = $value;
                 break;
@@ -365,33 +361,11 @@ abstract class AbstractFormElement extends AbstractNode
 
         $javaScriptEvaluation = $evalObject->returnFieldJS();
         if ($javaScriptEvaluation instanceof JavaScriptModuleInstruction) {
-            if ($javaScriptEvaluation->shallLoadRequireJs()) {
-                // just use the module name and export-name
-                // @deprecated will be removed in TYPO3 v13.0
-                $resultArray['javaScriptModules'][] = JavaScriptModuleInstruction::forRequireJS(
-                    $javaScriptEvaluation->getName(),
-                    $javaScriptEvaluation->getExportName(),
-                    // silence deprecation error, has already been triggered by the original JavaScriptModuleInstruction instance
-                    true
-                )->invoke('registerCustomEvaluation', $name);
-            } else {
-                // just use the module name and export-name
-                $resultArray['javaScriptModules'][] = JavaScriptModuleInstruction::create(
-                    $javaScriptEvaluation->getName(),
-                    $javaScriptEvaluation->getExportName()
-                )->invoke('registerCustomEvaluation', $name);
-            }
-        } else {
-            trigger_error(
-                sprintf('Using inline JavaScript for custom eval function in "%s" is deprecated. Use JavaScript modules instead.', $name),
-                E_USER_DEPRECATED
-            );
-            // @deprecated since TYPO3 v12.4. will be removed in TYPO3 v13.0.
-            $resultArray['additionalJavaScriptPost'][] = sprintf(
-                'var TBE_EDITOR = TBE_EDITOR || { customEvalFunctions: {} }; TBE_EDITOR.customEvalFunctions[%s] = function(value) { %s };',
-                GeneralUtility::quoteJSvalue($name),
-                $javaScriptEvaluation
-            );
+            // just use the module name and export-name
+            $resultArray['javaScriptModules'][] = JavaScriptModuleInstruction::create(
+                $javaScriptEvaluation->getName(),
+                $javaScriptEvaluation->getExportName()
+            )->invoke('registerCustomEvaluation', $name);
         }
 
         return $resultArray;
@@ -433,6 +407,7 @@ abstract class AbstractFormElement extends AbstractNode
         if ($checked xor $invert) {
             $attrs['checked'] = 'checked';
         }
+        $attrs['data-invert-state-display'] = $invert ? 'true' : 'false';
         return GeneralUtility::implodeAttributes($attrs, true);
     }
 

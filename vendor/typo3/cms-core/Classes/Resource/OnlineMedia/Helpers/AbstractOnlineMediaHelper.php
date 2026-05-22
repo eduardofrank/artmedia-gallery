@@ -16,20 +16,20 @@
 namespace TYPO3\CMS\Core\Resource\OnlineMedia\Helpers;
 
 use TYPO3\CMS\Core\Core\Environment;
-use TYPO3\CMS\Core\Resource\DuplicationBehavior;
+use TYPO3\CMS\Core\Resource\Enum\DuplicationBehavior;
 use TYPO3\CMS\Core\Resource\Exception\IllegalFileExtensionException;
 use TYPO3\CMS\Core\Resource\Exception\InsufficientFileAccessPermissionsException;
 use TYPO3\CMS\Core\Resource\File;
 use TYPO3\CMS\Core\Resource\Folder;
 use TYPO3\CMS\Core\Resource\Index\FileIndexRepository;
 use TYPO3\CMS\Core\Resource\ResourceFactory;
+use TYPO3\CMS\Core\Resource\ResourceInstructionTrait;
 use TYPO3\CMS\Core\Utility\GeneralUtility;
 
-/**
- * Class AbstractOnlineMediaHelper
- */
 abstract class AbstractOnlineMediaHelper implements OnlineMediaHelperInterface
 {
+    use ResourceInstructionTrait;
+
     /**
      * Cached OnlineMediaIds [fileUid => id]
      *
@@ -69,7 +69,7 @@ abstract class AbstractOnlineMediaHelper implements OnlineMediaHelperInterface
             try {
                 // By definition these files only contain the ID of the remote media source
                 $this->onlineMediaIdCache[$file->getUid()] = trim($file->getContents());
-            } catch (InsufficientFileAccessPermissionsException | IllegalFileExtensionException $e) {
+            } catch (InsufficientFileAccessPermissionsException|IllegalFileExtensionException $e) {
                 // User has no access to the file - online media id can not be fetched
                 return '';
             }
@@ -116,6 +116,7 @@ abstract class AbstractOnlineMediaHelper implements OnlineMediaHelperInterface
     {
         $temporaryFile = GeneralUtility::tempnam('online_media');
         GeneralUtility::writeFileToTypo3tempDir($temporaryFile, $onlineMediaId);
+        $this->skipResourceConsistencyCheckForCommands($targetFolder->getStorage(), $temporaryFile, $fileName);
         $file = $targetFolder->addFile($temporaryFile, $fileName, DuplicationBehavior::RENAME);
         return $file;
     }

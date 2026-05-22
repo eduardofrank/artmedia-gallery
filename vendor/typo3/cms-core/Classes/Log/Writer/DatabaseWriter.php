@@ -79,7 +79,7 @@ class DatabaseWriter extends AbstractWriter
             if (isset($context['exception']) && $context['exception'] instanceof \Throwable) {
                 $context['exception'] = (string)$context['exception'];
             }
-            $data = '- ' . json_encode($context);
+            $data = json_encode($context);
         }
 
         $fieldValues = [
@@ -90,6 +90,12 @@ class DatabaseWriter extends AbstractWriter
             'message' => $record->getMessage(),
             'data' => $data,
         ];
+
+        // sys_log uses tstamp for garbage collection via TableGarbageCollectionTask.
+        // Without it, tstamp defaults to 0 (1970-01-01), causing immediate deletion (see #109290).
+        if ($this->logTable === 'sys_log') {
+            $fieldValues['tstamp'] = (int)$record->getCreated();
+        }
 
         GeneralUtility::makeInstance(ConnectionPool::class)
             ->getConnectionForTable($this->logTable)

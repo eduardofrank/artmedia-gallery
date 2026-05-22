@@ -26,15 +26,17 @@ use TYPO3\CMS\Core\Utility\GeneralUtility;
  * Since we no longer want to have any <input type="submit" /> in the TYPO3 core
  * you should use this button type to send forms
  *
- * EXAMPLE USAGE TO ADD A BUTTON TO THE FIRST BUTTON GROUP IN THE LEFT BAR:
+ * Example:
  *
+ * ```
  * $buttonBar = $this->moduleTemplate->getDocHeaderComponent()->getButtonBar();
  * $saveButton = $buttonBar->makeInputButton()
  *      ->setName('save')
  *      ->setValue('1')
- *      ->setIcon($this->iconFactory->getIcon('actions-document-save', Icon::SIZE_SMALL))
+ *      ->setIcon($this->iconFactory->getIcon('actions-document-save', IconSize::SMALL))
  *      ->setTitle('Save');
  * $buttonBar->addButton($saveButton, ButtonBar::BUTTON_POSITION_LEFT, 1);
+ * ```
  */
 class InputButton extends AbstractButton
 {

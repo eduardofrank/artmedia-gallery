@@ -55,6 +55,7 @@ class EnableFileService
     {
         $installEnableFilePath = self::getInstallToolEnableFilePath();
         if (!is_file($installEnableFilePath)) {
+            GeneralUtility::mkdir_deep(dirname($installEnableFilePath));
             $result = touch($installEnableFilePath);
         } else {
             $result = true;
@@ -76,15 +77,14 @@ class EnableFileService
         return $result;
     }
 
-    /**
-     * Removes the FIRST_INSTALL file
-     */
     public static function removeFirstInstallFile(): bool
     {
         $result = true;
         $files = self::getFirstInstallFilePaths();
         foreach ($files as $file) {
-            $result = unlink(Environment::getPublicPath() . '/' . $file) && $result;
+            // `getFirstInstallFilePaths()` returns list of existing files only and
+            // allows us to simply unlink them without superfluous additional checks.
+            $result = @unlink($file) && $result;
         }
         return $result;
     }
@@ -161,6 +161,7 @@ class EnableFileService
     /**
      * Returns a static directory path that is suitable to be presented to
      * unauthenticated visitors, in order to circumvent "Full Path Disclosure" issues.
+     * This is just used for display purposes.
      */
     public static function getStaticLocationForInstallToolEnableFileDirectory(): string
     {
@@ -169,11 +170,20 @@ class EnableFileService
 
     public static function getBestLocationForInstallToolEnableFile(): string
     {
+        return self::getTransientPath() . '/' . self::INSTALL_TOOL_ENABLE_FILE_PATH;
+    }
+
+    /**
+     * Based on composer or legacy mode, return a directory
+     * location where lock file can be stored.
+     */
+    protected static function getTransientPath(): string
+    {
         $possibleLocations = [
-            'default' => Environment::getVarPath() . '/transient/' . self::INSTALL_TOOL_ENABLE_FILE_PATH,
-            'permanent' => Environment::getConfigPath() . '/' . self::INSTALL_TOOL_ENABLE_FILE_PATH,
+            'composer' => Environment::getVarPath() . '/transient',
+            'legacy'   => Environment::getConfigPath(),
         ];
-        return Environment::isComposerMode() ? $possibleLocations['default'] : $possibleLocations['permanent'];
+        return Environment::isComposerMode() ? $possibleLocations['composer'] : $possibleLocations['legacy'];
     }
 
     /**
@@ -195,15 +205,30 @@ class EnableFileService
     }
 
     /**
-     * Returns the paths to the FIRST_INSTALL files
+     * List of found `FIRST_INSTALL` files with different casings in public and project folder.
+     *
+     * @returns non-empty-string[]
      */
     protected static function getFirstInstallFilePaths(): array
     {
+        // Check in public path
         $files = scandir(Environment::getPublicPath() . '/');
         $files = is_array($files) ? $files : [];
         $files = array_filter($files, static function ($file) {
             return @is_file(Environment::getPublicPath() . '/' . $file) && preg_match('~^' . self::FIRST_INSTALL_FILE_PATH . '.*~i', $file);
         });
+        $files = array_map(fn(string $file): string => Environment::getPublicPath() . '/' . $file, $files);
+
+        // Check in project path (only if different from public path)
+        if (Environment::getPublicPath() !== Environment::getProjectPath()) {
+            $projectFiles = scandir(Environment::getProjectPath() . '/');
+            $projectFiles = is_array($projectFiles) ? $projectFiles : [];
+            $projectFiles = array_filter($projectFiles, static function ($file) {
+                return @is_file(Environment::getProjectPath() . '/' . $file) && preg_match('~^' . self::FIRST_INSTALL_FILE_PATH . '.*~i', $file);
+            });
+            $projectFiles = array_map(fn(string $file): string => Environment::getProjectPath() . '/' . $file, $projectFiles);
+            $files = array_unique(array_merge($files, $projectFiles));
+        }
         return $files;
     }
 }

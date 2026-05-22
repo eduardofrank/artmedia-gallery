@@ -17,6 +17,7 @@ declare(strict_types=1);
 
 namespace TYPO3\CMS\Frontend\Middleware;
 
+use Psr\EventDispatcher\EventDispatcherInterface;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
 use Psr\Http\Server\MiddlewareInterface;
@@ -24,6 +25,7 @@ use Psr\Http\Server\RequestHandlerInterface;
 use Psr\Log\LoggerAwareInterface;
 use Psr\Log\LoggerAwareTrait;
 use Symfony\Component\RateLimiter\LimiterInterface;
+use TYPO3\CMS\Core\Authentication\Event\AfterUserLoggedInEvent;
 use TYPO3\CMS\Core\Context\Context;
 use TYPO3\CMS\Core\RateLimiter\RateLimiterFactory;
 use TYPO3\CMS\Core\RateLimiter\RequestRateLimitedException;
@@ -41,7 +43,8 @@ class FrontendUserAuthenticator implements MiddlewareInterface, LoggerAwareInter
 
     public function __construct(
         protected readonly Context $context,
-        protected readonly RateLimiterFactory $rateLimiterFactory
+        protected readonly RateLimiterFactory $rateLimiterFactory,
+        protected readonly EventDispatcherInterface $eventDispatcher
     ) {}
 
     /**
@@ -67,6 +70,7 @@ class FrontendUserAuthenticator implements MiddlewareInterface, LoggerAwareInter
 
         if ($this->context->getAspect('frontend.user')->isLoggedIn() && $rateLimiter) {
             $rateLimiter->reset();
+            $this->eventDispatcher->dispatch(new AfterUserLoggedInEvent($frontendUser, $request));
         }
 
         $response = $handler->handle($request);
@@ -102,8 +106,8 @@ class FrontendUserAuthenticator implements MiddlewareInterface, LoggerAwareInter
         if (!$limit->isAccepted()) {
             $this->logger->debug('Login request has been rate limited for IP address {ipAddress}', ['ipAddress' => $request->getAttribute('normalizedParams')->getRemoteAddress()]);
             $dateformat = $GLOBALS['TYPO3_CONF_VARS']['SYS']['ddmmyy'] . ' ' . $GLOBALS['TYPO3_CONF_VARS']['SYS']['hhmm'];
-            $lockedUntil = $limit->getRetryAfter()->getTimestamp() > 0 ?
-                ' until ' . date($dateformat, $limit->getRetryAfter()->getTimestamp()) : '';
+            $lockedUntil = $limit->getRetryAfter()->getTimestamp() > 0
+                ? ' until ' . date($dateformat, $limit->getRetryAfter()->getTimestamp()) : '';
             throw new RequestRateLimitedException(
                 HttpUtility::HTTP_STATUS_403,
                 'The login is locked' . $lockedUntil . ' due to too many failed login attempts from your IP address.',

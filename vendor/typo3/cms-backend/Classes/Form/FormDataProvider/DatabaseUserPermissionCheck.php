@@ -29,30 +29,30 @@ use TYPO3\CMS\Backend\Form\FormDataProviderInterface;
 use TYPO3\CMS\Backend\Utility\BackendUtility;
 use TYPO3\CMS\Core\Authentication\BackendUserAuthentication;
 use TYPO3\CMS\Core\Type\Bitmask\Permission;
-use TYPO3\CMS\Core\Utility\GeneralUtility;
 
 /**
  * Determine user permission for action and check them
  */
-class DatabaseUserPermissionCheck implements FormDataProviderInterface
+readonly class DatabaseUserPermissionCheck implements FormDataProviderInterface
 {
+    public function __construct(
+        private EventDispatcherInterface $eventDispatcher,
+    ) {}
+
     /**
      * Set userPermissionOnPage to result array and check access rights.
      *
      * A couple of different exceptions are thrown here:
      * * If something weird happens a top level SPL exception is thrown.
-     *   This indicates a non recoverable error.
+     *   This indicates a non-recoverable error.
      * * If user has no access to whatever should be done, an exception that
      *   extends from Form\Exception\AccessDeniedException is thrown. This
      *   can be caught by upper level controller code and can be translated
-     *   to a specific error message that is shown to the user depending on
-     *   specific exception that is thrown.
+     *   to a specific error message that is shown to the user.
      *
-     * @param array $result
-     * @return array
      * @throws AccessDeniedException
      */
-    public function addData(array $result)
+    public function addData(array $result): array
     {
         $backendUser = $this->getBackendUser();
 
@@ -148,7 +148,7 @@ class DatabaseUserPermissionCheck implements FormDataProviderInterface
             }
         }
 
-        $userHasAccess = GeneralUtility::makeInstance(EventDispatcherInterface::class)->dispatch(
+        $userHasAccess = $this->eventDispatcher->dispatch(
             new ModifyEditFormUserAccessEvent(
                 $exception,
                 $result['tableName'],

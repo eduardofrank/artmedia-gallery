@@ -17,94 +17,39 @@ declare(strict_types=1);
 
 namespace TYPO3\CMS\Fluid\ViewHelpers;
 
+use Psr\Http\Message\ServerRequestInterface;
 use TYPO3\CMS\Core\Messaging\FlashMessageRendererResolver;
 use TYPO3\CMS\Core\Messaging\FlashMessageService;
 use TYPO3\CMS\Core\Utility\GeneralUtility;
 use TYPO3\CMS\Extbase\Mvc\RequestInterface;
 use TYPO3\CMS\Extbase\Service\ExtensionService;
-use TYPO3\CMS\Fluid\Core\Rendering\RenderingContext;
-use TYPO3Fluid\Fluid\Core\Rendering\RenderingContextInterface;
+use TYPO3Fluid\Fluid\Core\Variables\ScopedVariableProvider;
+use TYPO3Fluid\Fluid\Core\Variables\StandardVariableProvider;
 use TYPO3Fluid\Fluid\Core\ViewHelper\AbstractViewHelper;
-use TYPO3Fluid\Fluid\Core\ViewHelper\Traits\CompileWithRenderStatic;
 
 /**
- * ViewHelper which renders the flash messages (if there are any) as an unsorted list.
+ * ViewHelper which renders the flash messages (output messages / message bubbles, which can also
+ * be queued from a preceding request). No output occurs if no flash messages are
+ * queued. Output is done with a hard-coded HTML definition, but the raw contents can be
+ * extracted via the `as` attribute, and rendered with custom formatting.
  *
- * In case you need custom Flash Message HTML output, please write your own ViewHelper for the moment.
+ * ```
+ *   <f:flashMessages />
  *
- * Examples
- * ========
+ *   <f:flashMessages as="flashMessages">
+ *        <dl class="messages">
+ *           <f:for each="{flashMessages}" as="flashMessage">
+ *              <dt>{flashMessage.code}</dt>
+ *              <dd>{flashMessage.message}</dd>
+ *           </f:for>
+ *        </dl>
+ *   </f:flashMessages>
+ * ```
  *
- * Simple
- * ------
- *
- * ::
- *
- *    <f:flashMessages />
- *
- * A list of flash messages.
- *
- * TYPO3 core style
- * ----------------
- *
- * ::
- *
- *    <f:flashMessages />
- *
- * Output::
- *
- *    <div class="typo3-messages">
- *       <div class="alert alert-info">
- *          <div class="media">
- *             <div class="media-left">
- *                <span class="icon-emphasized">
- *                   <span class="t3js-icon icon icon-size-small icon-state-default icon-actions-info" data-identifier="actions-info">
- *                      <span class="icon-markup">
- *                         <svg class="icon-color"><use xlink:href="/typo3/sysext/core/Resources/Public/Icons/T3Icons/sprites/actions.svg#actions-info"></use></svg>
- *                      </span>
- *                   </span>
- *                </span>
- *             </div>
- *             <div class="media-body">
- *                <div class="alert-title">Info - Title for Info message</div>
- *                <p class="alert-message">Message text here.</p>
- *             </div>
- *          </div>
- *       </div>
- *    </div>
- *
- * Output flash messages as a description list
- * -------------------------------------------
- *
- * ::
- *
- *    <f:flashMessages as="flashMessages">
- *       <dl class="messages">
- *          <f:for each="{flashMessages}" as="flashMessage">
- *             <dt>{flashMessage.code}</dt>
- *             <dd>{flashMessage.message}</dd>
- *          </f:for>
- *       </dl>
- *    </f:flashMessages>
- *
- * Output::
- *
- *    <dl class="messages">
- *       <dt>1013</dt>
- *       <dd>Some Warning Message.</dd>
- *   </dl>
- *
- * Using a specific queue
- * ----------------------
- *
- * ::
- *
- *    <f:flashMessages queueIdentifier="myQueue" />
+ * @see https://docs.typo3.org/permalink/t3viewhelper:typo3-fluid-flashmessages
  */
 final class FlashMessagesViewHelper extends AbstractViewHelper
 {
-    use CompileWithRenderStatic;
-
     /**
      * ViewHelper outputs HTML therefore output escaping has to be disabled
      *
@@ -126,18 +71,14 @@ final class FlashMessagesViewHelper extends AbstractViewHelper
      *       In case of conditional flash message rendering, caching must be disabled
      *       (e.g. for a controller action).
      *       Custom caching using the Caching Framework can be used in this case.
-     *
-     * @return mixed
      */
-    public static function renderStatic(array $arguments, \Closure $renderChildrenClosure, RenderingContextInterface $renderingContext)
+    public function render(): string
     {
-        $as = $arguments['as'];
-        $queueIdentifier = $arguments['queueIdentifier'];
-
+        $as = $this->arguments['as'];
+        $queueIdentifier = $this->arguments['queueIdentifier'];
         if ($queueIdentifier === null) {
-            /** @var RenderingContext $renderingContext */
-            $request = $renderingContext->getRequest();
-            if (!$request instanceof RequestInterface) {
+            if (!$this->renderingContext->hasAttribute(ServerRequestInterface::class)
+                || !$this->renderingContext->getAttribute(ServerRequestInterface::class) instanceof RequestInterface) {
                 // Throw if not an extbase request
                 throw new \RuntimeException(
                     'ViewHelper f:flashMessages needs an extbase Request object to resolve the Queue identifier magically.'
@@ -145,25 +86,23 @@ final class FlashMessagesViewHelper extends AbstractViewHelper
                     1639821269
                 );
             }
+            $request = $this->renderingContext->getAttribute(ServerRequestInterface::class);
             $extensionService = GeneralUtility::makeInstance(ExtensionService::class);
             $pluginNamespace = $extensionService->getPluginNamespace($request->getControllerExtensionName(), $request->getPluginName());
             $queueIdentifier = 'extbase.flashmessages.' . $pluginNamespace;
         }
-
         $flashMessageQueue = GeneralUtility::makeInstance(FlashMessageService::class)->getMessageQueueByIdentifier($queueIdentifier);
         $flashMessages = $flashMessageQueue->getAllMessagesAndFlush();
         if (count($flashMessages) === 0) {
             return '';
         }
-
         if ($as === null) {
             return GeneralUtility::makeInstance(FlashMessageRendererResolver::class)->resolve()->render($flashMessages);
         }
-        $templateVariableContainer = $renderingContext->getVariableProvider();
-        $templateVariableContainer->add($as, $flashMessages);
-        $content = $renderChildrenClosure();
-        $templateVariableContainer->remove($as);
-
+        $variableProvider = new ScopedVariableProvider($this->renderingContext->getVariableProvider(), new StandardVariableProvider([$as => $flashMessages]));
+        $this->renderingContext->setVariableProvider($variableProvider);
+        $content = (string)$this->renderChildren();
+        $this->renderingContext->setVariableProvider($variableProvider->getGlobalVariableProvider());
         return $content;
     }
 }

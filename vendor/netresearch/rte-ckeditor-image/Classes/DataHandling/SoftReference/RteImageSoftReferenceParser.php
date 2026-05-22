@@ -1,10 +1,8 @@
 <?php
 
-/**
- * This file is part of the package netresearch/rte-ckeditor-image.
- *
- * For the full copyright and license information, please read the
- * LICENSE file that was distributed with this source code.
+/*
+ * Copyright (c) 2025-2026 Netresearch DTT GmbH
+ * SPDX-License-Identifier: AGPL-3.0-or-later
  */
 
 declare(strict_types=1);
@@ -15,14 +13,13 @@ use TYPO3\CMS\Core\DataHandling\SoftReference\AbstractSoftReferenceParser;
 use TYPO3\CMS\Core\DataHandling\SoftReference\SoftReferenceParserResult;
 use TYPO3\CMS\Core\Html\HtmlParser;
 
-use function count;
-
 /**
  * Class for processing of the FAL soft references on img tags inserted in RTE content.
  *
  * @author  Stefan Galinski <stefan@sgalinski.de>
  * @license https://www.gnu.org/licenses/agpl-3.0.de.html
- * @link    https://www.netresearch.de
+ *
+ * @see    https://www.netresearch.de
  */
 class RteImageSoftReferenceParser extends AbstractSoftReferenceParser
 {
@@ -34,9 +31,9 @@ class RteImageSoftReferenceParser extends AbstractSoftReferenceParser
     private readonly HtmlParser $htmlParser;
 
     /**
-     * @var array<int, string>
+     * @var string[]
      */
-    private array $splitContentTags;
+    private array $splitContentTags = [];
 
     /**
      * Constructor.
@@ -55,7 +52,7 @@ class RteImageSoftReferenceParser extends AbstractSoftReferenceParser
      * @param string $field         Field name for which processing occurs
      * @param int    $uid           UID of the record
      * @param string $content       The content/value of the field
-     * @param string $structurePath If running from inside a FlexForm structure, this is the path of the tag.
+     * @param string $structurePath if running from inside a FlexForm structure, this is the path of the tag
      *
      * @return SoftReferenceParserResult
      */
@@ -64,15 +61,11 @@ class RteImageSoftReferenceParser extends AbstractSoftReferenceParser
         string $field,
         int $uid,
         string $content,
-        string $structurePath = ''
+        string $structurePath = '',
     ): SoftReferenceParserResult {
         $this->setTokenIdBasePrefix($table, (string) $uid, $field, $structurePath);
 
-        if ($this->parserKey === 'rtehtmlarea_images') {
-            $retVal = $this->findImageTags($content);
-        } else {
-            $retVal = [];
-        }
+        $retVal = $this->parserKey === 'rtehtmlarea_images' ? $this->findImageTags($content) : [];
 
         return SoftReferenceParserResult::create($content, $retVal);
     }
@@ -83,23 +76,16 @@ class RteImageSoftReferenceParser extends AbstractSoftReferenceParser
      *
      * @param string $content The input content to analyse
      *
-     * @return array<string, array<array<string, mixed>>|string>
+     * @return array<int|string, array<string, mixed>>
      */
     private function findImageTags(string $content): array
     {
         // Content split into images and other elements
-        $this->splitContentTags = $this->htmlParser->splitTags(
-            'img',
-            $content
-        );
+        /** @var string[] $splitResult */
+        $splitResult            = $this->htmlParser->splitTags('img', $content);
+        $this->splitContentTags = $splitResult;
 
-        $images = $this->findImagesWithDataUid();
-
-        if (count($images) === 0) {
-            return [];
-        }
-
-        return $images;
+        return $this->findImagesWithDataUid();
     }
 
     /**
@@ -131,25 +117,29 @@ class RteImageSoftReferenceParser extends AbstractSoftReferenceParser
             }
 
             // Get FAL uid reference
-            $attribs = $this->htmlParser->get_tag_attributes($htmlTag);
-            $fileUid = $attribs[0]['data-htmlarea-file-uid'] ?? false;
-
+            $attribs       = $this->htmlParser->get_tag_attributes($htmlTag);
+            $tagAttributes = is_array($attribs[0] ?? null) ? $attribs[0] : [];
+            $fileUid       = $tagAttributes['data-htmlarea-file-uid'] ?? false;
             // If there is a file uid, continue. Otherwise, ignore this img tag.
             if ($fileUid === false) {
+                continue;
+            }
+
+            if (!is_string($fileUid)) {
                 continue;
             }
 
             // Initialize the element entry with info text here
             $tokenID = $this->makeTokenID((string) $key);
 
-            $images[$key] = [];
+            $images[$key]                = [];
             $images[$key]['matchString'] = $htmlTag;
 
             // Token and substitute value
             $this->splitContentTags[$key] = str_replace(
                 'data-htmlarea-file-uid="' . $fileUid . '"',
                 'data-htmlarea-file-uid="{softref:' . $tokenID . '}"',
-                $htmlTag
+                $htmlTag,
             );
 
             $images[$key]['subst'] = [

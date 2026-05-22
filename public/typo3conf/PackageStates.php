@@ -107,12 +107,6 @@ return [
         'bootstrap_package' => [
             'packagePath' => 'typo3conf/ext/bootstrap_package/',
         ],
-        'artmediagalleryx' => [
-            'packagePath' => 'typo3conf/ext/artmediagalleryx/',
-        ],
-        'artmediastudiox' => [
-            'packagePath' => 'typo3conf/ext/artmediastudiox/',
-        ],
         'news' => [
             'packagePath' => 'typo3conf/ext/news/',
         ],

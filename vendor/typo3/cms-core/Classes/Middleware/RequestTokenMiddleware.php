@@ -82,7 +82,7 @@ class RequestTokenMiddleware implements MiddlewareInterface, LoggerAwareInterfac
         $cookiePrefixLength = strlen($cookiePrefix);
         $cookies = array_filter(
             $request->getCookieParams(),
-            static fn($name) => is_string($name) && str_starts_with($name, $cookiePrefix),
+            static fn(mixed $name): bool => is_string($name) && str_starts_with($name, $cookiePrefix),
             ARRAY_FILTER_USE_KEY
         );
         $items = [];
@@ -105,7 +105,10 @@ class RequestTokenMiddleware implements MiddlewareInterface, LoggerAwareInterfac
     protected function resolveReceivedRequestToken(ServerRequestInterface $request): ?RequestToken
     {
         $headerValue = $request->getHeaderLine(RequestToken::HEADER_NAME);
-        $paramValue = (string)($request->getParsedBody()[RequestToken::PARAM_NAME] ?? '');
+        $paramValue = '';
+        if (isset($request->getParsedBody()[RequestToken::PARAM_NAME]) && is_scalar($request->getParsedBody()[RequestToken::PARAM_NAME])) {
+            $paramValue = (string)($request->getParsedBody()[RequestToken::PARAM_NAME]);
+        }
         if ($headerValue !== '') {
             $tokenValue = $headerValue;
         } elseif (in_array($request->getMethod(), self::ALLOWED_METHODS, true)) {

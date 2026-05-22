@@ -20,8 +20,6 @@ use Symfony\Component\RateLimiter\LimiterStateInterface;
  */
 final class TokenBucket implements LimiterStateInterface
 {
-    private string $id;
-    private Rate $rate;
     private int $tokens;
     private int $burstSize;
     private float $timer;
@@ -32,10 +30,14 @@ final class TokenBucket implements LimiterStateInterface
      * @param Rate       $rate          the fill rate and time of this bucket
      * @param float|null $timer         the current timer of the bucket, defaulting to microtime(true)
      */
-    public function __construct(string $id, int $initialTokens, Rate $rate, ?float $timer = null)
-    {
+    public function __construct(
+        private string $id,
+        int $initialTokens,
+        private Rate $rate,
+        ?float $timer = null,
+    ) {
         if ($initialTokens < 1) {
-            throw new \InvalidArgumentException(sprintf('Cannot set the limit of "%s" to 0, as that would never accept any hit.', TokenBucketLimiter::class));
+            throw new \InvalidArgumentException(\sprintf('Cannot set the limit of "%s" to 0, as that would never accept any hit.', TokenBucketLimiter::class));
         }
 
         $this->id = $id;
@@ -78,7 +80,12 @@ final class TokenBucket implements LimiterStateInterface
 
     public function getExpirationTime(): int
     {
-        return $this->rate->calculateTimeForTokens($this->burstSize);
+        // The bucket must persist long enough to cover both a natural refill
+        // back to the burst size and any outstanding reservation debt — the
+        // latter is tracked by a negative token count. Evicting early would
+        // lose the debt and let a fresh bucket hand out already-reserved
+        // tokens.
+        return $this->rate->calculateTimeForTokens(max($this->burstSize, $this->burstSize - $this->tokens));
     }
 
     public function __serialize(): array

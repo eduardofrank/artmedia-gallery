@@ -19,14 +19,10 @@ namespace TYPO3\CMS\Install\CoreVersion;
 
 class MaintenanceWindow
 {
-    protected ?\DateTimeInterface $communitySupport = null;
-    protected ?\DateTimeInterface $eltsSupport = null;
-
-    public function __construct(?\DateTimeInterface $communitySupport, ?\DateTimeInterface $eltsSupport)
-    {
-        $this->communitySupport = $communitySupport;
-        $this->eltsSupport = $eltsSupport;
-    }
+    public function __construct(
+        protected readonly ?\DateTimeInterface $communitySupport,
+        protected readonly ?\DateTimeInterface $eltsSupport
+    ) {}
 
     public static function fromApiResponse(array $response): self
     {
@@ -50,8 +46,8 @@ class MaintenanceWindow
     {
         return $supportedUntil !== null
             && (
-                $supportedUntil >=
-                new \DateTimeImmutable('now', new \DateTimeZone('UTC'))
+                $supportedUntil
+                >= new \DateTimeImmutable('now', new \DateTimeZone('UTC'))
             );
     }
 }

@@ -18,18 +18,13 @@ declare(strict_types=1);
 namespace TYPO3\CMS\Fluid\ViewHelpers\Form;
 
 /**
- * ViewHelper which creates a simple Password Text Box :html:`<input type="password">`.
+ * ViewHelper which renders a simple password text box `<input type="password">`.
  *
- * Examples
- * ========
+ * ```
+ *   <f:form.password name="myPassword" />
+ * ```
  *
- * Example::
- *
- *    <f:form.password name="myPassword" />
- *
- * Output::
- *
- *    <input type="password" name="myPassword" value="" />
+ * @see https://docs.typo3.org/permalink/t3viewhelper:typo3-fluid-form-password
  */
 final class PasswordViewHelper extends AbstractFormFieldViewHelper
 {
@@ -41,28 +36,7 @@ final class PasswordViewHelper extends AbstractFormFieldViewHelper
     public function initializeArguments(): void
     {
         parent::initializeArguments();
-        $this->registerTagAttribute(
-            'disabled',
-            'string',
-            'Specifies that the password field should be disabled when the page loads'
-        );
-        $this->registerTagAttribute(
-            'maxlength',
-            'int',
-            'The maxlength attribute of the password field (will not be validated)'
-        );
-        $this->registerTagAttribute('placeholder', 'string', 'The placeholder of the password field');
-        $this->registerTagAttribute('readonly', 'string', 'The readonly attribute of the password field');
-        $this->registerTagAttribute('autocomplete', 'string', 'Specify the autocomplete behaviour for password managers');
-        $this->registerTagAttribute('size', 'int', 'The size of the password field');
-        $this->registerArgument(
-            'errorClass',
-            'string',
-            'CSS class to set if there are errors for this ViewHelper',
-            false,
-            'f3-form-error'
-        );
-        $this->registerUniversalTagAttributes();
+        $this->registerArgument('errorClass', 'string', 'CSS class to set if there are errors for this ViewHelper', false, 'f3-form-error');
     }
 
     public function render(): string

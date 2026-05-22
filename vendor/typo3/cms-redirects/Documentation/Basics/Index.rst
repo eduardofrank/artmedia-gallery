@@ -1,7 +1,7 @@
 .. include:: /Includes.rst.txt
 
-.. _glossary:
-.. _basics:
+..  _glossary:
+..  _basics:
 
 ======
 Basics
@@ -12,6 +12,8 @@ specific to EXT:redirects.
 
 .. todo: add term for t3:// URI (e.g. typo3 URI, linkhandler URI, etc.) after term is clarified
 .. see https://forge.typo3.org/issues/95820
+
+..  _basics-url:
 
 Components of a URL
 ===================
@@ -30,7 +32,7 @@ of the URL:
 -   query parameters
 -   fragment
 
-.. _http-status-codes:
+..  _http-status-codes:
 
 HTTP status codes
 =================
@@ -65,19 +67,23 @@ As rule of thumb:
 There are "temporary" and "permanent" redirects. 301 and 308 are "permanent"
 redirects.
 
+..  attention::
+
     Don’t use a 301 if you ever want to use that specific (source) URL ever again.
 
 Source: `6 questions about redirects for SEO (Yoast)
 <https://yoast.com/6-questions-about-redirects-for-seo/>`__
 
-    For routine redirect tasks, 301 (permanent redirect) and 307 (temporarily
+..  attention::
+
+    For routine redirect tasks, 301 (permanent redirect) and 307 (temporary
     redirect) status codes can be used depending on what type of change you
     are implementing on your website.
 
 Source: `A Technical SEO Guide to Redirects (SEJ)
 <https://www.searchenginejournal.com/technical-seo/redirects/>`__
 
-For automatically created redirects, it is not recommended to use 301. You can
+For automatically created redirects it is not recommended to use 301. You can
 use 307, which is also the default in the redirects extension. However,
 if you create redirects manually, it **may** make sense to use 301 for these.
 
@@ -87,7 +93,7 @@ that the URL has changed permanently and that they should update their index
 accordingly. Thus, from SEO point of view, permanent redirects are often a good
 choice. If domains are changed or sites restructured, 301 are often used.
 
-.. _redirect-chain:
+..  _redirect-chain:
 
 Redirect chain
 ==============
@@ -101,7 +107,7 @@ Examples for redirect chains:
 -   `/a => /b => /c` (it would be more efficient if `/a` redirected to `/c`
     directly and `/b` redirected to `/c`)
 
-.. _redirect-loop:
+..  _redirect-loop:
 
 Redirect loop
 =============
@@ -115,6 +121,8 @@ Examples for redirect loops:
 -   `/a => /a` (source and target for a redirect resolve to the same URL)
 -   `/a => /b => /a`
 
+..  _slug:
+
 Slug
 ====
 
@@ -126,6 +134,3 @@ enhancers and decorators.
 
 Example: A slug `/path` is used, the final URL may be
 `https://example.org/en/path.html`.
-
-
-

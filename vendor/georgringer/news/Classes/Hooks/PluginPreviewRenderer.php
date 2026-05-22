@@ -11,15 +11,19 @@ declare(strict_types=1);
 
 namespace GeorgRinger\News\Hooks;
 
+use GeorgRinger\News\Event\PluginPreviewSummaryEvent;
 use GeorgRinger\News\Utility\TemplateLayout;
 use TYPO3\CMS\Backend\Preview\StandardContentPreviewRenderer;
 use TYPO3\CMS\Backend\Routing\UriBuilder;
 use TYPO3\CMS\Backend\Utility\BackendUtility as BackendUtilityCore;
 use TYPO3\CMS\Backend\View\BackendLayout\Grid\GridColumnItem;
-use TYPO3\CMS\Core\Imaging\Icon;
+use TYPO3\CMS\Core\EventDispatcher\EventDispatcher;
 use TYPO3\CMS\Core\Imaging\IconFactory;
+use TYPO3\CMS\Core\Imaging\IconSize;
 use TYPO3\CMS\Core\Information\Typo3Version;
 use TYPO3\CMS\Core\Page\PageRenderer;
+use TYPO3\CMS\Core\Site\Entity\Site;
+use TYPO3\CMS\Core\Site\Entity\SiteSettings;
 use TYPO3\CMS\Core\Type\Bitmask\Permission;
 use TYPO3\CMS\Core\Utility\GeneralUtility;
 use TYPO3\CMS\Fluid\View\StandaloneView;
@@ -41,29 +45,25 @@ class PluginPreviewRenderer extends StandardContentPreviewRenderer
      * Flexform information
      */
     public array $flexformData = [];
+    protected TemplateLayout $templateLayoutsUtility;
+    private int $pageId = 0;
 
-    /**
-     * @var IconFactory
-     */
-    protected $iconFactory;
-
-    /** @var TemplateLayout $templateLayoutsUtility */
-    protected $templateLayoutsUtility;
-
-    public function __construct()
-    {
+    public function __construct(
+        protected readonly IconFactory $iconFactory,
+        protected readonly UriBuilder $backendUriBuilder,
+        protected readonly EventDispatcher $eventDispatcher,
+    ) {
         $this->templateLayoutsUtility = GeneralUtility::makeInstance(TemplateLayout::class);
-        $this->iconFactory = GeneralUtility::makeInstance(IconFactory::class);
     }
 
     public function renderPageModulePreviewContent(GridColumnItem $item): string
     {
+        $this->pageId = $item->getContext()->getPageId();
         $row = $item->getRecord();
-        $actionTranslationKey = $result = '';
+        $result = '';
         $header = '<strong>' . htmlspecialchars($this->getLanguageService()->sL(self::LLPATH . 'pi1_title')) . '</strong>';
-
         $this->tableData = [];
-        $flexforms = GeneralUtility::xml2array($row['pi_flexform']);
+        $flexforms = GeneralUtility::xml2array((string)$row['pi_flexform']);
         if (is_string($flexforms)) {
             return 'ERROR: ' . htmlspecialchars($flexforms);
         }
@@ -104,6 +104,8 @@ class PluginPreviewRenderer extends StandardContentPreviewRenderer
                     $this->getTemplateLayoutSettings($row['pid']);
                     break;
                 case 'news_categorylist':
+                    $this->getStartingPoint();
+                    $this->getListPidSetting();
                     $this->getCategorySettings(false);
                     $this->getTemplateLayoutSettings($row['pid']);
                     break;
@@ -113,17 +115,25 @@ class PluginPreviewRenderer extends StandardContentPreviewRenderer
                     $this->getOrderSettings();
                     $this->getTemplateLayoutSettings($row['pid']);
                     break;
+                case 'news_newssearchform':
+                    $this->getListPidSetting();
+                    $this->getTemplateLayoutSettings($row['pid']);
+                    break;
                 default:
                     $this->getTemplateLayoutSettings($row['pid']);
             }
 
-            if ($hooks = $GLOBALS['TYPO3_CONF_VARS']['EXT']['news']['GeorgRinger\\News\\Hooks\\PluginPreviewRenderer']['extensionSummary'] ?? []) {
-                $params['action'] = $actionTranslationKey;
+            // @deprecated, use PluginPreviewRendererEvent instead
+            if ($hooks = $GLOBALS['TYPO3_CONF_VARS']['EXT']['news'][\GeorgRinger\News\Hooks\PluginPreviewRenderer::class]['extensionSummary'] ?? []) {
+                trigger_error('The hook $GLOBALS[\'TYPO3_CONF_VARS\'][\'EXT\'][\'news\'][\GeorgRinger\News\Hooks\PluginPreviewRenderer::class][\'extensionSummary\'] has been deprecated, use event PluginPreviewSummaryEvent instead', E_USER_DEPRECATED);
                 $params['item'] = $item;
                 foreach ($hooks as $reference) {
                     GeneralUtility::callUserFunction($reference, $params, $this);
                 }
             }
+
+            $event = new PluginPreviewSummaryEvent($item, $this);
+            $this->eventDispatcher->dispatch($event);
 
             // for all views
             $this->getOverrideDemandSettings();
@@ -191,6 +201,15 @@ class PluginPreviewRenderer extends StandardContentPreviewRenderer
                 $this->getLanguageService()->sL(self::LLPATH . 'flexforms_additional.detailPid'),
                 $content,
             ];
+        } else {
+            $siteSettings = $this->getSiteSettings();
+            if ($siteSettings !== null && $detailPid = $siteSettings->get('news.pages.detail')) {
+                $content = $this->getRecordData($detailPid);
+                $this->tableData[] = [
+                    $this->getLanguageService()->sL(self::LLPATH . 'pluginPreview.global.detailPid'),
+                    $content,
+                ];
+            }
         }
     }
 
@@ -213,8 +232,9 @@ class PluginPreviewRenderer extends StandardContentPreviewRenderer
         $record = BackendUtilityCore::getRecord($table, $id);
 
         if (is_array($record)) {
+            $iconSize = (new Typo3Version())->getMajorVersion() >= 13 ? IconSize::SMALL : 'small';
             $data = '<span data-toggle="tooltip" data-placement="top" data-title="id=' . $record['uid'] . '">'
-                . $this->iconFactory->getIconForRecord($table, $record, Icon::SIZE_SMALL)->render()
+                . $this->iconFactory->getIconForRecord($table, $record, $iconSize)->render()
                 . '</span> ';
             $content = BackendUtilityCore::wrapClickMenuOnIcon(
                 $data,
@@ -227,11 +247,8 @@ class PluginPreviewRenderer extends StandardContentPreviewRenderer
             $linkTitle = htmlspecialchars(BackendUtilityCore::getRecordTitle($table, $record));
 
             if ($table === 'pages') {
-                $id = $record['uid'];
-                $currentPageId = (int)GeneralUtility::_GET('id');
-                $link = htmlspecialchars($this->getEditLink($record, $currentPageId));
-                $switchLabel = $this->getLanguageService()->sL(self::LLPATH . 'pagemodule.switchToPage');
-                $content .= ' <a href="#" data-toggle="tooltip" data-placement="top" data-title="' . $switchLabel . '" onclick=\'top.jump("' . $link . '", "web_layout", "web", ' . $id . ');return false\'>' . $linkTitle . '</a>';
+                $switchLabel = htmlspecialchars($this->getLanguageService()->sL(self::LLPATH . 'pagemodule.switchToPage'));
+                $content .= sprintf('<a href="%s" title="%s">%s</a>', htmlspecialchars($this->getEditLink($record, $this->pageId)), $switchLabel, $linkTitle);
             } else {
                 $content .= $linkTitle;
             }
@@ -317,7 +334,7 @@ class PluginPreviewRenderer extends StandardContentPreviewRenderer
                     $categoryMode = $this->getLanguageService()->sL(self::LLPATH . 'flexforms_general.categoryConjunction.' . $categoryModeSelection);
                 }
 
-                if (count($categories) > 0 && empty($categoryModeSelection)) {
+                if (empty($categoryModeSelection)) {
                     $categoryMode = $this->generateCallout($categoryMode);
                 } else {
                     $categoryMode = htmlspecialchars($categoryMode);
@@ -433,8 +450,8 @@ class PluginPreviewRenderer extends StandardContentPreviewRenderer
         if (!empty($field)) {
             $layouts = $this->templateLayoutsUtility->getAvailableTemplateLayouts($pageUid);
             foreach ($layouts as $layout) {
-                if ((string)$layout[1] === (string)$field) {
-                    $title = $layout[0];
+                if ((string)$layout['key'] === $field) {
+                    $title = $layout['label'] ?? '';
                 }
             }
         }
@@ -482,9 +499,9 @@ class PluginPreviewRenderer extends StandardContentPreviewRenderer
             }
 
             if (!empty($recursiveLevelText)) {
-                $recursiveLevelText = '<br />' .
-                    htmlspecialchars($this->getLanguageService()->sL('LLL:EXT:core/Resources/Private/Language/locallang_general.xlf:LGL.recursive')) . ' ' .
-                    $recursiveLevelText;
+                $recursiveLevelText = '<br />'
+                    . htmlspecialchars($this->getLanguageService()->sL('LLL:EXT:core/Resources/Private/Language/locallang_general.xlf:LGL.recursive')) . ' '
+                    . $recursiveLevelText;
             }
 
             $this->tableData[] = [
@@ -521,11 +538,7 @@ class PluginPreviewRenderer extends StandardContentPreviewRenderer
     protected function renderSettingsAsTable(string $header = '', int $recordUid = 0): string
     {
         $pageRenderer = GeneralUtility::makeInstance(PageRenderer::class);
-        if ((new Typo3Version())->getMajorVersion() >= 12) {
-            $pageRenderer->loadJavaScriptModule('@georgringer/news/page-layout.js');
-        } else {
-            $pageRenderer->loadRequireJsModule('TYPO3/CMS/News/PageLayout');
-        }
+        $pageRenderer->loadJavaScriptModule('@georgringer/news/page-layout.js');
         $pageRenderer->addCssFile('EXT:news/Resources/Public/Css/Backend/PageLayoutView.css');
 
         $view = GeneralUtility::makeInstance(StandaloneView::class);
@@ -558,17 +571,38 @@ class PluginPreviewRenderer extends StandardContentPreviewRenderer
 
     protected function getEditLink(array $row, int $currentPageUid): string
     {
-        $editLink = '';
-        $localCalcPerms = $GLOBALS['BE_USER']->calcPerms(BackendUtilityCore::getRecord('pages', $row['uid']));
+        $targetPageUid = $row['uid'];
+        $localCalcPerms = $GLOBALS['BE_USER']->calcPerms(BackendUtilityCore::getRecord('pages', $targetPageUid));
         $permsEdit = $localCalcPerms & Permission::PAGE_EDIT;
-        if ($permsEdit) {
-            $uriBuilder = GeneralUtility::makeInstance(UriBuilder::class);
-            $returnUrl = $uriBuilder->buildUriFromRoute('web_layout', ['id' => $currentPageUid]);
-            $editLink = $uriBuilder->buildUriFromRoute('web_layout', [
-                'id' => $row['uid'],
-                'returnUrl' => $returnUrl,
-            ]);
+        if (!$permsEdit) {
+            return '';
         }
-        return (string)$editLink;
+
+        $returnUrl = (string)$this->backendUriBuilder->buildUriFromRoute(
+            'web_layout',
+            ['id' => $currentPageUid, 'action' => 'links'],
+        );
+
+        $uriParameters = [
+            'edit' => [
+                'pages' => [
+                    $targetPageUid => 'edit',
+                ],
+            ],
+            'returnUrl' => $returnUrl,
+        ];
+        return (string)$this->backendUriBuilder->buildUriFromRoute(
+            'record_edit',
+            $uriParameters,
+        );
+    }
+
+    protected function getSiteSettings(): ?SiteSettings
+    {
+        $site = $GLOBALS['TYPO3_REQUEST']->getAttribute('site');
+        if (!($site instanceof Site)) {
+            return null;
+        }
+        return $site->getSettings();
     }
 }

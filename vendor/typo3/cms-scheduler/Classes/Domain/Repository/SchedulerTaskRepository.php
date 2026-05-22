@@ -18,6 +18,7 @@ declare(strict_types=1);
 namespace TYPO3\CMS\Scheduler\Domain\Repository;
 
 use Doctrine\DBAL\Exception as DBALException;
+use Symfony\Component\DependencyInjection\Attribute\Autoconfigure;
 use TYPO3\CMS\Core\Core\Environment;
 use TYPO3\CMS\Core\Database\Connection;
 use TYPO3\CMS\Core\Database\ConnectionPool;
@@ -32,6 +33,7 @@ use TYPO3\CMS\Scheduler\Validation\Validator\TaskValidator;
 /**
  * Repository class to fetch tasks available in the systems ready to be executed
  */
+#[Autoconfigure(public: true)]
 class SchedulerTaskRepository
 {
     protected const TABLE_NAME = 'tx_scheduler_task';
@@ -66,7 +68,7 @@ class SchedulerTaskRepository
             ['serialized_task_object' => Connection::PARAM_LOB]
         );
         if ($result) {
-            $task->setTaskUid((int)$connection->lastInsertId(self::TABLE_NAME));
+            $task->setTaskUid((int)$connection->lastInsertId());
             $this->update($task);
             $result = true;
         } else {
@@ -450,51 +452,76 @@ class SchedulerTaskRepository
      * This method adds current execution to the execution list.
      * It also logs the execution time and mode
      *
+     * The execution id is guaranteed to start from zero if the task has no
+     * currently running execution at the time of id allocation.
+     *
      * @return int Execution id
      */
     public function addExecutionToTask(AbstractTask $task): int
     {
-        $row = $this->findRecordByUid($task->getTaskUid());
+        while (true) {
+            $row = $this->findRecordByUid($task->getTaskUid());
 
-        $runningExecutions = [];
-        if ($row && !empty($row['serialized_executions'])) {
-            $runningExecutions = unserialize($row['serialized_executions']);
+            if ($row === null) {
+                throw new \InvalidArgumentException(
+                    'Given task must have a persistence record associated with it',
+                    1741257045
+                );
+            }
+
+            $previousExecutions = isset($row['serialized_executions'])
+                ? (string)$row['serialized_executions']
+                : null;
+
+            $runningExecutions = $previousExecutions !== null
+                && $previousExecutions !== ''
+                    ? unserialize($previousExecutions)
+                    : [];
+
+            // Count the number of existing executions and use that number as a key
+            // (we need to know that number, because it is returned at the end of the method)
+            $numExecutions = count($runningExecutions);
+            $runningExecutions[$numExecutions] = time();
+            $updateCount = GeneralUtility::makeInstance(ConnectionPool::class)
+                ->getConnectionForTable(self::TABLE_NAME)
+                ->update(
+                    self::TABLE_NAME,
+                    [
+                        'serialized_executions' => serialize($runningExecutions),
+                        'lastexecution_time' => time(),
+                        // Define the context in which the script is running
+                        'lastexecution_context' => Environment::isCli() ? 'CLI' : 'BE',
+                    ],
+                    [
+                        'uid' => $task->getTaskUid(),
+                        'serialized_executions' => $previousExecutions,
+                    ],
+                    [
+                        'serialized_executions' => Connection::PARAM_LOB,
+                    ]
+                );
+
+            if ($updateCount === 1) {
+                return $numExecutions;
+            }
         }
-        // Count the number of existing executions and use that number as a key
-        // (we need to know that number, because it is returned at the end of the method)
-        $numExecutions = count($runningExecutions);
-        $runningExecutions[$numExecutions] = time();
-        GeneralUtility::makeInstance(ConnectionPool::class)
-            ->getConnectionForTable(self::TABLE_NAME)
-            ->update(
-                self::TABLE_NAME,
-                [
-                    'serialized_executions' => serialize($runningExecutions),
-                    'lastexecution_time' => time(),
-                    // Define the context in which the script is running
-                    'lastexecution_context' => Environment::isCli() ? 'CLI' : 'BE',
-                ],
-                [
-                    'uid' => $task->getTaskUid(),
-                ],
-                [
-                    'serialized_executions' => Connection::PARAM_LOB,
-                ]
-            );
-        return $numExecutions;
     }
 
     /**
      * Removes given execution from list
      *
      * @param int $executionID Id of the execution to remove.
-     * @param string|array|null $failureReason Details of an exception to signal a failed execution
+     * @param string|array|null $failureReason Details of an exception to signal a failed execution.
      */
     public function removeExecutionOfTask(AbstractTask $task, int $executionID, array|string|null $failureReason = null): void
     {
-        $row = $this->findRecordByUid($task->getTaskUid());
-        if ($row && $row['serialized_executions'] !== '') {
-            $runningExecutions = unserialize($row['serialized_executions']);
+        while ($row = $this->findRecordByUid($task->getTaskUid())) {
+            $previousExecutions = (string)($row['serialized_executions'] ?? '');
+            if ($previousExecutions === '') {
+                break;
+            }
+
+            $runningExecutions = unserialize($previousExecutions);
             // Remove the selected execution
             unset($runningExecutions[$executionID]);
             if (!empty($runningExecutions)) {
@@ -507,21 +534,28 @@ class SchedulerTaskRepository
                 $failureReason = json_encode($failureReason);
             }
             // Save the updated executions list
-            GeneralUtility::makeInstance(ConnectionPool::class)
+            $fieldUpdates = [
+                'serialized_executions' => $runningExecutionsSerialized,
+            ];
+            if ($failureReason !== null) {
+                $fieldUpdates['lastexecution_failure'] = (string)$failureReason;
+            }
+            $updateCount = GeneralUtility::makeInstance(ConnectionPool::class)
                 ->getConnectionForTable(self::TABLE_NAME)
                 ->update(
                     self::TABLE_NAME,
-                    [
-                        'serialized_executions' => $runningExecutionsSerialized,
-                        'lastexecution_failure' => (string)$failureReason,
-                    ],
+                    $fieldUpdates,
                     [
                         'uid' => $task->getTaskUid(),
+                        'serialized_executions' => $previousExecutions,
                     ],
                     [
                         'serialized_executions' => Connection::PARAM_LOB,
                     ]
                 );
+            if ($updateCount === 1) {
+                break;
+            }
         }
     }
 

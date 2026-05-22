@@ -72,9 +72,8 @@ class ColorElement extends AbstractFormElement
         $fieldName = $this->data['fieldName'];
         $parameterArray = $this->data['parameterArray'];
         $resultArray = $this->initializeResultArray();
-        // @deprecated since v12, will be removed with v13 when all elements handle label/legend on their own
-        $resultArray['labelHasBeenHandled'] = true;
         $config = $parameterArray['fieldConf']['config'];
+        $tsConfig = $this->data['pageTsConfig'];
 
         $itemValue = $parameterArray['itemFormElValue'];
         $width = $this->formMaxWidth(
@@ -94,9 +93,11 @@ class ColorElement extends AbstractFormElement
             $html[] = '<div class="formengine-field-item t3js-formengine-field-item">';
             $html[] =   $fieldInformationHtml;
             $html[] =   '<div class="form-wizards-wrap">';
-            $html[] =       '<div class="form-wizards-element">';
+            $html[] =       '<div class="form-wizards-item-element">';
             $html[] =           '<div class="form-control-wrap" style="max-width: ' . $width . 'px">';
-            $html[] =               '<input class="form-control" id="' . htmlspecialchars($fieldId) . '" name="' . htmlspecialchars($itemName) . '" value="' . htmlspecialchars((string)$itemValue) . '" type="text" disabled>';
+            $html[] =               '<typo3-backend-color-picker>';
+            $html[] =                   '<input class="form-control" id="' . htmlspecialchars($fieldId) . '" name="' . htmlspecialchars($itemName) . '" value="' . htmlspecialchars((string)$itemValue) . '" type="text" disabled>';
+            $html[] =               '</typo3-backend-color-picker>';
             $html[] =           '</div>';
             $html[] =       '</div>';
             $html[] =   '</div>';
@@ -112,15 +113,15 @@ class ColorElement extends AbstractFormElement
         if ($config['nullable'] ?? false) {
             $evalList[] = 'null';
         }
+        $opacityEnabled = (bool)($config['opacity'] ?? false);
 
         $attributes = [
             'value' => '',
             'id' => $fieldId,
             'class' => implode(' ', [
                 'form-control',
-                't3js-color-picker',
             ]),
-            'maxlength' => '7', // #XXXXXX (/#[0-9a-fA-F]{3,6}/)
+            'maxlength' => $opacityEnabled ? 9 : 7, // #RRGGBBAA (/#[0-9a-fA-F]{3,6}([0-9]{2})?/)
             'data-formengine-validation-rules' => $this->getValidationDataAsJsonString($config),
             'data-formengine-input-params' => (string)json_encode([
                 'field' => $itemName,
@@ -133,24 +134,6 @@ class ColorElement extends AbstractFormElement
             $attributes['placeholder'] = trim($config['placeholder']);
         }
 
-        $valuePickerHtml = [];
-        if (is_array($config['valuePicker']['items'] ?? false)) {
-            $valuePickerConfiguration = [
-                'mode' => 'replace',
-                'linked-field' => '[data-formengine-input-name="' . $itemName . '"]',
-            ];
-            $valuePickerHtml[] = '<typo3-formengine-valuepicker ' . GeneralUtility::implodeAttributes($valuePickerConfiguration, true) . '>';
-            $valuePickerHtml[] = '<select class="form-select form-control-adapt">';
-            $valuePickerHtml[] = '<option></option>';
-            foreach ($config['valuePicker']['items'] as $item) {
-                $valuePickerHtml[] = '<option value="' . htmlspecialchars($item[1]) . '">' . htmlspecialchars($languageService->sL($item[0])) . '</option>';
-            }
-            $valuePickerHtml[] = '</select>';
-            $valuePickerHtml[] = '</typo3-formengine-valuepicker>';
-
-            $resultArray['javaScriptModules'][] = JavaScriptModuleInstruction::create('@typo3/backend/form-engine/field-wizard/value-picker.js');
-        }
-
         $fieldWizardResult = $this->renderFieldWizard();
         $fieldWizardHtml = $fieldWizardResult['html'];
         $resultArray = $this->mergeChildReturnIntoExistingResult($resultArray, $fieldWizardResult, false);
@@ -159,21 +142,65 @@ class ColorElement extends AbstractFormElement
         $fieldControlHtml = $fieldControlResult['html'];
         $resultArray = $this->mergeChildReturnIntoExistingResult($resultArray, $fieldControlResult, false);
 
+        $colorDefinitions = array_map(
+            static fn(array $colorDefinition): array => [
+                'color' => $colorDefinition['value'],
+                'label' => ($colorDefinition['label'] ?? null) !== null
+                    ? sprintf('%s (%s)', $colorDefinition['label'], $colorDefinition['value'])
+                    : $colorDefinition['value'],
+            ],
+            array_filter(
+                $tsConfig['colorPalettes.']['colors.'] ?? [],
+                static fn(mixed $colorDefinition) => is_array($colorDefinition) && trim($colorDefinition['value'] ?? '') !== '',
+            ),
+        );
+
+        $configuredPalette
+            = $tsConfig['TCEFORM.'][$table . '.'][$fieldName . '.']['colorPalette']
+            ?? $tsConfig['TCEFORM.'][$table . '.']['colorPalette']
+            ?? $tsConfig['TCEFORM.']['colorPalette']
+            ?? null;
+        if ($configuredPalette !== null) {
+            $colorsInPalette = GeneralUtility::trimExplode(',', $tsConfig['colorPalettes.']['palettes.'][$configuredPalette] ?? '', true);
+            $colorDefinitions = array_map(
+                static fn(string $colorIdentifier): array => $colorDefinitions[$colorIdentifier . '.'],
+                array_filter(
+                    array_combine($colorsInPalette, $colorsInPalette),
+                    static fn(string $colorIdentifier) => isset($colorDefinitions[$colorIdentifier . '.'])
+                )
+            );
+        }
+        if (is_array($config['valuePicker']['items'] ?? false)) {
+            foreach ($config['valuePicker']['items'] as $item) {
+                $colorDefinitions[] = [
+                    'color' => $item[1],
+                    'label' => $item[0],
+                ];
+            }
+        }
+
+        $colorPickerAttribute = [
+            'swatches' => json_encode(array_values($colorDefinitions)),
+            'opacity' => $opacityEnabled,
+            'color' => htmlspecialchars((string)$itemValue),
+        ];
+
         $mainFieldHtml = [];
         $mainFieldHtml[] = '<div class="form-control-wrap" style="max-width: ' . $width . 'px">';
         $mainFieldHtml[] =  '<div class="form-wizards-wrap">';
-        $mainFieldHtml[] =      '<div class="form-wizards-element">';
-        $mainFieldHtml[] =          '<input type="text" ' . GeneralUtility::implodeAttributes($attributes, true) . ' />';
-        $mainFieldHtml[] =          '<input type="hidden" name="' . $itemName . '" value="' . htmlspecialchars((string)$itemValue) . '" />';
+        $mainFieldHtml[] =      '<div class="form-wizards-item-element">';
+        $mainFieldHtml[] =          '<typo3-backend-color-picker ' . GeneralUtility::implodeAttributes($colorPickerAttribute, true) . '>';
+        $mainFieldHtml[] =              '<input type="text" ' . GeneralUtility::implodeAttributes($attributes, true) . ' />';
+        $mainFieldHtml[] =              '<input type="hidden" name="' . $itemName . '" value="' . htmlspecialchars((string)$itemValue) . '" />';
+        $mainFieldHtml[] =          '</typo3-backend-color-picker>';
         $mainFieldHtml[] =      '</div>';
-        $mainFieldHtml[] =      '<div class="form-wizards-items-aside form-wizards-items-aside--field-control">';
+        $mainFieldHtml[] =      '<div class="form-wizards-item-aside form-wizards-item-aside--field-control">';
         $mainFieldHtml[] =          '<div class="btn-group">';
         $mainFieldHtml[] =              $fieldControlHtml;
-        $mainFieldHtml[] =              implode(LF, $valuePickerHtml);
         $mainFieldHtml[] =          '</div>';
         $mainFieldHtml[] =      '</div>';
         if (!empty($fieldWizardHtml)) {
-            $mainFieldHtml[] = '<div class="form-wizards-items-bottom">';
+            $mainFieldHtml[] = '<div class="form-wizards-item-bottom">';
             $mainFieldHtml[] = $fieldWizardHtml;
             $mainFieldHtml[] = '</div>';
         }
@@ -237,8 +264,12 @@ class ColorElement extends AbstractFormElement
             $fullElement = implode(LF, $fullElement);
         }
 
+        $attributes = [
+            'recordFieldId' => $fieldId,
+        ];
+
         $resultArray['html'] = $renderedLabel . '
-            <typo3-formengine-element-color recordFieldId="' . htmlspecialchars($fieldId) . '">
+            <typo3-formengine-element-color ' . GeneralUtility::implodeAttributes($attributes, true) . '>
                 <div class="formengine-field-item t3js-formengine-field-item">
                     ' . $fieldInformationHtml . $fullElement . '
                 </div>

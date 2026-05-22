@@ -5,8 +5,16 @@
         <header/>
         <body>
 
+            <trans-unit id="skiptomainnavigation">
+                <source>Skip to main navigation</source>
+            </trans-unit>
+
             <trans-unit id="skiptomaincontent">
                 <source>Skip to main content</source>
+            </trans-unit>
+
+            <trans-unit id="skiptopagefooter">
+                <source>Skip to page footer</source>
             </trans-unit>
 
             <trans-unit id="skipnavigation">
@@ -29,6 +37,12 @@
                 <source>current</source>
             </trans-unit>
 
+            <trans-unit id="main-navigation.label">
+                <source>Main navigation</source>
+            </trans-unit>
+            <trans-unit id="sub-navigation.label">
+                <source>Subnavigation</source>
+            </trans-unit>
             <trans-unit id="breadcrumb">
                 <source>You are here:</source>
             </trans-unit>
@@ -52,6 +66,17 @@
                 <source>The external media source %s is not supported. Please provide a valid YouTube or Vimeo URL.</source>
             </trans-unit>
 
+            <trans-unit id="lightbox.screenreader.label">
+                <source>Show larger version</source>
+            </trans-unit>
+            <trans-unit id="lightbox.screenreader.alternative.prefix">
+                <source>Show larger version for:</source>
+            </trans-unit>
+
+            <trans-unit id="carousel.indicator.title">
+                <source>Go to slide: %s</source>
+            </trans-unit>
+
             <trans-unit id="contact.label">
                 <source>Contact</source>
             </trans-unit>
@@ -73,7 +98,7 @@
                 <source>Your personal data</source>
             </trans-unit>
             <trans-unit id="contactform.element.mandatory.properties.text">
-                <source>* Mandatory fields</source>
+                <source>Required fields are marked with *</source>
             </trans-unit>
             <trans-unit id="contactform.element.fullname.properties.label">
                 <source>Full name and surname</source>
@@ -120,7 +145,7 @@
             </trans-unit>
 
             <trans-unit id="cookieconsent.common.header">
-                <source>Cookies used on the website!</source>
+                <source>We use cookies</source>
             </trans-unit>
             <trans-unit id="cookieconsent.common.message">
                 <source>This website uses cookies to ensure you get the best experience on our website.</source>

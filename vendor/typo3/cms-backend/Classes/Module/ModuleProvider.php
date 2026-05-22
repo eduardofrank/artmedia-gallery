@@ -50,12 +50,8 @@ class ModuleProvider
             || $this->accessGranted($identifier, $user, $respectWorkspaceRestrictions)
         ) {
             $module = $this->moduleRegistry->getModule($identifier);
-            if ($module->hasSubModules()) {
-                foreach ($module->getSubModules() as $subModuleIdentifier => $subModule) {
-                    if ($user !== null && !$this->accessGranted($subModuleIdentifier, $user, $respectWorkspaceRestrictions)) {
-                        $module->removeSubModule($subModuleIdentifier);
-                    }
-                }
+            if ($user !== null) {
+                $this->filterInaccessibleSubModules($module, $user, $respectWorkspaceRestrictions);
             }
             return $module;
         }
@@ -77,21 +73,19 @@ class ModuleProvider
         if (!$grouped) {
             return array_filter(
                 $this->moduleRegistry->getModules(),
-                fn($module) => $user === null || $this->accessGranted($module->getIdentifier(), $user, $respectWorkspaceRestrictions)
+                fn(ModuleInterface $module): bool => $user === null || $this->accessGranted($module->getIdentifier(), $user, $respectWorkspaceRestrictions)
             );
         }
 
-        $availableModules = array_filter($this->moduleRegistry->getModules(), static fn($module) => !$module->hasParentModule());
+        $availableModules = array_filter($this->moduleRegistry->getModules(), static fn(ModuleInterface $module): bool => !$module->hasParentModule());
 
         foreach ($availableModules as $identifier => $module) {
             if ($user !== null && !$this->accessGranted($identifier, $user, $respectWorkspaceRestrictions)) {
                 unset($availableModules[$identifier]);
                 continue;
             }
-            foreach ($module->getSubModules() as $subModuleIdentifier => $subModule) {
-                if ($user !== null && !$this->accessGranted($subModuleIdentifier, $user, $respectWorkspaceRestrictions)) {
-                    $module->removeSubModule($subModuleIdentifier);
-                }
+            if ($user !== null) {
+                $this->filterInaccessibleSubModules($module, $user, $respectWorkspaceRestrictions);
             }
         }
 
@@ -121,13 +115,7 @@ class ModuleProvider
         if ($menuItem->isStandalone()) {
             return $menuItem;
         }
-        foreach ($module->getSubModules() as $subModuleIdentifier => $subModule) {
-            if (in_array($subModuleIdentifier, $hideModules, true)) {
-                continue;
-            }
-            $subMenuItem = new MenuModule(clone $subModule);
-            $menuItem->addSubModule($subMenuItem);
-        }
+        $this->buildMenuModuleRecursively($menuItem, $module, $hideModules, $user, $respectWorkspaceRestrictions);
         if (!$menuItem->hasSubModules()) {
             // In case the main module does not have any submodules, unset it again
             return null;
@@ -166,15 +154,7 @@ class ModuleProvider
             if ($menuItem->isStandalone()) {
                 continue;
             }
-            foreach ($module->getSubModules() as $subModuleIdentifier => $subModule) {
-                if (in_array($subModuleIdentifier, $hideModules, true)
-                    || !($subModule->getAppearance()['renderInModuleMenu'] ?? true)
-                ) {
-                    continue;
-                }
-                $subMenuItem = new MenuModule(clone $subModule);
-                $menuItem->addSubModule($subMenuItem);
-            }
+            $this->buildMenuModuleRecursively($menuItem, $module, $hideModules, $user, $respectWorkspaceRestrictions, true);
             if (!$menuItem->hasSubModules()) {
                 // In case the main module does not have any submodules, unset it again
                 unset($moduleMenuItems[$identifier]);
@@ -210,7 +190,7 @@ class ModuleProvider
                 ) {
                     return false;
                 }
-            } elseif ($user->workspace === -99) {
+            } elseif ($user->workspace === -99 && $workspaceAccess !== '*') {
                 return false;
             }
         }
@@ -252,7 +232,7 @@ class ModuleProvider
      */
     public function getFirstAccessibleModule(BackendUserAuthentication $user): ?ModuleInterface
     {
-        $modules = array_filter($this->moduleRegistry->getModules(), function ($module) use ($user) {
+        $modules = array_filter($this->moduleRegistry->getModules(), function (ModuleInterface $module) use ($user): bool {
             return $this->accessGranted($module->getIdentifier(), $user)
                 && ($module->isStandalone() || $module->hasParentModule());
         });
@@ -268,7 +248,55 @@ class ModuleProvider
      */
     public function getUserModules(): array
     {
-        return array_filter($this->moduleRegistry->getModules(), static fn($module) => $module->getAccess() === 'user');
+        return array_filter($this->moduleRegistry->getModules(), static fn(ModuleInterface $module): bool => $module->getAccess() === 'user');
+    }
+
+    /**
+     * Recursively removes inaccessible submodules from a module at any depth
+     */
+    protected function filterInaccessibleSubModules(
+        ModuleInterface $module,
+        BackendUserAuthentication $user,
+        bool $respectWorkspaceRestrictions
+    ): void {
+        if (!$module->hasSubModules()) {
+            return;
+        }
+
+        foreach ($module->getSubModules() as $subModuleIdentifier => $subModule) {
+            if (!$this->accessGranted($subModuleIdentifier, $user, $respectWorkspaceRestrictions)) {
+                $module->removeSubModule($subModuleIdentifier);
+            } else {
+                $this->filterInaccessibleSubModules($subModule, $user, $respectWorkspaceRestrictions);
+            }
+        }
+    }
+
+    /**
+     * Recursively builds menu module structure, checking access, TSConfig hideModules,
+     * and optionally renderInModuleMenu appearance setting at all nesting levels
+     */
+    protected function buildMenuModuleRecursively(
+        MenuModule $menuItem,
+        ModuleInterface $module,
+        array $hideModules,
+        BackendUserAuthentication $user,
+        bool $respectWorkspaceRestrictions,
+        bool $checkRenderInModuleMenu = false
+    ): void {
+        foreach ($module->getSubModules() as $subModuleIdentifier => $subModule) {
+            if (in_array($subModuleIdentifier, $hideModules, true)
+                || ($checkRenderInModuleMenu && !($subModule->getAppearance()['renderInModuleMenu'] ?? true))
+            ) {
+                continue;
+            }
+            $subMenuItem = new MenuModule(clone $subModule);
+            $menuItem->addSubModule($subMenuItem);
+            // Recursively build deeper levels
+            if ($subModule->hasSubModules()) {
+                $this->buildMenuModuleRecursively($subMenuItem, $subModule, $hideModules, $user, $respectWorkspaceRestrictions, $checkRenderInModuleMenu);
+            }
+        }
     }
 
     /**

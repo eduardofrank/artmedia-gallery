@@ -22,16 +22,13 @@ use TYPO3\CMS\Core\Utility\GeneralUtility;
 use TYPO3Fluid\Fluid\Core\ViewHelper\AbstractTagBasedViewHelper;
 
 /**
- * A ViewHelper for creating URIs to modules.
+ * ViewHelper for creating URIs to backend modules.
  *
- * Examples
- * ========
+ * ```
+ *   <f:be.link route="web_ts" parameters="{id: 92}">Go to web_ts</f:be.link>
+ * ```
  *
- * URI to the web_ts module on page 92::
- *
- *    <f:be.link route="web_ts" parameters="{id: 92}">Go to web_ts</f:be.link>
- *
- * ``<a href="/typo3/module/web/ts?token=b6e9c9f&id=92">Go to web_ts</a>``
+ * @see https://docs.typo3.org/permalink/t3viewhelper:typo3-fluid-be-link
  */
 final class LinkViewHelper extends AbstractTagBasedViewHelper
 {
@@ -46,19 +43,6 @@ final class LinkViewHelper extends AbstractTagBasedViewHelper
         $this->registerArgument('route', 'string', 'The name of the route', true);
         $this->registerArgument('parameters', 'array', 'An array of parameters', false, []);
         $this->registerArgument('referenceType', 'string', 'The type of reference to be generated (one of the constants)', false, UriBuilder::ABSOLUTE_PATH);
-        $this->registerTagAttribute('name', 'string', 'Specifies the name of an anchor');
-        $this->registerTagAttribute(
-            'rel',
-            'string',
-            'Specifies the relationship between the current document and the linked document'
-        );
-        $this->registerTagAttribute(
-            'rev',
-            'string',
-            'Specifies the relationship between the linked document and the current document'
-        );
-        $this->registerTagAttribute('target', 'string', 'Specifies where to open the linked document');
-        $this->registerUniversalTagAttributes();
     }
 
     public function render(): string

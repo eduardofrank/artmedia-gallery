@@ -18,19 +18,14 @@ declare(strict_types=1);
 namespace TYPO3\CMS\Fluid\ViewHelpers\Form;
 
 /**
- * A ViewHelper which generates an :html:`<input type="file">` HTML element.
- * Make sure to set ``enctype="multipart/form-data"`` on the form!
+ * ViewHelper which renders an `<input type="file">` file upload HTML form element.
+ * Make sure to set the `enctype="multipart/form-data"` attribute on the surrounding form!
  *
- * Examples
- * ========
+ * ```
+ *   <f:form.upload name="file" />
+ * ```
  *
- * Example::
- *
- *    <f:form.upload name="file" />
- *
- * Output::
- *
- *    <input type="file" name="file" />
+ * @see https://docs.typo3.org/permalink/t3viewhelper:typo3-fluid-form-upload
  */
 final class UploadViewHelper extends AbstractFormFieldViewHelper
 {
@@ -42,23 +37,25 @@ final class UploadViewHelper extends AbstractFormFieldViewHelper
     public function initializeArguments(): void
     {
         parent::initializeArguments();
-        $this->registerTagAttribute('disabled', 'string', 'Specifies that the input element should be disabled when the page loads');
-        $this->registerTagAttribute('multiple', 'string', 'Specifies that the file input element should allow multiple selection of files');
-        $this->registerTagAttribute('accept', 'string', 'Specifies the allowed file extensions to upload via comma-separated list, example ".png,.gif"');
         $this->registerArgument('errorClass', 'string', 'CSS class to set if there are errors for this ViewHelper', false, 'f3-form-error');
-        $this->registerUniversalTagAttributes();
     }
 
     public function render(): string
     {
+        $multiple = isset($this->additionalArguments['multiple']);
         $name = $this->getName();
         $allowedFields = ['name', 'type', 'tmp_name', 'error', 'size'];
         foreach ($allowedFields as $fieldName) {
-            $this->registerFieldNameForFormTokenGeneration($name . '[' . $fieldName . ']');
+            if ($multiple) {
+                $formTokenFieldName = sprintf('%s[*][%s]', $name, $fieldName);
+            } else {
+                $formTokenFieldName = $name . '[' . $fieldName . ']';
+            }
+            $this->registerFieldNameForFormTokenGeneration($formTokenFieldName);
         }
         $this->tag->addAttribute('type', 'file');
 
-        if (isset($this->arguments['multiple'])) {
+        if ($multiple) {
             $this->tag->addAttribute('name', $name . '[]');
         } else {
             $this->tag->addAttribute('name', $name);
