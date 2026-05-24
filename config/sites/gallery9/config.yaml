@@ -88,11 +88,11 @@ routes:
     route: robots.txt
     type: staticText
     content: "User-agent:*\r\nDisallow:/typo3/\r\n"
-websiteTitle: 'Artmedia Gallery'
 webmanifest:
-  full_name: 'artmedia.gallery'
-  short_name: 'artmedia.gallery'
+  full_name: artmedia.gallery
+  short_name: artmedia.gallery
   theme_color: '#ffffff'
   favicon_path: 'EXT:artmediagallery13/Resources/Public/Icons/'
   favicon_192: android-chrome-192x192.png
   favicon_512: android-chrome-512x512.png
+websiteTitle: 'Artmedia Gallery'
