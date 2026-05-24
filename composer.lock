@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "c8a6e3be373822491f47e81d62c9b616",
+    "content-hash": "b1bcaccb08e87823d8b49add88fad3ff",
     "packages": [
         {
             "name": "bacon/bacon-qr-code",
@@ -754,7 +754,7 @@
             "dist": {
                 "type": "path",
                 "url": "package/artmediagallery13",
-                "reference": "2cbc7a341358e74e3cc31fa553eeeabffa40669f"
+                "reference": "68cdcc868cffd7675078e9c1f9fd6c202c4a0332"
             },
             "require": {
                 "bk2k/bootstrap-package": "^15.0"
@@ -1443,86 +1443,32 @@
             "time": "2024-12-16T10:48:26+00:00"
         },
         {
-            "name": "helhum/php-error-reporting",
-            "version": "v1.0.1",
-            "source": {
-                "type": "git",
-                "url": "https://github.com/helhum/php-error-reporting.git",
-                "reference": "c9f1a0b6fedf7e641bce23b65eeeea946a6f7eb9"
-            },
-            "dist": {
-                "type": "zip",
-                "url": "https://api.github.com/repos/helhum/php-error-reporting/zipball/c9f1a0b6fedf7e641bce23b65eeeea946a6f7eb9",
-                "reference": "c9f1a0b6fedf7e641bce23b65eeeea946a6f7eb9",
-                "shasum": ""
-            },
-            "require": {
-                "php": ">=7.4.1"
-            },
-            "require-dev": {
-                "friendsofphp/php-cs-fixer": "^3.2",
-                "phpstan/phpstan": "^1.0",
-                "phpstan/phpstan-deprecation-rules": "^1.0",
-                "phpstan/phpstan-doctrine": "^1.0",
-                "phpstan/phpstan-phpunit": "^1.0",
-                "phpstan/phpstan-strict-rules": "^1.0"
-            },
-            "type": "library",
-            "autoload": {
-                "psr-4": {
-                    "ErrorReporting\\": "src/"
-                }
-            },
-            "notification-url": "https://packagist.org/downloads/",
-            "license": [
-                "GPL-2.0-or-later"
-            ],
-            "authors": [
-                {
-                    "name": "Helmut Hummel",
-                    "email": "typo3@helhum.io"
-                }
-            ],
-            "description": "Create ErrorException with clean trace from PHP error handler errors, inspired by Sentry PHP SDK",
-            "homepage": "https://helhum.io",
-            "keywords": [
-                "error reporting",
-                "sentry"
-            ],
-            "support": {
-                "issues": "https://github.com/helhum/php-error-reporting",
-                "source": "https://github.com/helhum/php-error-reporting/tree/v1.0.1"
-            },
-            "time": "2023-01-12T14:49:10+00:00"
-        },
-        {
             "name": "helhum/typo3-console",
-            "version": "v8.3.1",
+            "version": "v9.0.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/TYPO3-Console/TYPO3-Console.git",
-                "reference": "0a6f26d125b780a40c674820c42c78ce5607ff4c"
+                "reference": "a4ede24b93c69e5e05309c1cf47c598c4cda37df"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/TYPO3-Console/TYPO3-Console/zipball/0a6f26d125b780a40c674820c42c78ce5607ff4c",
-                "reference": "0a6f26d125b780a40c674820c42c78ce5607ff4c",
+                "url": "https://api.github.com/repos/TYPO3-Console/TYPO3-Console/zipball/a4ede24b93c69e5e05309c1cf47c598c4cda37df",
+                "reference": "a4ede24b93c69e5e05309c1cf47c598c4cda37df",
                 "shasum": ""
             },
             "require": {
                 "composer-runtime-api": "^2.1",
                 "helhum/config-loader": ">=0.9 <0.13",
-                "helhum/php-error-reporting": "^1.0",
-                "php": ">=8.1",
+                "php": ">=8.2",
                 "symfony/console": "^5.4 || ^6.4 || ^7.0",
                 "symfony/process": "^5.4 || ^6.4 || ^7.0",
-                "typo3/cms-backend": "^11.5.26 || ^12.4.18 || ^13.1 || ^14.0",
+                "typo3/cms-backend": "^12.4.18 || ^13.1 || ^14.3",
                 "typo3/cms-composer-installers": "^4.0@rc || >=5.0",
-                "typo3/cms-core": "^11.5.26 || ^12.4.18 || ^13.1 || ^14.0",
-                "typo3/cms-extbase": "^11.5.26 || ^12.4.18 || ^13.1 || ^14.0",
-                "typo3/cms-fluid": "^11.5.26 || ^12.4.18 || ^13.1 || ^14.0",
-                "typo3/cms-frontend": "^11.5.26 || ^12.4.18 || ^13.1 || ^14.0",
-                "typo3/cms-install": "^11.5.26 || ^12.4.18 || ^13.1 || ^14.0"
+                "typo3/cms-core": "^12.4.18 || ^13.1 || ^14.3",
+                "typo3/cms-extbase": "^12.4.18 || ^13.1 || ^14.3",
+                "typo3/cms-fluid": "^12.4.18 || ^13.1 || ^14.3",
+                "typo3/cms-frontend": "^12.4.18 || ^13.1 || ^14.3",
+                "typo3/cms-install": "^12.4.18 || ^13.1 || ^14.3"
             },
             "replace": {
                 "typo3-ter/typo3-console": "self.version"
@@ -1530,16 +1476,18 @@
             "require-dev": {
                 "dg/bypass-finals": "^1.4",
                 "friendsofphp/php-cs-fixer": "^3.57",
+                "paragonie/sodium_compat_ext_sodium": "^1.0",
                 "php-parallel-lint/php-parallel-lint": "^1.2",
                 "phpunit/phpunit": "^9.5.25",
                 "symfony/expression-language": "^5.4 || ^6.4 || ^7.0",
                 "symfony/filesystem": "^5.4 || ^6.4 || ^7.0",
                 "typo3-console/create-reference-command": "^1.0",
                 "typo3-console/sql-command": "^1.0",
-                "typo3/cms-extensionmanager": "^11.5.26 || ^12.4.18 || ^13.1 || ^14.0",
-                "typo3/cms-filemetadata": "^11.5.26 || ^12.4.18 || ^13.1 || ^14.0",
-                "typo3/cms-recordlist": "^11.5.26 || ^12.4.18 || ^13.1 || ^14.0",
-                "typo3/cms-reports": "^11.5.26 || ^12.4.18 || ^13.1 || ^14.0"
+                "typo3/cms-extensionmanager": "^12.4.18 || ^13.1 || ^14.3",
+                "typo3/cms-filemetadata": "^12.4.18 || ^13.1 || ^14.3",
+                "typo3/cms-fluid-styled-content": "^12.4.18 || ^13.1 || ^14.3",
+                "typo3/cms-recordlist": "^12.4.18 || ^13.1 || ^14.3",
+                "typo3/cms-reports": "^12.4.18 || ^13.1 || ^14.3"
             },
             "type": "typo3-cms-extension",
             "extra": {
@@ -1549,11 +1497,15 @@
                         "serviceProvider": "Helhum\\Typo3Console\\ServiceProvider",
                         "partOfMinimalUsableSystem": true
                     },
+                    "version": "9.0.0",
                     "extension-key": "typo3_console",
-                    "ignore-as-root": false
+                    "providesPackages": {
+                        "symfony/console": "Resources/Private/ExtensionArtifacts/Libraries/",
+                        "helhum/config-loader": ""
+                    }
                 },
                 "branch-alias": {
-                    "dev-main": "8.3.x-dev"
+                    "dev-main": "9.0.x-dev"
                 }
             },
             "autoload": {
@@ -1600,7 +1552,7 @@
                     "type": "github"
                 }
             ],
-            "time": "2025-12-12T12:00:43+00:00"
+            "time": "2026-05-19T11:25:15+00:00"
         },
         {
             "name": "lolli42/finediff",
@@ -1733,6 +1685,79 @@
                 "source": "https://github.com/Masterminds/html5-php/tree/2.10.0"
             },
             "time": "2025-07-25T09:04:22+00:00"
+        },
+        {
+            "name": "maxserv/frontend-request",
+            "version": "2.0.1",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/MaxServ/frontend-request.git",
+                "reference": "527296df01a6370bf3ad40d6514a3538129f1bc6"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/MaxServ/frontend-request/zipball/527296df01a6370bf3ad40d6514a3538129f1bc6",
+                "reference": "527296df01a6370bf3ad40d6514a3538129f1bc6",
+                "shasum": ""
+            },
+            "require": {
+                "ext-json": "*",
+                "php": "^8.2",
+                "typo3/cms-backend": "^12.4.25 || ^13.4 || ^14.1",
+                "typo3/cms-core": "^12.4.25 || ^13.4 || ^14.1",
+                "typo3/cms-frontend": "^12.4.25 || ^13.4 || ^14.1"
+            },
+            "replace": {
+                "typo3-ter/frontend-request": "self.version"
+            },
+            "require-dev": {
+                "composer/class-map-generator": "^1.3.4",
+                "dg/bypass-finals": "^1.8",
+                "ergebnis/composer-normalize": "^2.43",
+                "friendsofphp/php-cs-fixer": "^3.60.0",
+                "php-parallel-lint/php-parallel-lint": "^1.4",
+                "phpstan/extension-installer": "^1.0",
+                "phpstan/phpstan": "^1.12 || ^2.1",
+                "phpunit/phpunit": "^10.1 || ^11.2.5",
+                "saschaegerer/phpstan-typo3": "^1.10 || ^2.1 || ^3.0.1",
+                "typo3/coding-standards": "^0.7.1 || ^0.8.0",
+                "typo3/testing-framework": "^7.1.0 || ^8.2.0 || ^9.5.0"
+            },
+            "type": "typo3-cms-extension",
+            "extra": {
+                "typo3/cms": {
+                    "web-dir": ".Build/public",
+                    "extension-key": "frontend_request"
+                }
+            },
+            "autoload": {
+                "psr-4": {
+                    "MaxServ\\FrontendRequest\\": "Classes/"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "GPL-3.0-or-later"
+            ],
+            "authors": [
+                {
+                    "name": "Team MaxServ",
+                    "email": "support@maxserv.com",
+                    "homepage": "https://maxserv.com"
+                }
+            ],
+            "description": "Helper extension to make a frontend request from the backend of TYPO3 using javascript.",
+            "homepage": "https://maxserv.com",
+            "keywords": [
+                "MaxServ",
+                "TYPO3 CMS"
+            ],
+            "support": {
+                "docs": "https://docs.typo3.org/p/maxserv/frontend_request/main/en-us/",
+                "issues": "https://github.com/MaxServ/frontend-request/issues",
+                "source": "https://github.com/MaxServ/frontend-request"
+            },
+            "time": "2026-04-30T08:31:29+00:00"
         },
         {
             "name": "netresearch/rte-ckeditor-image",
@@ -2615,6 +2640,135 @@
                 "source": "https://github.com/php-fig/log/tree/3.0.2"
             },
             "time": "2024-09-11T13:17:53+00:00"
+        },
+        {
+            "name": "quellenform/t3x-iconpack",
+            "version": "1.5.3",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/quellenform/t3x-iconpack.git",
+                "reference": "dbb0a460480ff44c50fbee37382ec07647f0bdf3"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/quellenform/t3x-iconpack/zipball/dbb0a460480ff44c50fbee37382ec07647f0bdf3",
+                "reference": "dbb0a460480ff44c50fbee37382ec07647f0bdf3",
+                "shasum": ""
+            },
+            "require": {
+                "php": ">=7.4.1",
+                "typo3/cms-core": ">=10.4.11 <12 || >=12.4.7 <15 || 15.*.*@dev"
+            },
+            "replace": {
+                "typo3-ter/iconpack": "self.version"
+            },
+            "type": "typo3-cms-extension",
+            "extra": {
+                "typo3/cms": {
+                    "extension-key": "iconpack"
+                },
+                "branch-alias": {
+                    "dev-main": "1.x-dev"
+                }
+            },
+            "autoload": {
+                "psr-4": {
+                    "Quellenform\\Iconpack\\": "Classes"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "GPL-3.0-or-later"
+            ],
+            "authors": [
+                {
+                    "name": "Stephan Kellermayr",
+                    "email": "typo3@quellenform.at",
+                    "homepage": "https://www.quellenform.at/",
+                    "role": "Developer"
+                }
+            ],
+            "description": "Provides an iconpack-registry for custom iconpacks.",
+            "homepage": "https://extensions.typo3.org/extension/iconpack",
+            "keywords": [
+                "CKEditor",
+                "extension",
+                "iconfont",
+                "icons",
+                "typo3",
+                "webfont"
+            ],
+            "support": {
+                "issues": "https://github.com/quellenform/t3x-iconpack/issues",
+                "source": "https://github.com/quellenform/t3x-iconpack"
+            },
+            "funding": [
+                {
+                    "url": "https://www.paypal.me/quellenform",
+                    "type": "custom"
+                },
+                {
+                    "url": "https://github.com/quellenform",
+                    "type": "github"
+                }
+            ],
+            "time": "2026-04-13T09:39:07+00:00"
+        },
+        {
+            "name": "quellenform/t3x-iconpack-bootstrap",
+            "version": "1.3.4",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/quellenform/t3x-iconpack-bootstrap.git",
+                "reference": "8ddcfa14b610a876b5f3ad65141af7985b1b28c1"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/quellenform/t3x-iconpack-bootstrap/zipball/8ddcfa14b610a876b5f3ad65141af7985b1b28c1",
+                "reference": "8ddcfa14b610a876b5f3ad65141af7985b1b28c1",
+                "shasum": ""
+            },
+            "require": {
+                "php": ">=7.4.0",
+                "quellenform/t3x-iconpack": ">=0.2 ^1.0",
+                "typo3/cms-core": ">=10.4 <15 || 15.*.*@dev"
+            },
+            "replace": {
+                "typo3-ter/iconpack-bootstrap": "self.version"
+            },
+            "type": "typo3-cms-extension",
+            "extra": {
+                "typo3/cms": {
+                    "extension-key": "iconpack_bootstrap"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "GPL-3.0-or-later"
+            ],
+            "authors": [
+                {
+                    "name": "Stephan Kellermayr",
+                    "email": "typo3@quellenform.at",
+                    "homepage": "https://www.quellenform.at/",
+                    "role": "Developer"
+                }
+            ],
+            "description": "This Extension registers an Iconpack-Provider for EXT:iconpack which allows you to use the \"Bootstrap Icons\" in TYPO3.",
+            "homepage": "https://extensions.typo3.org/extension/iconpack_bootstrap",
+            "keywords": [
+                "CKEditor",
+                "extension",
+                "iconfont",
+                "icons",
+                "typo3",
+                "webfont"
+            ],
+            "support": {
+                "issues": "https://github.com/quellenform/t3x-iconpack-bootstrap/issues",
+                "source": "https://github.com/quellenform/t3x-iconpack-bootstrap"
+            },
+            "time": "2025-12-16T18:26:33+00:00"
         },
         {
             "name": "ralouphie/getallheaders",
@@ -7792,28 +7946,29 @@
         },
         {
             "name": "yoast-seo-for-typo3/yoast_seo",
-            "version": "11.1.0",
+            "version": "12.1.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/Yoast/Yoast-SEO-for-TYPO3.git",
-                "reference": "fdaa8a9425c205469dc132ed6cb019b29226c4b6"
+                "reference": "e6f54b5210db4f81148b9d562d4e1e659e402e18"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/Yoast/Yoast-SEO-for-TYPO3/zipball/fdaa8a9425c205469dc132ed6cb019b29226c4b6",
-                "reference": "fdaa8a9425c205469dc132ed6cb019b29226c4b6",
+                "url": "https://api.github.com/repos/Yoast/Yoast-SEO-for-TYPO3/zipball/e6f54b5210db4f81148b9d562d4e1e659e402e18",
+                "reference": "e6f54b5210db4f81148b9d562d4e1e659e402e18",
                 "shasum": ""
             },
             "require": {
                 "ext-json": "*",
-                "php": "^8.0",
-                "typo3/cms-backend": "^11.5.25 || ^12.4.15 || ^13.4",
-                "typo3/cms-core": "^11.5.25 || ^12.4.15 || ^13.4",
-                "typo3/cms-extbase": "^11.5.25 || ^12.4.15 || ^13.4",
-                "typo3/cms-fluid": "^11.5.25 || ^12.4.15 || ^13.4",
-                "typo3/cms-frontend": "^11.5.25 || ^12.4.15 || ^13.4",
-                "typo3/cms-install": "^11.5.25 || ^12.4.15 || ^13.4",
-                "typo3/cms-seo": "^11.5.25 || ^12.4.15 || ^13.4"
+                "maxserv/frontend-request": "^2.0",
+                "php": "^8.2",
+                "typo3/cms-backend": "^12.4.25 || ^13.4 || ^14.3",
+                "typo3/cms-core": "^12.4.25 || ^13.4 || ^14.3",
+                "typo3/cms-extbase": "^12.4.25 || ^13.4 || ^14.3",
+                "typo3/cms-fluid": "^12.4.25 || ^13.4 || ^14.3",
+                "typo3/cms-frontend": "^12.4.25 || ^13.4 || ^14.3",
+                "typo3/cms-install": "^12.4.25 || ^13.4 || ^14.3",
+                "typo3/cms-seo": "^12.4.25 || ^13.4 || ^14.3"
             },
             "replace": {
                 "typo3-ter/yoast-seo": "self.version"
@@ -7825,12 +7980,12 @@
                 "friendsofphp/php-cs-fixer": "^3.60.0",
                 "php-parallel-lint/php-parallel-lint": "^1.4",
                 "phpstan/extension-installer": "^1.0",
-                "phpstan/phpstan": "^1.9",
-                "phpunit/phpunit": "^10.1",
-                "saschaegerer/phpstan-typo3": "^1.10",
+                "phpstan/phpstan": "^1.12 || ^2.1",
+                "phpunit/phpunit": "^10.1 || ^11.2.5",
+                "saschaegerer/phpstan-typo3": "^1.10 || ^2.1 || ^3.0.1",
                 "typo3/coding-standards": "^0.7.1 || ^0.8.0",
                 "typo3/tailor": "^1.7",
-                "typo3/testing-framework": "^7.1.0 || ^8.2.0"
+                "typo3/testing-framework": "^7.1.0 || ^8.2.0 || ^9.5.0"
             },
             "suggest": {
                 "typo3/cms-dashboard": "Display Yoast SEO widgets within the Dashboard of TYPO3"
@@ -7876,7 +8031,7 @@
                 "issues": "https://github.com/Yoast/Yoast-SEO-for-TYPO3/issues",
                 "source": "https://github.com/Yoast/Yoast-SEO-for-TYPO3"
             },
-            "time": "2025-07-01T14:06:03+00:00"
+            "time": "2026-05-08T11:52:54+00:00"
         }
     ],
     "packages-dev": [],
